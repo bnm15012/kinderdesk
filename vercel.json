@@ -1,4 +1,4 @@
 {
-  "buildCommand": "bun run db:migrate && bun run build",
+  "buildCommand": "bun run build",
   "framework": null
 }
