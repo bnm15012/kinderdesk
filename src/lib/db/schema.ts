@@ -299,7 +299,7 @@ export const documents = mysqlTable("documents", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
-// ── SchoolNest SaaS Subscriptions (per school billing) ─────────────────────────
+// ── KinderDesk SaaS Subscriptions (per school billing) ─────────────────────────
 export const subscriptions = mysqlTable("subscriptions", {
   id: int("id").primaryKey().autoincrement(),
   schoolId: int("school_id").notNull().references(() => schools.id),
@@ -334,7 +334,7 @@ export const subscriptionPayments = mysqlTable("subscription_payments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// ── SchoolNest SaaS Plan Catalog ─────────────────────────────────────────────
+// ── KinderDesk SaaS Plan Catalog ─────────────────────────────────────────────
 export const plans = mysqlTable("plans", {
   id: int("id").primaryKey().autoincrement(),
   slug: varchar("slug", { length: 50 }).notNull().unique(),

@@ -134,7 +134,7 @@ function Signup() {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="text-lg font-bold text-white leading-tight">SchoolNest</div>
+              <div className="text-lg font-bold text-white leading-tight">KinderDesk</div>
               <div className="text-[11px] text-blue-300 leading-tight">Preschool ERP</div>
             </div>
           </Link>
@@ -150,7 +150,7 @@ function Signup() {
               <span className="text-sky-300">your school smarter</span>
             </h2>
             <p className="text-slate-300 text-sm leading-relaxed mb-8">
-              Join preschools across India already running on SchoolNest. Setup takes under 5 minutes.
+              Join preschools across India already running on KinderDesk. Setup takes under 5 minutes.
             </p>
 
             {/* Feature list */}
@@ -169,7 +169,7 @@ function Signup() {
             </div>
           </div>
 
-          <div className="text-xs text-slate-500">&copy; {new Date().getFullYear()} SchoolNest Technologies</div>
+          <div className="text-xs text-slate-500">&copy; {new Date().getFullYear()} KinderDesk Technologies</div>
         </div>
       </div>
 
@@ -185,7 +185,7 @@ function Signup() {
             <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-slate-900">SchoolNest</span>
+            <span className="text-lg font-bold text-slate-900">KinderDesk</span>
           </Link>
 
           {/* Form card */}

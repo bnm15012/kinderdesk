@@ -66,7 +66,7 @@ async function seedPlans() {
       slug: "enterprise", name: "Enterprise", price: "Custom", period: "contact us",
       description: "Multi-school chains and franchise networks.",
       features: JSON.stringify(["Everything in Growth", "Multi-school dashboard", "Custom integrations", "Dedicated account manager", "SLA & priority support", "On-premise option"]),
-      featured: 0, displayOrder: 3, status: "active", cta: "Contact sales", ctaHref: "mailto:sales@schoolnest.in",
+      featured: 0, displayOrder: 3, status: "active", cta: "Contact sales", ctaHref: "mailto:sales@kinderdesk.in",
     },
   ]);
   console.log("✅  Plans seeded (3)");
@@ -76,10 +76,10 @@ async function seedPlans() {
 async function seedSuperAdmin() {
   // Super admin needs a school row but we store schoolId=1 (dummy)
   // Actually in our schema super_admin still has a schoolId column.
-  // We'll create a dedicated internal "SchoolNest Platform" school for them.
+  // We'll create a dedicated internal "KinderDesk Platform" school for them.
   const [r] = await db.insert(schools).values({
-    name: "SchoolNest Platform", slug: "schoolnest-platform",
-    email: "platform@schoolnest.in", status: "active", plan: "enterprise", maxLocations: 99,
+    name: "KinderDesk Platform", slug: "kinderdesk-platform",
+    email: "platform@kinderdesk.in", status: "active", plan: "enterprise", maxLocations: 99,
   });
   const schoolId = Number((r as any).insertId);
 
@@ -90,12 +90,12 @@ async function seedSuperAdmin() {
 
   await db.insert(users).values({
     schoolId, locationId,
-    email: "superadmin@schoolnest.in",
+    email: "superadmin@kinderdesk.in",
     passwordHash: await hash(PASS),
     firstName: "Platform", lastName: "Admin",
     role: "super_admin", status: "active",
   });
-  console.log("✅  Super admin created  →  superadmin@schoolnest.in");
+  console.log("✅  Super admin created  →  superadmin@kinderdesk.in");
   return { platformSchoolId: schoolId, platformLocationId: locationId };
 }
 
@@ -494,7 +494,7 @@ async function seedBloomfieldSchool() {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("\n🚀  SchoolNest full reseed starting…\n");
+  console.log("\n🚀  KinderDesk full reseed starting…\n");
   await truncateAll();
   await seedPlans();
   await seedSuperAdmin();
@@ -504,7 +504,7 @@ async function main() {
   console.log("\n" + "═".repeat(72));
   console.log("\n🔑  LOGIN CREDENTIALS  (all share password: Demo@1234)\n");
   const creds = [
-    { role: "Platform Super Admin", email: "superadmin@schoolnest.in",      url: "/super-admin" },
+    { role: "Platform Super Admin", email: "superadmin@kinderdesk.in",      url: "/super-admin" },
     { role: "School Admin",         email: "admin@sunrisesprouts.in",      url: "/dashboard (full ERP)" },
     { role: "Location Admin",       email: "loc-admin@sunrisesprouts.in",  url: "/dashboard (Whitefield)" },
     { role: "Teacher / Staff",      email: "teacher@sunrisesprouts.in",    url: "/teacher" },

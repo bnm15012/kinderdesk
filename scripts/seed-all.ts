@@ -1,5 +1,5 @@
 /**
- * Comprehensive seed script for SchoolNest Preschool ERP
+ * Comprehensive seed script for KinderDesk Preschool ERP
  * Creates one school with two branches, realistic data for every
  * module (students, staff, classes, inquiries, invoices), and one
  * login user per role.
@@ -42,7 +42,7 @@ async function main() {
     return;
   }
 
-  console.log("🌱  Seeding SchoolNest demo data…\n");
+  console.log("🌱  Seeding KinderDesk demo data…\n");
 
   // ── 1. School ──────────────────────────────────────────────────────────────
   const [schoolRes] = await db.insert(schools).values({
@@ -94,7 +94,7 @@ async function main() {
     { email: "teacher@sunrisesprouts.in",    role: "teacher"        as const, firstName: "Neha",    lastName: "Gupta",    locationId: locId1 },
     { email: "accountant@sunrisesprouts.in", role: "accountant"     as const, firstName: "Sanjay",  lastName: "Mehta",    locationId: locId1 },
     { email: "parent@sunrisesprouts.in",     role: "parent"         as const, firstName: "Anil",    lastName: "Kumar",    locationId: locId1 },
-    { email: "superadmin@schoolnest.in",      role: "super_admin"    as const, firstName: "Platform",lastName: "Admin",    locationId: locId1 },
+    { email: "superadmin@kinderdesk.in",      role: "super_admin"    as const, firstName: "Platform",lastName: "Admin",    locationId: locId1 },
   ];
 
   const createdUsers: Record<string, number> = {};
@@ -320,7 +320,7 @@ function printCreds() {
     { role: "Teacher / Staff", email: "teacher@sunrisesprouts.in",    view: "/teacher" },
     { role: "Accountant",      email: "accountant@sunrisesprouts.in", view: "/dashboard (fees/finance focus)" },
     { role: "Parent",          email: "parent@sunrisesprouts.in",     view: "/parent (Aarav Kumar)" },
-    { role: "Super Admin",     email: "superadmin@schoolnest.in",      view: "/super-admin (platform view)" },
+    { role: "Super Admin",     email: "superadmin@kinderdesk.in",      view: "/super-admin (platform view)" },
   ];
   console.log("\n🔑  LOGIN CREDENTIALS  (all share password: Demo@1234)\n");
   for (const r of rows) {

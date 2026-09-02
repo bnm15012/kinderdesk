@@ -51,7 +51,7 @@ function ForgotPassword() {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="text-lg font-bold text-white leading-tight">SchoolNest</div>
+              <div className="text-lg font-bold text-white leading-tight">KinderDesk</div>
               <div className="text-[11px] text-blue-300 leading-tight">Preschool ERP</div>
             </div>
           </Link>
@@ -96,7 +96,7 @@ function ForgotPassword() {
             </div>
           </div>
 
-          <div className="text-xs text-slate-500">&copy; {new Date().getFullYear()} SchoolNest Technologies</div>
+          <div className="text-xs text-slate-500">&copy; {new Date().getFullYear()} KinderDesk Technologies</div>
         </div>
       </div>
 
@@ -112,7 +112,7 @@ function ForgotPassword() {
             <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-slate-900">SchoolNest</span>
+            <span className="text-lg font-bold text-slate-900">KinderDesk</span>
           </Link>
 
           {!sent ? (
@@ -196,7 +196,7 @@ function ForgotPassword() {
               </div>
               <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Check your email</h2>
               <p className="text-slate-500 text-sm leading-relaxed mb-1">
-                If <span className="font-semibold text-slate-700">{email}</span> is registered with SchoolNest, you'll receive a reset link shortly.
+                If <span className="font-semibold text-slate-700">{email}</span> is registered with KinderDesk, you'll receive a reset link shortly.
               </p>
               <p className="text-slate-400 text-xs mb-7">Didn't receive it? Check your spam folder or try again.</p>
 

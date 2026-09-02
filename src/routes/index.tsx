@@ -14,7 +14,7 @@ export const Route = createFileRoute("/")({
 });
 
 const WA_LINK =
-  "https://wa.me/917326027500?text=Hi%2C%20I%27d%20like%20to%20book%20a%20demo%20of%20SchoolNest%20for%20my%20preschool.";
+  "https://wa.me/917326027500?text=Hi%2C%20I%27d%20like%20to%20book%20a%20demo%20of%20KinderDesk%20for%20my%20preschool.";
 
 const WA_ICON = (
   <svg className="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -96,7 +96,7 @@ const steps = [
 
 const testimonials = [
   {
-    quote: "SchoolNest transformed how we manage our three branches. Fee collection alone saves us 20 hours a month.",
+    quote: "KinderDesk transformed how we manage our three branches. Fee collection alone saves us 20 hours a month.",
     name: "Priya Sharma",
     title: "Principal, Little Scholars Preschool, Pune",
     initials: "PS",
@@ -242,7 +242,7 @@ function Home() {
                 <span className="text-sky-300">Not your<br />spreadsheets.</span>
               </h1>
               <p className="text-xl text-slate-300 leading-relaxed mb-10 max-w-lg">
-                SchoolNest is the all-in-one ERP platform for admissions, fees, attendance, staff, and parent communication — so you can focus on the children.
+                KinderDesk is the all-in-one ERP platform for admissions, fees, attendance, staff, and parent communication — so you can focus on the children.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
@@ -272,7 +272,7 @@ function Home() {
                   <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
                   <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/80" />
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
-                  <span className="ml-3 flex-1 bg-white/10 rounded-md h-5 text-xs text-white/40 flex items-center px-2">app.schoolnest.in/dashboard</span>
+                  <span className="ml-3 flex-1 bg-white/10 rounded-md h-5 text-xs text-white/40 flex items-center px-2">app.kinderdesk.in/dashboard</span>
                 </div>
                 {/* Mock dashboard content */}
                 <div className="p-7 space-y-5">
@@ -368,7 +368,7 @@ function Home() {
               Every tool your school needs
             </h2>
             <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              From the first parent inquiry to fee collection and beyond — SchoolNest covers every touchpoint.
+              From the first parent inquiry to fee collection and beyond — KinderDesk covers every touchpoint.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -398,7 +398,7 @@ function Home() {
             <span className="text-xs font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Simple setup</span>
             <h2 className="text-4xl font-extrabold text-slate-900 mt-4 mb-4">Up and running in minutes</h2>
             <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              No lengthy onboarding. No IT team required. SchoolNest is designed to work from day one.
+              No lengthy onboarding. No IT team required. KinderDesk is designed to work from day one.
             </p>
           </div>
 
@@ -727,7 +727,7 @@ function Home() {
             Ready to transform<br />your school?
           </h2>
           <p className="text-slate-300 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-            See SchoolNest in action — book a personalised demo and we'll walk you through everything your school needs.
+            See KinderDesk in action — book a personalised demo and we'll walk you through everything your school needs.
           </p>
           <a
             href={WA_LINK}

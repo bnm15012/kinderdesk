@@ -8,8 +8,8 @@ export const Route = createFileRoute("/contact")({
 });
 
 const WA_NUMBER = "917326027500";
-const WA_DEMO_MSG = encodeURIComponent("Hi, I'd like to know more about SchoolNest for my preschool.");
-const WA_SUPPORT_MSG = encodeURIComponent("Hi, I need support with SchoolNest.");
+const WA_DEMO_MSG = encodeURIComponent("Hi, I'd like to know more about KinderDesk for my preschool.");
+const WA_SUPPORT_MSG = encodeURIComponent("Hi, I need support with KinderDesk.");
 
 function ContactPage() {
   const [form, setForm] = useState({ name: "", school: "", phone: "", email: "", message: "" });
@@ -17,7 +17,7 @@ function ContactPage() {
 
   // Build WhatsApp message from the form
   const waFormMsg = encodeURIComponent(
-    `Hi, I'm ${form.name || "interested in SchoolNest"}${form.school ? ` from ${form.school}` : ""}.\n\n${form.message || "I'd like to learn more about SchoolNest."}`
+    `Hi, I'm ${form.name || "interested in KinderDesk"}${form.school ? ` from ${form.school}` : ""}.\n\n${form.message || "I'd like to learn more about KinderDesk."}`
   );
 
   return (
@@ -186,7 +186,7 @@ function ContactPage() {
                     value={form.message}
                     onChange={(e) => set("message", e.target.value)}
                     rows={4}
-                    placeholder="I'd like a demo of SchoolNest for my preschool of 40 students…"
+                    placeholder="I'd like a demo of KinderDesk for my preschool of 40 students…"
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition resize-none"
                   />
                 </div>
@@ -206,7 +206,7 @@ function ContactPage() {
                   </a>
                   {/* Secondary: Email */}
                   <a
-                    href={`mailto:bookandmanage@gmail.com?subject=SchoolNest Enquiry${form.name ? ` from ${form.name}` : ""}&body=${encodeURIComponent(`Name: ${form.name}\nSchool: ${form.school}\nPhone: ${form.phone}\nEmail: ${form.email}\n\n${form.message}`)}`}
+                    href={`mailto:bookandmanage@gmail.com?subject=KinderDesk Enquiry${form.name ? ` from ${form.name}` : ""}&body=${encodeURIComponent(`Name: ${form.name}\nSchool: ${form.school}\nPhone: ${form.phone}\nEmail: ${form.email}\n\n${form.message}`)}`}
                     className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition"
                   >
                     <Send className="w-4 h-4" />

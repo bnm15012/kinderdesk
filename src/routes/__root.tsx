@@ -116,7 +116,7 @@ function Sidebar({ role }: { role: string | null | undefined }) {
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
         <div>
-          <div className="text-sm font-bold text-white leading-tight">SchoolNest</div>
+          <div className="text-sm font-bold text-white leading-tight">KinderDesk</div>
           <div className="text-[10px] text-slate-400 leading-tight capitalize">
             {role === "super_admin" ? "Platform Admin" : role === "parent" ? "Parent Portal" : role === "teacher" || role === "staff" ? "Teacher Portal" : "School ERP"}
           </div>
@@ -139,7 +139,7 @@ function Sidebar({ role }: { role: string | null | undefined }) {
       </nav>
 
       <div className="px-5 py-4 border-t border-slate-800">
-        <p className="text-[11px] text-slate-600 text-center">SchoolNest v1.0</p>
+        <p className="text-[11px] text-slate-600 text-center">KinderDesk v1.0</p>
       </div>
     </aside>
   );
@@ -162,7 +162,7 @@ function TopBar({ role }: { role: string | null | undefined }) {
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 gap-4 shadow-sm">
       <div>
-        <h1 className="text-sm font-bold text-slate-800 leading-tight">SchoolNest</h1>
+        <h1 className="text-sm font-bold text-slate-800 leading-tight">KinderDesk</h1>
         <p className="text-xs text-slate-400 leading-tight">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ function AppShell() {
       // Always sync tenant from the authenticated user's school/location.
       // This is the single source of truth on every page load / refresh.
       if (user.schoolId && user.locationId) {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("schoolnest-tenant") : null;
+        const stored = typeof window !== "undefined" ? localStorage.getItem("kinderdesk-tenant") : null;
         let needsReset = true;
         if (stored) {
           try {
@@ -242,7 +242,7 @@ function AppShell() {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="text-sm font-bold text-white leading-tight">SchoolNest</div>
+              <div className="text-sm font-bold text-white leading-tight">KinderDesk</div>
               <div className="w-20 h-2.5 bg-slate-700 rounded animate-pulse mt-1" />
             </div>
           </div>
@@ -304,7 +304,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SchoolNest — Preschool ERP" },
+      { title: "KinderDesk — Preschool ERP" },
     ],
   }),
   shellComponent: RootShell,

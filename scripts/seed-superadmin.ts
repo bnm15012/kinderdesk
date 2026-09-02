@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, pool } from "@/lib/db";
 import { schools, locations, users, subscriptions } from "@/lib/db/schema";
 
-const TEST_EMAIL = "admin@schoolnest.local";
+const TEST_EMAIL = "admin@kinderdesk.local";
 const TEST_PASSWORD = "Password123";
 
 async function main() {
@@ -15,8 +15,8 @@ async function main() {
   }
 
   const [schoolResult] = await db.insert(schools).values({
-    name: "SchoolNest Test School",
-    slug: "schoolnest-test",
+    name: "KinderDesk Test School",
+    slug: "kinderdesk-test",
     status: "active",
     plan: "free",
     maxLocations: 1,

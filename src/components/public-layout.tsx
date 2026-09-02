@@ -21,7 +21,7 @@ export function PublicLayout({
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
-              <span>SchoolNest</span>
+              <span>KinderDesk</span>
             </Link>
 
             {/* Nav links — centered */}
@@ -43,7 +43,7 @@ export function PublicLayout({
             {/* CTA — right */}
             <div className="flex items-center gap-3 ml-auto">
               <a
-                href="https://wa.me/917326027500?text=Hi%2C%20I%27d%20like%20to%20book%20a%20demo%20of%20SchoolNest%20for%20my%20preschool."
+                href="https://wa.me/917326027500?text=Hi%2C%20I%27d%20like%20to%20book%20a%20demo%20of%20KinderDesk%20for%20my%20preschool."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden sm:inline-flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 font-semibold px-4 py-2 rounded-lg transition"
@@ -76,7 +76,7 @@ export function PublicLayout({
                   <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
                     <GraduationCap className="w-5 h-5 text-white" />
                   </div>
-                  <span>SchoolNest</span>
+                  <span>KinderDesk</span>
                 </div>
                 <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
                   The complete ERP platform for preschools, daycares, and child development centres across India.
@@ -134,7 +134,7 @@ export function PublicLayout({
             </div>
 
             <div className="border-t border-white/10 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
-              <p>&copy; {new Date().getFullYear()} SchoolNest Technologies Pvt. Ltd. All rights reserved.</p>
+              <p>&copy; {new Date().getFullYear()} KinderDesk Technologies Pvt. Ltd. All rights reserved.</p>
               <p>Made with care for Indian educators</p>
             </div>
           </div>

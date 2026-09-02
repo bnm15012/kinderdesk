@@ -113,7 +113,7 @@ export function UserMenu() {
       <ConfirmDialog
         open={confirmSignOut}
         title="Sign out"
-        message="Are you sure you want to sign out of SchoolNest?"
+        message="Are you sure you want to sign out of KinderDesk?"
         confirmLabel={signingOut ? "Signing out…" : "Yes, sign out"}
         variant="danger"
         onConfirm={handleSignOut}
