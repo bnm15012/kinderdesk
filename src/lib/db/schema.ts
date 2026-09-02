@@ -1,0 +1,411 @@
+import {
+  mysqlTable,
+  int,
+  varchar,
+  text,
+  datetime,
+  decimal,
+  date,
+  mysqlEnum,
+  timestamp,
+} from "drizzle-orm/mysql-core";
+import { relations } from "drizzle-orm";
+
+// ── Multi-tenant core ─────────────────────────────────────────────────────────
+export const schools = mysqlTable("schools", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull(),
+  logoUrl: varchar("logo_url", { length: 500 }),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  pincode: varchar("pincode", { length: 20 }),
+  country: varchar("country", { length: 100 }).default("India"),
+  currency: varchar("currency", { length: 10 }).default("INR"),
+  plan: varchar("plan", { length: 50 }).default("free"),
+  maxLocations: int("max_locations").default(1),
+  status: mysqlEnum("status", ["active", "suspended", "pending", "archived"]).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export const locations = mysqlTable("locations", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  pincode: varchar("pincode", { length: 20 }),
+  phone: varchar("phone", { length: 50 }),
+  capacity: int("capacity"),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const users = mysqlTable("users", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").references(() => locations.id),
+  email: varchar("email", { length: 255 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }),
+  firstName: varchar("first_name", { length: 255 }),
+  lastName: varchar("last_name", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  role: mysqlEnum("role", [
+    "super_admin",
+    "school_admin",
+    "location_admin",
+    "teacher",
+    "staff",
+    "parent",
+    "accountant",
+  ]).default("staff"),
+  status: mysqlEnum("status", ["active", "inactive", "invited", "suspended"]).default("invited"),
+  lastLogin: datetime("last_login"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// ── Classes & Rooms ─────────────────────────────────────────────────────────
+export const classes = mysqlTable("classes", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  ageGroup: varchar("age_group", { length: 100 }).notNull(),
+  roomName: varchar("room_name", { length: 255 }),
+  capacity: int("capacity").notNull(),
+  startTime: varchar("start_time", { length: 10 }),
+  endTime: varchar("end_time", { length: 10 }),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+  academicYear: varchar("academic_year", { length: 20 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Admissions & Enrollment ─────────────────────────────────────────────────
+export const inquiries = mysqlTable("inquiries", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  parentName: varchar("parent_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  childName: varchar("child_name", { length: 255 }).notNull(),
+  childDob: date("child_dob"),
+  programInterest: varchar("program_interest", { length: 100 }),
+  source: varchar("source", { length: 100 }),
+  status: mysqlEnum("status", ["new", "contacted", "tour_scheduled", "applied", "waitlisted", "rejected", "enrolled"]).default("new"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export const waitlist = mysqlTable("waitlist", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  inquiryId: int("inquiry_id").notNull().references(() => inquiries.id),
+  priority: int("priority").default(0),
+  position: int("position").default(0),
+  status: mysqlEnum("status", ["active", "offered", "joined", "declined", "expired"]).default("active"),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+// ── Students / Children ─────────────────────────────────────────────────────
+export const students = mysqlTable("students", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  dateOfBirth: date("date_of_birth"),
+  gender: mysqlEnum("gender", ["male", "female", "other", "prefer_not_to_say"]),
+  bloodGroup: varchar("blood_group", { length: 10 }),
+  photoUrl: varchar("photo_url", { length: 500 }),
+  status: mysqlEnum("status", ["inquiry", "applied", "waitlisted", "enrolled", "graduated", "withdrawn"]).default("inquiry"),
+  currentClassId: int("current_class_id").references(() => classes.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export const parents = mysqlTable("parents", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  relation: mysqlEnum("relation", ["mother", "father", "guardian", "other"]).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  isPrimary: int("is_primary").default(0),
+  isEmergency: int("is_emergency").default(0),
+});
+
+export const emergencyContacts = mysqlTable("emergency_contacts", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  relation: varchar("relation", { length: 100 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+});
+
+export const medicalNotes = mysqlTable("medical_notes", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  allergies: text("allergies"),
+  conditions: text("conditions"),
+  medications: text("medications"),
+  notes: text("notes"),
+});
+
+// ── Fee Management ──────────────────────────────────────────────────────────
+export const feeStructures = mysqlTable("fee_structures", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId: int("class_id").references(() => classes.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  frequency: mysqlEnum("frequency", ["monthly", "quarterly", "annually", "one_time"]).default("monthly"),
+  dueDay: int("due_day").default(1),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const invoices = mysqlTable("invoices", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  feeStructureId: int("fee_structure_id").references(() => feeStructures.id),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  dueDate: date("due_date"),
+  status: mysqlEnum("status", ["draft", "sent", "paid", "overdue", "cancelled", "refunded"]).default("draft"),
+  paidAt: datetime("paid_at"),
+  razorpayOrderId: varchar("razorpay_order_id", { length: 255 }),
+  razorpayPaymentId: varchar("razorpay_payment_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const payments = mysqlTable("payments", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  invoiceId: int("invoice_id").notNull().references(() => invoices.id),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  method: mysqlEnum("method", ["cash", "bank_transfer", "razorpay", "cheque", "other"]),
+  razorpayPaymentId: varchar("razorpay_payment_id", { length: 255 }),
+  paidAt: timestamp("paid_at").defaultNow(),
+});
+
+// ── Staff / Teachers ────────────────────────────────────────────────────────
+export const staff = mysqlTable("staff", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  role: mysqlEnum("role", ["teacher", "assistant", "admin", "principal", "support"]).default("teacher"),
+  joinDate: date("join_date"),
+  salary: decimal("salary", { precision: 12, scale: 2 }),
+  status: mysqlEnum("status", ["active", "inactive", "terminated", "on_leave"]).default("active"),
+  backgroundCheckStatus: mysqlEnum("background_check_status", ["pending", "in_progress", "verified", "rejected", "expired"]).default("pending"),
+  backgroundCheckDocUrl: varchar("background_check_doc_url", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const staffAttendance = mysqlTable("staff_attendance", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  staffId: int("staff_id").notNull().references(() => staff.id),
+  date: date("date").notNull(),
+  status: mysqlEnum("status", ["present", "absent", "half_day", "leave"]).notNull(),
+  notes: text("notes"),
+});
+
+export const studentAttendance = mysqlTable("student_attendance", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  date: date("date").notNull(),
+  status: mysqlEnum("status", ["present", "absent", "half_day", "leave"]).notNull().default("present"),
+  markedBy: int("marked_by").references(() => staff.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const staffClassAssignments = mysqlTable("staff_class_assignments", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  staffId: int("staff_id").notNull().references(() => staff.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  academicYear: varchar("academic_year", { length: 20 }),
+});
+
+// ── Staff Payroll ────────────────────────────────────────────────────────────
+export const staffPayroll = mysqlTable("staff_payroll", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  staffId: int("staff_id").notNull().references(() => staff.id),
+  month: varchar("month", { length: 7 }).notNull(), // "YYYY-MM"
+  basicSalary: decimal("basic_salary", { precision: 12, scale: 2 }).notNull(),
+  deductions: decimal("deductions", { precision: 12, scale: 2 }).default("0"),
+  bonus: decimal("bonus", { precision: 12, scale: 2 }).default("0"),
+  netSalary: decimal("net_salary", { precision: 12, scale: 2 }).notNull(),
+  status: mysqlEnum("status", ["pending", "paid"]).default("pending"),
+  paidAt: datetime("paid_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Class Enrollments ───────────────────────────────────────────────────────
+export const classEnrollments = mysqlTable("class_enrollments", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  academicYear: varchar("academic_year", { length: 20 }),
+  enrolledAt: timestamp("enrolled_at").defaultNow(),
+  status: mysqlEnum("status", ["active", "promoted", "withdrawn"]).default("active"),
+});
+
+// ── Documents (birth certificate, immunization, photos) ─────────────────────
+export const documents = mysqlTable("documents", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").references(() => students.id),
+  staffId: int("staff_id").references(() => staff.id),
+  type: mysqlEnum("type", ["birth_certificate", "immunization_record", "photo", "background_check", "other"]).notNull(),
+  r2Key: varchar("r2_key", { length: 500 }),
+  publicUrl: varchar("public_url", { length: 500 }),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+// ── SchoolNest SaaS Subscriptions (per school billing) ─────────────────────────
+export const subscriptions = mysqlTable("subscriptions", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  plan: varchar("plan", { length: 50 }).notNull().default("free"),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  currency: varchar("currency", { length: 10 }).default("INR"),
+  billingCycle: mysqlEnum("billing_cycle", ["monthly", "yearly", "lifetime"]).default("monthly"),
+  status: mysqlEnum("status", ["trialing", "active", "past_due", "canceled", "paused"]).default("trialing"),
+  razorpayCustomerId: varchar("razorpay_customer_id", { length: 255 }),
+  razorpaySubscriptionId: varchar("razorpay_subscription_id", { length: 255 }),
+  currentPeriodStart: datetime("current_period_start"),
+  currentPeriodEnd: datetime("current_period_end"),
+  trialEndsAt: datetime("trial_ends_at"),
+  cancelAtPeriodEnd: int("cancel_at_period_end").default(0),
+  startedAt: timestamp("started_at").defaultNow(),
+  endedAt: datetime("ended_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export const subscriptionPayments = mysqlTable("subscription_payments", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  subscriptionId: int("subscription_id").notNull().references(() => subscriptions.id),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("INR"),
+  status: mysqlEnum("status", ["pending", "captured", "failed", "refunded"]).default("pending"),
+  razorpayOrderId: varchar("razorpay_order_id", { length: 255 }),
+  razorpayPaymentId: varchar("razorpay_payment_id", { length: 255 }),
+  paidAt: datetime("paid_at"),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── SchoolNest SaaS Plan Catalog ─────────────────────────────────────────────
+export const plans = mysqlTable("plans", {
+  id: int("id").primaryKey().autoincrement(),
+  slug: varchar("slug", { length: 50 }).notNull().unique(),
+  name: varchar("name", { length: 100 }).notNull(),
+  price: varchar("price", { length: 50 }).notNull().default("₹0"),
+  period: varchar("period", { length: 50 }).notNull().default("forever"),
+  currency: varchar("currency", { length: 10 }).default("INR"),
+  description: text("description"),
+  features: text("features").default("[]"),
+  featured: int("featured").default(0),
+  displayOrder: int("display_order").default(0),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+  cta: varchar("cta", { length: 100 }).default("Get started"),
+  ctaHref: varchar("cta_href", { length: 255 }).default("/signup"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// ── Platform Announcements ───────────────────────────────────────────────────
+export const announcements = mysqlTable("announcements", {
+  id:        int("id").primaryKey().autoincrement(),
+  title:     varchar("title", { length: 255 }).notNull(),
+  body:      text("body").notNull(),
+  type:      mysqlEnum("type", ["info", "warning", "success", "critical"]).notNull().default("info"),
+  targetRole: mysqlEnum("target_role", ["all", "school_admin", "location_admin", "teacher", "accountant"]).notNull().default("all"),
+  isActive:  int("is_active").notNull().default(1),
+  expiresAt: datetime("expires_at"),
+  createdBy: int("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// Tracks which users have dismissed a specific announcement
+export const announcementDismissals = mysqlTable("announcement_dismissals", {
+  id:             int("id").primaryKey().autoincrement(),
+  announcementId: int("announcement_id").notNull().references(() => announcements.id),
+  userId:         int("user_id").notNull().references(() => users.id),
+  dismissedAt:    timestamp("dismissed_at").defaultNow(),
+});
+
+// ── Relations ───────────────────────────────────────────────────────────────
+export const schoolsRelations = relations(schools, ({ many }) => ({
+  locations: many(locations),
+  users: many(users),
+  classes: many(classes),
+  inquiries: many(inquiries),
+  students: many(students),
+  staff: many(staff),
+  subscriptions: many(subscriptions),
+}));
+
+export const locationsRelations = relations(locations, ({ one, many }) => ({
+  school: one(schools, { fields: [locations.schoolId], references: [schools.id] }),
+  users: many(users),
+  classes: many(classes),
+  students: many(students),
+  staff: many(staff),
+}));
+
+export const studentsRelations = relations(students, ({ many, one }) => ({
+  parents: many(parents),
+  emergencyContacts: many(emergencyContacts),
+  medicalNotes: one(medicalNotes),
+  invoices: many(invoices),
+  classEnrollments: many(classEnrollments),
+  currentClass: one(classes, { fields: [students.currentClassId], references: [classes.id] }),
+  documents: many(documents),
+}));
+
+export const classesRelations = relations(classes, ({ many }) => ({
+  enrollments: many(classEnrollments),
+  feeStructures: many(feeStructures),
+  staffAssignments: many(staffClassAssignments),
+}));

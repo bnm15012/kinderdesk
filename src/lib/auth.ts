@@ -1,0 +1,3303 @@
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import bcrypt from "bcryptjs";
+import * as jose from "jose";
+import { z } from "zod";
+import { eq, and, count, desc, asc, inArray, gte, or, sql } from "drizzle-orm";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { fmtDate } from "@/lib/utils";
+
+const SESSION_COOKIE = "bb_session";
+const BCRYPT_ROUNDS = 10;
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? "dev-secret");
+
+// Roles that can access any location within their school
+const SCHOOL_WIDE_ROLES = new Set(["super_admin", "school_admin", "accountant"]);
+
+function normalizeEmail(email: string) {
+  return email.toLowerCase().trim();
+}
+
+function generateSlug(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+async function createSessionToken(payload: jose.JWTPayload) {
+  return await new jose.SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(JWT_SECRET);
+}
+
+async function verifySessionToken(token: string) {
+  return await jose.jwtVerify(token, JWT_SECRET);
+}
+
+
+const signupSchema = z.object({
+  schoolName: z.string().trim().min(2).max(255),
+  schoolEmail: z.string().trim().email().max(255),
+  schoolPhone: z.string().trim().max(50),
+  schoolAddress: z.string().trim().min(1).max(1000),
+  schoolCity: z.string().trim().min(1).max(100),
+  schoolState: z.string().trim().min(1).max(100),
+  schoolPincode: z.string().trim().min(1).max(20),
+  schoolCountry: z.string().trim().max(100).default("India"),
+  fullName: z.string().trim().min(2).max(255),
+  email: z.string().trim().email().max(255),
+  password: z.string().min(8).max(100),
+});
+
+export const signup = createServerFn({ method: "POST" })
+  .validator((input: unknown) => signupSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { schools, locations, users, subscriptions } = await import("@/lib/db/schema");
+
+    const email = normalizeEmail(data.email);
+    const now = new Date();
+    const slug = `${generateSlug(data.schoolName)}-${now.getTime().toString(36)}`;
+
+    const [schoolResult] = await db.insert(schools).values({
+      name: data.schoolName,
+      slug,
+      email: data.schoolEmail,
+      phone: data.schoolPhone,
+      address: data.schoolAddress,
+      city: data.schoolCity,
+      state: data.schoolState,
+      pincode: data.schoolPincode,
+      country: data.schoolCountry,
+      status: "active",
+      plan: "free",
+      maxLocations: 1,
+    });
+    const schoolId = Number((schoolResult as any).insertId);
+
+    const [locationResult] = await db.insert(locations).values({
+      schoolId,
+      name: "Main Branch",
+      address: data.schoolAddress,
+      city: data.schoolCity,
+      state: data.schoolState,
+      pincode: data.schoolPincode,
+      phone: data.schoolPhone,
+      status: "active",
+    });
+    const locationId = Number((locationResult as any).insertId);
+
+    await db.insert(subscriptions).values({
+      schoolId,
+      plan: "free",
+      amount: "0",
+      currency: "INR",
+      billingCycle: "monthly",
+      status: "active",
+      startedAt: now,
+    });
+
+    const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+
+    const [userResult] = await db.insert(users).values({
+      schoolId,
+      locationId,
+      email,
+      passwordHash,
+      firstName: data.fullName,
+      lastName: "",
+      role: "school_admin",
+      status: "active",
+    });
+    const userId = Number((userResult as any).insertId);
+
+    const token = await createSessionToken({
+      userId,
+      schoolId,
+      locationId,
+      role: "school_admin",
+      email,
+    });
+
+    return { userId, schoolId, locationId, token };
+  });
+
+const loginSchema = z.object({
+  email: z.string().trim().email().max(255),
+  password: z.string().min(1).max(100),
+});
+
+export const login = createServerFn({ method: "POST" })
+  .validator((input: unknown) => loginSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    const email = normalizeEmail(data.email);
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (!user || !user.passwordHash) {
+      throw new Error("Invalid email or password");
+    }
+
+    const ok = await bcrypt.compare(data.password, user.passwordHash);
+    if (!ok) throw new Error("Invalid email or password");
+
+    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
+
+    const token = await createSessionToken({
+      userId: user.id,
+      schoolId: user.schoolId,
+      locationId: user.locationId,
+      role: user.role,
+      email,
+    });
+
+    // Fetch school + location names so client can hydrate tenant immediately
+    const { schools, locations } = await import("@/lib/db/schema");
+    const [school] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, user.schoolId)).limit(1);
+    const [location] = user.locationId
+      ? await db.select({ name: locations.name }).from(locations).where(eq(locations.id, user.locationId as number)).limit(1)
+      : [null];
+
+    return {
+      userId: user.id,
+      schoolId: user.schoolId,
+      locationId: user.locationId,
+      schoolName: school?.name ?? "School",
+      locationName: location?.name ?? "Main Branch",
+      role: user.role,
+      token,
+    };
+  });
+
+export const logout = createServerFn({ method: "POST" }).handler(async () => {
+  return { ok: true };
+});
+
+export const getSession = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) return null;
+
+  try {
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) return null;
+
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        phone: users.phone,
+        role: users.role,
+        schoolId: users.schoolId,
+        locationId: users.locationId,
+        status: users.status,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    return user ?? null;
+  } catch {
+    return null;
+  }
+});
+
+const forgotSchema = z.object({
+  email: z.string().trim().email().max(255),
+});
+
+export const forgotPassword = createServerFn({ method: "POST" })
+  .validator((input: unknown) => forgotSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    const email = normalizeEmail(data.email);
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (!user) return { ok: true };
+
+    const token = await new jose.SignJWT({ userId: user.id, purpose: "reset" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("15m")
+      .sign(JWT_SECRET);
+
+    // In a real app, send this token via email using SMTP.
+    // For testing, it is returned in the response.
+    return { ok: true, token };
+  });
+
+const resetSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(100),
+});
+
+export const resetPassword = createServerFn({ method: "POST" })
+  .validator((input: unknown) => resetSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    const { payload } = await jose.jwtVerify(data.token, JWT_SECRET);
+    if (payload.purpose !== "reset") throw new Error("Invalid reset token");
+
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Invalid reset token");
+
+    const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+
+    return { ok: true };
+  });
+
+const updateProfileSchema = z.object({
+  firstName: z.string().max(255).optional(),
+  lastName: z.string().max(255).optional(),
+  phone: z.string().max(50).optional(),
+});
+
+export const updateProfile = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateProfileSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    await db
+      .update(users)
+      .set({
+        firstName: data.firstName || null,
+        lastName: data.lastName || null,
+        phone: data.phone || null,
+      })
+      .where(eq(users.id, userId));
+
+    return { ok: true };
+  });
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().max(100).optional().default(""),
+  newPassword: z.string().min(8).max(100),
+});
+
+export const changePassword = createServerFn({ method: "POST" })
+  .validator((input: unknown) => changePasswordSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    // Only verify current password when explicitly provided (e.g. unauthenticated reset flow)
+    if (data.currentPassword) {
+      const [user] = await db
+        .select({ passwordHash: users.passwordHash })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!user || !user.passwordHash) throw new Error("User not found");
+
+      const ok = await bcrypt.compare(data.currentPassword, user.passwordHash);
+      if (!ok) throw new Error("Current password is incorrect");
+    }
+
+    const passwordHash = await bcrypt.hash(data.newPassword, BCRYPT_ROUNDS);
+    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+
+    return { ok: true };
+  });
+
+const getTenantOptionsSchema = z.object({
+  schoolId: z.number().optional(),
+});
+
+export const getTenantOptions = createServerFn({ method: "GET" })
+  .validator((input: unknown) => getTenantOptionsSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users, schools, locations } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        role: users.role,
+        schoolId: users.schoolId,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("Not authenticated");
+
+    if (user.role === "super_admin") {
+      const allSchools = await db
+        .select({ id: schools.id, name: schools.name })
+        .from(schools)
+        .where(eq(schools.status, "active"));
+      const selectedSchoolId = data.schoolId ?? allSchools[0]?.id;
+      const locs = selectedSchoolId
+        ? await db
+            .select({ id: locations.id, name: locations.name })
+            .from(locations)
+            .where(eq(locations.schoolId, selectedSchoolId))
+        : [];
+      return { role: user.role, schools: allSchools, locations: locs };
+    }
+
+    const selectedSchoolId = user.schoolId;
+    const userSchool = await db
+      .select({ id: schools.id, name: schools.name })
+      .from(schools)
+      .where(eq(schools.id, selectedSchoolId))
+      .limit(1);
+    const locs = await db
+      .select({ id: locations.id, name: locations.name })
+      .from(locations)
+      .where(eq(locations.schoolId, selectedSchoolId));
+
+    return { role: user.role, schools: userSchool, locations: locs };
+  });
+
+const getDashboardStatsSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+});
+
+export const getDashboardStats = createServerFn({ method: "GET" })
+  .validator((input: unknown) => getDashboardStatsSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users, inquiries, students, classes, staff, invoices } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        role: users.role,
+        schoolId: users.schoolId,
+        locationId: users.locationId,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("Not authenticated");
+    if (user.role !== "super_admin") {
+      if (user.schoolId !== data.schoolId) throw new Error("Not authorized");
+      if (!SCHOOL_WIDE_ROLES.has(user.role ?? "") && user.locationId !== data.locationId) throw new Error("Not authorized");
+    }
+
+    const base = and(
+      eq(inquiries.schoolId, data.schoolId),
+      eq(inquiries.locationId, data.locationId)
+    );
+
+    const [inquiriesCount] = await db.select({ count: count() }).from(inquiries).where(base);
+    const [studentsCount] = await db
+      .select({ count: count() })
+      .from(students)
+      .where(and(eq(students.schoolId, data.schoolId), eq(students.locationId, data.locationId)));
+    const [classesCount] = await db
+      .select({ count: count() })
+      .from(classes)
+      .where(and(eq(classes.schoolId, data.schoolId), eq(classes.locationId, data.locationId)));
+    const [staffCount] = await db
+      .select({ count: count() })
+      .from(staff)
+      .where(and(eq(staff.schoolId, data.schoolId), eq(staff.locationId, data.locationId)));
+    const [pendingFeesCount] = await db
+      .select({ count: count() })
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.schoolId, data.schoolId),
+          eq(invoices.locationId, data.locationId),
+          inArray(invoices.status, ["sent", "overdue"])
+        )
+      );
+
+    const recentInquiries = await db
+      .select({
+        parentName: inquiries.parentName,
+        childName: inquiries.childName,
+        programInterest: inquiries.programInterest,
+        status: inquiries.status,
+      })
+      .from(inquiries)
+      .where(base)
+      .orderBy(desc(inquiries.createdAt))
+      .limit(3);
+
+    // "Upcoming" = sent invoices with a future (or today) due date, soonest first.
+    // "Overdue"  = sent/overdue invoices whose due date has already passed.
+    // We show upcoming first; if fewer than 5, backfill with overdue (most recent first).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const upcomingRows = await db
+      .select({
+        amount: invoices.amount,
+        dueDate: invoices.dueDate,
+        status: invoices.status,
+        firstName: students.firstName,
+        lastName: students.lastName,
+      })
+      .from(invoices)
+      .leftJoin(students, eq(invoices.studentId, students.id))
+      .where(
+        and(
+          eq(invoices.schoolId, data.schoolId),
+          eq(invoices.locationId, data.locationId),
+          eq(invoices.status, "sent"),
+          gte(invoices.dueDate, today)
+        )
+      )
+      .orderBy(asc(invoices.dueDate))
+      .limit(5);
+
+    const overdueRows = await db
+      .select({
+        amount: invoices.amount,
+        dueDate: invoices.dueDate,
+        status: invoices.status,
+        firstName: students.firstName,
+        lastName: students.lastName,
+      })
+      .from(invoices)
+      .leftJoin(students, eq(invoices.studentId, students.id))
+      .where(
+        and(
+          eq(invoices.schoolId, data.schoolId),
+          eq(invoices.locationId, data.locationId),
+          or(
+            eq(invoices.status, "overdue"),
+            // also catch sent invoices whose due date has passed (not yet flipped to overdue)
+            and(eq(invoices.status, "sent"), sql`${invoices.dueDate} < ${today}`)
+          )
+        )
+      )
+      .orderBy(asc(invoices.dueDate))
+      .limit(5);
+
+    const combined = [...upcomingRows, ...overdueRows].slice(0, 5);
+    const upcomingDues = combined;
+
+    return {
+      stats: {
+        inquiries: Number(inquiriesCount.count),
+        students: Number(studentsCount.count),
+        classes: Number(classesCount.count),
+        staff: Number(staffCount.count),
+        pendingFees: Number(pendingFeesCount.count),
+      },
+      recentInquiries,
+      upcomingDues: upcomingDues.map((due) => ({
+        ...due,
+        dueDate: due.dueDate ? fmtDate(due.dueDate) : null,
+      })),
+    };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVITE FLOW
+// ─────────────────────────────────────────────────────────────────────────────
+
+const sendInviteSchema = z.object({
+  email: z.string().trim().email().max(255),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().max(255).optional().default(""),
+  staffRole: z.enum(["teacher", "staff", "accountant", "location_admin", "parent"]),
+  locationId: z.number(),
+});
+
+export const sendInvite = createServerFn({ method: "POST" })
+  .validator((input: unknown) => sendInviteSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const callerId = Number(payload.userId);
+    if (!callerId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    const [caller] = await db
+      .select({ role: users.role, schoolId: users.schoolId })
+      .from(users)
+      .where(eq(users.id, callerId))
+      .limit(1);
+    if (!caller) throw new Error("Not authenticated");
+    if (!["super_admin", "school_admin", "location_admin"].includes(caller.role ?? ""))
+      throw new Error("Not authorized to send invites");
+
+    const email = normalizeEmail(data.email);
+
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    let inviteeId: number;
+    if (existing) {
+      inviteeId = existing.id;
+      await db.update(users).set({ status: "invited", role: data.staffRole }).where(eq(users.id, inviteeId));
+    } else {
+      const [res] = await db.insert(users).values({
+        schoolId: caller.schoolId,
+        locationId: data.locationId,
+        email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.staffRole,
+        status: "invited",
+      });
+      inviteeId = Number((res as any).insertId);
+    }
+
+    const inviteToken = await new jose.SignJWT({ userId: inviteeId, purpose: "invite" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("24h")
+      .sign(JWT_SECRET);
+
+    return { ok: true, inviteToken };
+  });
+
+const acceptInviteSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(100),
+});
+
+export const acceptInvite = createServerFn({ method: "POST" })
+  .validator((input: unknown) => acceptInviteSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { payload } = await jose.jwtVerify(data.token, JWT_SECRET).catch(() => {
+      throw new Error("Invalid or expired invite link");
+    });
+    if (payload.purpose !== "invite") throw new Error("Invalid invite token");
+
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Invalid invite token");
+
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+
+    const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+    await db.update(users).set({ passwordHash, status: "active" }).where(eq(users.id, userId));
+
+    const [user] = await db
+      .select({ id: users.id, schoolId: users.schoolId, locationId: users.locationId, role: users.role, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("User not found");
+
+    const sessionToken = await createSessionToken({
+      userId: user.id,
+      schoolId: user.schoolId,
+      locationId: user.locationId,
+      role: user.role,
+      email: user.email,
+    });
+
+    return { ok: true, token: sessionToken, role: user.role };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEACHER FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getTeacherDashboard = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  if (!userId) throw new Error("Not authenticated");
+
+  const { db } = await import("@/lib/db");
+  const { users, staff, staffClassAssignments, classes, classEnrollments, staffAttendance } = await import("@/lib/db/schema");
+
+  const [user] = await db
+    .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user || !user.locationId) throw new Error("Not authorized");
+
+  const [staffRecord] = await db
+    .select({ id: staff.id })
+    .from(staff)
+    .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+    .limit(1);
+  if (!staffRecord) throw new Error("Not authorized");
+
+  let myClasses: { classId: number; className: string; ageGroup: string; roomName: string | null; startTime: string | null; endTime: string | null; studentCount: number }[] = [];
+
+  if (staffRecord) {
+    const assignments = await db
+      .select({
+        classId: staffClassAssignments.classId,
+        className: classes.name,
+        ageGroup: classes.ageGroup,
+        roomName: classes.roomName,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+      })
+      .from(staffClassAssignments)
+      .innerJoin(classes, eq(staffClassAssignments.classId, classes.id))
+      .where(
+        and(
+          eq(staffClassAssignments.staffId, staffRecord.id),
+          eq(classes.locationId, user.locationId),
+          eq(staffClassAssignments.locationId, user.locationId),
+        )
+      );
+
+    myClasses = await Promise.all(
+      assignments.map(async (a) => {
+        const [{ cnt }] = await db
+          .select({ cnt: count() })
+          .from(classEnrollments)
+          .where(and(eq(classEnrollments.classId, a.classId), eq(classEnrollments.status, "active")));
+        return { ...a, studentCount: Number(cnt) };
+      })
+    );
+  }
+
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const attendanceToday = staffRecord
+    ? await db
+        .select({ status: staffAttendance.status })
+        .from(staffAttendance)
+        .where(and(eq(staffAttendance.staffId, staffRecord.id), eq(staffAttendance.date, todayDate)))
+        .limit(1)
+    : [];
+
+  return {
+    user: { firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role },
+    myClasses,
+    attendanceMarkedToday: attendanceToday.length > 0,
+    staffId: staffRecord?.id ?? null,
+    schoolId: user.schoolId,
+    locationId: user.locationId,
+  };
+});
+
+const getClassStudentsSchema = z.object({ classId: z.number() });
+
+export const getClassStudents = createServerFn({ method: "GET" })
+  .validator((input: unknown) => getClassStudentsSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users, staff, staffClassAssignments, classes, classEnrollments, students } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, schoolId: users.schoolId, locationId: users.locationId, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user || !user.locationId) throw new Error("Not authorized");
+
+    const [staffRecord] = await db
+      .select({ id: staff.id })
+      .from(staff)
+      .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+      .limit(1);
+    if (!staffRecord) throw new Error("Not authorized");
+
+    const [allowed] = await db
+      .select({ id: staffClassAssignments.id })
+      .from(staffClassAssignments)
+      .innerJoin(classes, eq(staffClassAssignments.classId, classes.id))
+      .where(
+        and(
+          eq(staffClassAssignments.staffId, staffRecord.id),
+          eq(staffClassAssignments.classId, data.classId),
+          eq(classes.schoolId, user.schoolId),
+          eq(classes.locationId, user.locationId),
+        )
+      )
+      .limit(1);
+    if (!allowed) throw new Error("Not authorized");
+
+    return db
+      .select({
+        id: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        dateOfBirth: students.dateOfBirth,
+        gender: students.gender,
+        status: students.status,
+      })
+      .from(classEnrollments)
+      .innerJoin(students, eq(classEnrollments.studentId, students.id))
+      .where(and(eq(classEnrollments.classId, data.classId), eq(classEnrollments.status, "active")));
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARENT FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getParentPortal = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  if (!userId) throw new Error("Not authenticated");
+
+  const { db } = await import("@/lib/db");
+  const { users, parents, students, invoices } = await import("@/lib/db/schema");
+
+  const [user] = await db
+    .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) throw new Error("Not authenticated");
+  if (user.role !== "parent") throw new Error("Not authorized");
+
+  const parentRecords = await db
+    .select({ studentId: parents.studentId, relation: parents.relation })
+    .from(parents)
+    .where(and(eq(parents.schoolId, user.schoolId), eq(parents.email, user.email ?? "")));
+
+  const childIds = parentRecords.map((p) => p.studentId);
+
+  const children = childIds.length
+    ? await db
+        .select({
+          id: students.id,
+          firstName: students.firstName,
+          lastName: students.lastName,
+          dateOfBirth: students.dateOfBirth,
+          gender: students.gender,
+          status: students.status,
+          currentClassId: students.currentClassId,
+        })
+        .from(students)
+        .where(inArray(students.id, childIds))
+    : [];
+
+  const fees = childIds.length
+    ? await db
+        .select({
+          id: invoices.id,
+          studentId: invoices.studentId,
+          amount: invoices.amount,
+          dueDate: invoices.dueDate,
+          status: invoices.status,
+          razorpayOrderId: invoices.razorpayOrderId,
+        })
+        .from(invoices)
+        .where(and(
+          inArray(invoices.studentId, childIds),
+          inArray(invoices.status, ["sent", "overdue", "draft"])
+        ))
+        .orderBy(asc(invoices.dueDate))
+    : [];
+
+  return {
+    user: { firstName: user.firstName, lastName: user.lastName, email: user.email },
+    children: children.map((c) => ({
+      ...c,
+      dateOfBirth: c.dateOfBirth ? fmtDate(c.dateOfBirth) : null,
+    })),
+    fees: fees.map((f) => ({
+      ...f,
+      dueDate: f.dueDate ? fmtDate(f.dueDate) : null,
+    })),
+  };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLANS / PRICING
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getPlans = createServerFn({ method: "GET" }).handler(async () => {
+  const { db } = await import("@/lib/db");
+  const { plans } = await import("@/lib/db/schema");
+
+  const rows = await db
+    .select({
+      id: plans.id,
+      slug: plans.slug,
+      name: plans.name,
+      price: plans.price,
+      period: plans.period,
+      description: plans.description,
+      features: plans.features,
+      featured: plans.featured,
+      cta: plans.cta,
+      ctaHref: plans.ctaHref,
+      status: plans.status,
+    })
+    .from(plans)
+    .where(eq(plans.status, "active"))
+    .orderBy(asc(plans.displayOrder));
+
+  return rows.map((r) => ({
+    ...r,
+    featured: Boolean(r.featured),
+    features: (() => {
+      if (!r.features) return [];
+      try {
+        const parsed = JSON.parse(r.features);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })(),
+  }));
+});
+
+const updatePlanSchema = z.object({
+  planId: z.number(),
+  price: z.string().trim().min(1).max(50).optional(),
+  period: z.string().trim().max(50).optional(),
+  description: z.string().trim().max(1000).optional(),
+  features: z.array(z.string().trim().min(1)).optional(),
+  cta: z.string().trim().max(100).optional(),
+  ctaHref: z.string().trim().max(255).optional(),
+  featured: z.boolean().optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+});
+
+export const updatePlan = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updatePlanSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    if (!userId) throw new Error("Not authenticated");
+
+    const { db } = await import("@/lib/db");
+    const { users, plans } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+    const update: Record<string, any> = {};
+    if (data.price !== undefined) update.price = data.price;
+    if (data.period !== undefined) update.period = data.period;
+    if (data.description !== undefined) update.description = data.description;
+    if (data.features !== undefined) update.features = JSON.stringify(data.features);
+    if (data.cta !== undefined) update.cta = data.cta;
+    if (data.ctaHref !== undefined) update.ctaHref = data.ctaHref;
+    if (data.featured !== undefined) update.featured = data.featured ? 1 : 0;
+    if (data.status !== undefined) update.status = data.status;
+
+    if (Object.keys(update).length === 0) return { ok: true };
+
+    await db.update(plans).set(update).where(eq(plans.id, data.planId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPER ADMIN FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getSuperAdminDashboard = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  if (!userId) throw new Error("Not authenticated");
+
+  const { db } = await import("@/lib/db");
+  const { users, schools, students, subscriptions } = await import("@/lib/db/schema");
+  const { sql: sqlRaw, gte: gte2 } = await import("drizzle-orm");
+
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+  // Single query: schools left-joined with their latest subscription + student count
+  const rows = await db
+    .select({
+      id: schools.id,
+      name: schools.name,
+      email: schools.email,
+      city: schools.city,
+      state: schools.state,
+      plan: schools.plan,
+      status: schools.status,
+      createdAt: schools.createdAt,
+      subPlan:   subscriptions.plan,
+      subStatus: subscriptions.status,
+      subAmount: subscriptions.amount,
+      subCycle:  subscriptions.billingCycle,
+      studentCount: sqlRaw<number>`(SELECT COUNT(*) FROM students WHERE students.school_id = ${schools.id})`,
+    })
+    .from(schools)
+    .leftJoin(subscriptions, eq(subscriptions.schoolId, schools.id))
+    .orderBy(desc(schools.createdAt));
+
+  // Deduplicate (left join can produce multiple rows if a school has multiple subs)
+  const seen = new Set<number>();
+  const allSchools = rows.filter((r) => { if (seen.has(r.id)) return false; seen.add(r.id); return true; })
+    .map((r) => ({
+      id: r.id, name: r.name, email: r.email, city: r.city, state: r.state,
+      plan: r.plan, status: r.status, createdAt: r.createdAt,
+      studentCount: Number(r.studentCount ?? 0),
+      subscription: r.subPlan ? { plan: r.subPlan, status: r.subStatus, amount: Number(r.subAmount ?? 0), billingCycle: r.subCycle } : null,
+    }));
+
+  const [{ totalStudents }] = await db.select({ totalStudents: count() }).from(students);
+  const [{ totalUsers }]    = await db.select({ totalUsers: count() }).from(users);
+
+  const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  return {
+    schools: allSchools,
+    stats: {
+      totalSchools:   allSchools.length,
+      activeSchools:  allSchools.filter((s) => s.status === "active").length,
+      totalStudents:  Number(totalStudents),
+      totalUsers:     Number(totalUsers),
+      newSchools30d:  allSchools.filter((s) => s.createdAt && new Date(s.createdAt) >= thirtyDaysAgo).length,
+    },
+  };
+});
+
+// ── Platform Revenue & Metrics ─────────────────────────────────────────────
+export const getPlatformRevenue = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  if (!userId) throw new Error("Not authenticated");
+
+  const { db } = await import("@/lib/db");
+  const { users, subscriptions, subscriptionPayments } = await import("@/lib/db/schema");
+  const { sql: sqlRaw, gte: gte2 } = await import("drizzle-orm");
+
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+  // All subscriptions
+  const allSubs = await db
+    .select({
+      plan:         subscriptions.plan,
+      status:       subscriptions.status,
+      amount:       subscriptions.amount,
+      billingCycle: subscriptions.billingCycle,
+      trialEndsAt:  subscriptions.trialEndsAt,
+      endedAt:      subscriptions.endedAt,
+      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+    })
+    .from(subscriptions);
+
+  // Compute MRR: active subscriptions normalised to monthly
+  let mrr = 0;
+  for (const s of allSubs) {
+    if (s.status !== "active") continue;
+    const amt = Number(s.amount ?? 0);
+    if (s.billingCycle === "monthly")  mrr += amt;
+    if (s.billingCycle === "yearly")   mrr += amt / 12;
+    if (s.billingCycle === "lifetime") mrr += 0; // one-time, excluded from MRR
+  }
+  const arr = mrr * 12;
+
+  // Subscription status breakdown
+  const statusCount: Record<string, number> = {};
+  for (const s of allSubs) {
+    statusCount[s.status ?? "unknown"] = (statusCount[s.status ?? "unknown"] ?? 0) + 1;
+  }
+
+  // Plan breakdown (active subs only)
+  const planCount: Record<string, number> = {};
+  for (const s of allSubs) {
+    if (s.status === "active" || s.status === "trialing") {
+      planCount[s.plan ?? "free"] = (planCount[s.plan ?? "free"] ?? 0) + 1;
+    }
+  }
+
+  // Total revenue from captured payments
+  const [{ totalRevenue }] = await db
+    .select({ totalRevenue: sqlRaw<number>`COALESCE(SUM(amount), 0)` })
+    .from(subscriptionPayments)
+    .where(eq(subscriptionPayments.status, "captured"));
+
+  // Revenue last 30 days
+  const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const [{ revenue30d }] = await db
+    .select({ revenue30d: sqlRaw<number>`COALESCE(SUM(amount), 0)` })
+    .from(subscriptionPayments)
+    .where(
+      and(
+        eq(subscriptionPayments.status, "captured"),
+        gte2(subscriptionPayments.paidAt, thirtyDaysAgo),
+      )
+    );
+
+  // Churn: cancelled or ended this month
+  const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
+  const churnedThisMonth = allSubs.filter(
+    (s) => (s.status === "canceled") && s.endedAt && new Date(s.endedAt) >= startOfMonth
+  ).length;
+
+  // Trials expiring within 7 days
+  const in7Days = new Date(); in7Days.setDate(in7Days.getDate() + 7);
+  const trialsExpiringSoon = allSubs.filter(
+    (s) => s.status === "trialing" && s.trialEndsAt && new Date(s.trialEndsAt) <= in7Days
+  ).length;
+
+  return {
+    mrr:              Math.round(mrr * 100) / 100,
+    arr:              Math.round(arr * 100) / 100,
+    totalRevenue:     Number(totalRevenue ?? 0),
+    revenue30d:       Number(revenue30d ?? 0),
+    churnedThisMonth,
+    trialsExpiringSoon,
+    activeCount:      statusCount["active"]   ?? 0,
+    trialingCount:    statusCount["trialing"] ?? 0,
+    canceledCount:    statusCount["canceled"] ?? 0,
+    pastDueCount:     statusCount["past_due"] ?? 0,
+    planBreakdown:    planCount,
+  };
+});
+
+// ── All subscriptions list (for super-admin subscriptions page) ──────────────
+export const getAllSubscriptions = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  const { db } = await import("@/lib/db");
+  const { users, subscriptions, schools } = await import("@/lib/db/schema");
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+  const rows = await db
+    .select({
+      id:                  subscriptions.id,
+      plan:                subscriptions.plan,
+      status:              subscriptions.status,
+      amount:              subscriptions.amount,
+      currency:            subscriptions.currency,
+      billingCycle:        subscriptions.billingCycle,
+      currentPeriodStart:  subscriptions.currentPeriodStart,
+      currentPeriodEnd:    subscriptions.currentPeriodEnd,
+      trialEndsAt:         subscriptions.trialEndsAt,
+      cancelAtPeriodEnd:   subscriptions.cancelAtPeriodEnd,
+      startedAt:           subscriptions.startedAt,
+      endedAt:             subscriptions.endedAt,
+      schoolId:            subscriptions.schoolId,
+      schoolName:          schools.name,
+      schoolEmail:         schools.email,
+    })
+    .from(subscriptions)
+    .leftJoin(schools, eq(subscriptions.schoolId, schools.id))
+    .orderBy(desc(subscriptions.startedAt));
+
+  return rows.map((r) => ({
+    ...r,
+    amount: Number(r.amount ?? 0),
+  }));
+});
+
+// ── All payments list (for super-admin payments page) ────────────────────────
+export const getAllPayments = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  const { db } = await import("@/lib/db");
+  const { users, subscriptionPayments, schools } = await import("@/lib/db/schema");
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+  const rows = await db
+    .select({
+      id:                    subscriptionPayments.id,
+      amount:                subscriptionPayments.amount,
+      currency:              subscriptionPayments.currency,
+      status:                subscriptionPayments.status,
+      razorpayOrderId:       subscriptionPayments.razorpayOrderId,
+      razorpayPaymentId:     subscriptionPayments.razorpayPaymentId,
+      paidAt:                subscriptionPayments.paidAt,
+      failureReason:         subscriptionPayments.failureReason,
+      createdAt:             subscriptionPayments.createdAt,
+      schoolId:              subscriptionPayments.schoolId,
+      schoolName:            schools.name,
+      schoolEmail:           schools.email,
+    })
+    .from(subscriptionPayments)
+    .leftJoin(schools, eq(subscriptionPayments.schoolId, schools.id))
+    .orderBy(desc(subscriptionPayments.createdAt));
+
+  return rows.map((r) => ({
+    ...r,
+    amount: Number(r.amount ?? 0),
+  }));
+});
+
+const toggleSchoolStatusSchema = z.object({
+  schoolId: z.number(),
+  status: z.enum(["active", "suspended"]),
+});
+
+export const toggleSchoolStatus = createServerFn({ method: "POST" })
+  .validator((input: unknown) => toggleSchoolStatusSchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+
+    const { db } = await import("@/lib/db");
+    const { users, schools } = await import("@/lib/db/schema");
+
+    const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+    await db.update(schools).set({ status: data.status }).where(eq(schools.id, data.schoolId));
+    return { ok: true };
+  });
+
+const viewAsSchoolAdminSchema = z.object({
+  schoolId: z.number(),
+});
+
+export const viewAsSchoolAdmin = createServerFn({ method: "POST" })
+  .validator((input: unknown) => viewAsSchoolAdminSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, schools, locations } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+    const [school] = await db
+      .select({ name: schools.name })
+      .from(schools)
+      .where(eq(schools.id, data.schoolId))
+      .limit(1);
+    if (!school) throw new Error("School not found");
+
+    const [firstLocation] = await db
+      .select({ id: locations.id, name: locations.name })
+      .from(locations)
+      .where(and(eq(locations.schoolId, data.schoolId), eq(locations.status, "active")))
+      .orderBy(asc(locations.name))
+      .limit(1);
+    if (!firstLocation) throw new Error("No active location for this school");
+
+    return {
+      schoolId: data.schoolId,
+      schoolName: school.name,
+      locationId: firstLocation.id,
+      locationName: firstLocation.name,
+    };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDENT FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function requireSession() {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  if (!userId) throw new Error("Not authenticated");
+  return userId;
+}
+
+/**
+ * Authorization matrix:
+ *   super_admin      → any school, any location
+ *   school_admin     → any location within their school
+ *   accountant       → any location within their school
+ *   location_admin   → only their own location
+ *   teacher/staff    → only their own location
+ *   parent           → only their own location
+ */
+async function requireAuth(requestedSchoolId: number, requestedLocationId: number) {
+  const userId = await requireSession();
+  const { db } = await import("@/lib/db");
+  const { users } = await import("@/lib/db/schema");
+  const [user] = await db
+    .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId })
+    .from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new Error("Not authenticated");
+
+  if (user.role === "super_admin") return user; // unrestricted
+  if (user.schoolId !== requestedSchoolId) throw new Error("Not authorized");
+  // School-wide roles can switch between any location in their school
+  if (SCHOOL_WIDE_ROLES.has(user.role ?? "")) return user;
+  // Location-scoped roles must match exactly
+  if (user.locationId !== requestedLocationId) throw new Error("Not authorized");
+  return user;
+}
+
+const listStudentsSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+});
+
+export const listStudents = createServerFn({ method: "GET" })
+  .validator((input: unknown) => listStudentsSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { students, parents, classes, classEnrollments, medicalNotes } = await import("@/lib/db/schema");
+
+    const rows = await db
+      .select({
+        id: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        dateOfBirth: students.dateOfBirth,
+        gender: students.gender,
+        status: students.status,
+        currentClassId: students.currentClassId,
+      })
+      .from(students)
+      .where(and(eq(students.schoolId, data.schoolId), eq(students.locationId, data.locationId)))
+      .orderBy(asc(students.firstName));
+
+    // Attach primary parent and current class name for list view
+    const enriched = await Promise.all(
+      rows.map(async (s) => {
+        const [primaryParent] = await db
+          .select({ name: parents.name, phone: parents.phone, relation: parents.relation })
+          .from(parents)
+          .where(and(eq(parents.studentId, s.id), eq(parents.isPrimary, 1)))
+          .limit(1);
+
+        const [anyParent] = primaryParent
+          ? [primaryParent]
+          : await db
+              .select({ name: parents.name, phone: parents.phone, relation: parents.relation })
+              .from(parents)
+              .where(eq(parents.studentId, s.id))
+              .limit(1);
+
+        const [medical] = await db
+          .select({ allergies: medicalNotes.allergies })
+          .from(medicalNotes)
+          .where(eq(medicalNotes.studentId, s.id))
+          .limit(1);
+
+        let className: string | null = null;
+        if (s.currentClassId) {
+          const [cls] = await db
+            .select({ name: classes.name })
+            .from(classes)
+            .where(eq(classes.id, s.currentClassId))
+            .limit(1);
+          className = cls?.name ?? null;
+        }
+
+        return {
+          ...s,
+          parentName: anyParent?.name ?? null,
+          parentPhone: anyParent?.phone ?? null,
+          className,
+          allergies: medical?.allergies ?? null,
+        };
+      })
+    );
+
+    return enriched;
+  });
+
+const getStudentSchema = z.object({ studentId: z.number() });
+
+export const getStudent = createServerFn({ method: "GET" })
+  .validator((input: unknown) => getStudentSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { students, parents, emergencyContacts, medicalNotes, classes, classEnrollments } = await import("@/lib/db/schema");
+
+    const [student] = await db
+      .select({
+        id: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        dateOfBirth: students.dateOfBirth,
+        gender: students.gender,
+        bloodGroup: students.bloodGroup,
+        status: students.status,
+        currentClassId: students.currentClassId,
+        photoUrl: students.photoUrl,
+      })
+      .from(students)
+      .where(eq(students.id, data.studentId))
+      .limit(1);
+    if (!student) throw new Error("Student not found");
+
+    const studentParents = await db
+      .select({
+        id: parents.id,
+        name: parents.name,
+        email: parents.email,
+        phone: parents.phone,
+        relation: parents.relation,
+        isPrimary: parents.isPrimary,
+        isEmergency: parents.isEmergency,
+      })
+      .from(parents)
+      .where(eq(parents.studentId, data.studentId));
+
+    const emergency = await db
+      .select({
+        id: emergencyContacts.id,
+        name: emergencyContacts.name,
+        phone: emergencyContacts.phone,
+        relation: emergencyContacts.relation,
+      })
+      .from(emergencyContacts)
+      .where(eq(emergencyContacts.studentId, data.studentId));
+
+    const [medical] = await db
+      .select({
+        id: medicalNotes.id,
+        allergies: medicalNotes.allergies,
+        conditions: medicalNotes.conditions,
+        medications: medicalNotes.medications,
+        notes: medicalNotes.notes,
+      })
+      .from(medicalNotes)
+      .where(eq(medicalNotes.studentId, data.studentId))
+      .limit(1);
+
+    const enrollments = await db
+      .select({
+        classId: classEnrollments.classId,
+        className: classes.name,
+        ageGroup: classes.ageGroup,
+        academicYear: classEnrollments.academicYear,
+        status: classEnrollments.status,
+        enrolledAt: classEnrollments.enrolledAt,
+      })
+      .from(classEnrollments)
+      .innerJoin(classes, eq(classEnrollments.classId, classes.id))
+      .where(eq(classEnrollments.studentId, data.studentId))
+      .orderBy(desc(classEnrollments.enrolledAt));
+
+    let currentClassName: string | null = null;
+    if (student.currentClassId) {
+      const [cls] = await db
+        .select({ name: classes.name })
+        .from(classes)
+        .where(eq(classes.id, student.currentClassId))
+        .limit(1);
+      currentClassName = cls?.name ?? null;
+    }
+
+    return { student, parents: studentParents, emergency, medical: medical ?? null, enrollments, currentClassName };
+  });
+
+const addStudentSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().max(255).default(""),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+  bloodGroup: z.string().trim().max(10).optional(),
+  currentClassId: z.number().optional(),
+  // Parent
+  parentName: z.string().trim().min(1).max(255),
+  parentEmail: z.string().trim().email().max(255).optional().or(z.literal("")),
+  parentPhone: z.string().trim().max(50).optional(),
+  parentRelation: z.enum(["mother", "father", "guardian", "other"]).default("guardian"),
+  // Medical
+  allergies: z.string().max(1000).optional(),
+  conditions: z.string().max(1000).optional(),
+  medications: z.string().max(1000).optional(),
+  medicalNotes: z.string().max(2000).optional(),
+  // Emergency contact
+  emergencyName: z.string().trim().max(255).optional(),
+  emergencyPhone: z.string().trim().max(50).optional(),
+  emergencyRelation: z.string().trim().max(100).optional(),
+});
+
+export const addStudent = createServerFn({ method: "POST" })
+  .validator((input: unknown) => addStudentSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { students, parents, emergencyContacts, medicalNotes } = await import("@/lib/db/schema");
+
+    // Capacity guard
+    if (data.currentClassId) {
+      const { classes, classEnrollments } = await import("@/lib/db/schema");
+      const [cls] = await db.select({ capacity: classes.capacity }).from(classes).where(eq(classes.id, data.currentClassId)).limit(1);
+      if (cls) {
+        const [{ cnt }] = await db.select({ cnt: count() }).from(classEnrollments)
+          .where(and(eq(classEnrollments.classId, data.currentClassId), eq(classEnrollments.status, "active")));
+        if (Number(cnt) >= cls.capacity) throw new Error(`Class is at full capacity (${cls.capacity} students)`);
+      }
+    }
+
+    const [studentRes] = await db.insert(students).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+      gender: data.gender ?? null,
+      bloodGroup: data.bloodGroup || null,
+      currentClassId: data.currentClassId ?? null,
+      status: "enrolled",
+    });
+    const studentId = Number((studentRes as any).insertId);
+
+    await db.insert(parents).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      studentId,
+      name: data.parentName,
+      email: data.parentEmail || null,
+      phone: data.parentPhone || null,
+      relation: data.parentRelation,
+      isPrimary: 1,
+      isEmergency: 0,
+    });
+
+    if (data.allergies || data.conditions || data.medications || data.medicalNotes) {
+      await db.insert(medicalNotes).values({
+        schoolId: data.schoolId,
+        locationId: data.locationId,
+        studentId,
+        allergies: data.allergies || null,
+        conditions: data.conditions || null,
+        medications: data.medications || null,
+        notes: data.medicalNotes || null,
+      });
+    }
+
+    if (data.emergencyName && data.emergencyPhone) {
+      await db.insert(emergencyContacts).values({
+        schoolId: data.schoolId,
+        locationId: data.locationId,
+        studentId,
+        name: data.emergencyName,
+        phone: data.emergencyPhone,
+        relation: data.emergencyRelation || "guardian",
+      });
+    }
+
+    return { ok: true, studentId };
+  });
+
+const updateStudentSchema = z.object({
+  studentId: z.number(),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().max(255).optional().default(""),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+  bloodGroup: z.string().trim().max(10).optional(),
+  currentClassId: z.number().optional(),
+  status: z.enum(["inquiry", "applied", "waitlisted", "enrolled", "graduated", "withdrawn"]).optional(),
+  // Parent (first parent update)
+  parentId: z.number().optional(),
+  parentName: z.string().trim().max(255).optional(),
+  parentEmail: z.string().trim().max(255).optional().or(z.literal("")),
+  parentPhone: z.string().trim().max(50).optional(),
+  parentRelation: z.enum(["mother", "father", "guardian", "other"]).optional(),
+  // Medical
+  medicalId: z.number().optional(),
+  allergies: z.string().max(1000).optional(),
+  conditions: z.string().max(1000).optional(),
+  medications: z.string().max(1000).optional(),
+  medicalNotesText: z.string().max(2000).optional(),
+});
+
+export const updateStudent = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateStudentSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { students, parents, medicalNotes } = await import("@/lib/db/schema");
+
+    // Capacity guard when changing class
+    if (data.currentClassId) {
+      const { classes, classEnrollments } = await import("@/lib/db/schema");
+      const [cls] = await db.select({ capacity: classes.capacity }).from(classes).where(eq(classes.id, data.currentClassId)).limit(1);
+      if (cls) {
+        const [{ cnt }] = await db.select({ cnt: count() }).from(classEnrollments)
+          .where(and(eq(classEnrollments.classId, data.currentClassId), eq(classEnrollments.status, "active")));
+        if (Number(cnt) >= cls.capacity) throw new Error(`Class is at full capacity (${cls.capacity} students)`);
+      }
+    }
+
+    await db.update(students).set({
+      firstName: data.firstName,
+      lastName: data.lastName ?? "",
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+      gender: data.gender ?? null,
+      bloodGroup: data.bloodGroup || null,
+      currentClassId: data.currentClassId ?? null,
+      status: data.status ?? undefined,
+    }).where(eq(students.id, data.studentId));
+
+    if (data.parentId && data.parentName) {
+      await db.update(parents).set({
+        name: data.parentName,
+        email: data.parentEmail || null,
+        phone: data.parentPhone || null,
+        relation: data.parentRelation ?? undefined,
+      }).where(eq(parents.id, data.parentId));
+    }
+
+    if (data.medicalId) {
+      await db.update(medicalNotes).set({
+        allergies: data.allergies || null,
+        conditions: data.conditions || null,
+        medications: data.medications || null,
+        notes: data.medicalNotesText || null,
+      }).where(eq(medicalNotes.id, data.medicalId));
+    } else if (data.allergies || data.conditions || data.medications || data.medicalNotesText) {
+      // Need schoolId/locationId for insert — fetch from student
+      const [s] = await db.select({ schoolId: students.schoolId, locationId: students.locationId }).from(students).where(eq(students.id, data.studentId)).limit(1);
+      if (s) {
+        await db.insert(medicalNotes).values({
+          schoolId: s.schoolId,
+          locationId: s.locationId,
+          studentId: data.studentId,
+          allergies: data.allergies || null,
+          conditions: data.conditions || null,
+          medications: data.medications || null,
+          notes: data.medicalNotesText || null,
+        });
+      }
+    }
+
+    return { ok: true };
+  });
+
+const listClassesForSchoolSchema = z.object({ schoolId: z.number(), locationId: z.number() });
+
+export const listClassesForSchool = createServerFn({ method: "GET" })
+  .validator((input: unknown) => listClassesForSchoolSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { classes } = await import("@/lib/db/schema");
+    return db
+      .select({ id: classes.id, name: classes.name, ageGroup: classes.ageGroup })
+      .from(classes)
+      .where(and(eq(classes.schoolId, data.schoolId), eq(classes.locationId, data.locationId), eq(classes.status, "active")))
+      .orderBy(asc(classes.name));
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCHOOLS & LOCATIONS MANAGEMENT (school_admin view)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getSchoolWithLocations = createServerFn({ method: "GET" }).handler(async () => {
+  const userId = await requireSession();
+  const { db } = await import("@/lib/db");
+  const { users, schools, locations, students, staff } = await import("@/lib/db/schema");
+
+  const [user] = await db
+    .select({ schoolId: users.schoolId, role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) throw new Error("Not authenticated");
+
+  const [school] = await db
+    .select()
+    .from(schools)
+    .where(eq(schools.id, user.schoolId))
+    .limit(1);
+  if (!school) throw new Error("School not found");
+
+  const locs = await db
+    .select()
+    .from(locations)
+    .where(eq(locations.schoolId, user.schoolId))
+    .orderBy(asc(locations.name));
+
+  // Attach student + staff counts per branch
+  const locsWithCounts = await Promise.all(
+    locs.map(async (l) => {
+      const [{ cnt: studentCnt }] = await db
+        .select({ cnt: count() })
+        .from(students)
+        .where(and(eq(students.schoolId, user.schoolId), eq(students.locationId, l.id)));
+      const [{ cnt: staffCnt }] = await db
+        .select({ cnt: count() })
+        .from(staff)
+        .where(and(eq(staff.schoolId, user.schoolId), eq(staff.locationId, l.id)));
+      return { ...l, studentCount: Number(studentCnt), staffCount: Number(staffCnt) };
+    })
+  );
+
+  return { school, locations: locsWithCounts, role: user.role };
+});
+
+const addBranchSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  address: z.string().trim().max(1000).optional(),
+  city: z.string().trim().max(100).optional(),
+  state: z.string().trim().max(100).optional(),
+  pincode: z.string().trim().max(20).optional(),
+  phone: z.string().trim().max(50).optional(),
+  capacity: z.number().int().optional(),
+});
+
+export const addBranch = createServerFn({ method: "POST" })
+  .validator((input: unknown) => addBranchSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, locations } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ schoolId: users.schoolId, role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("Not authenticated");
+    if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    const [res] = await db.insert(locations).values({
+      schoolId: user.schoolId,
+      name: data.name,
+      address: data.address || null,
+      city: data.city || null,
+      state: data.state || null,
+      pincode: data.pincode || null,
+      phone: data.phone || null,
+      capacity: data.capacity || null,
+      status: "active",
+    });
+
+    return { ok: true, locationId: Number((res as any).insertId) };
+  });
+
+const updateSchoolSchema = z.object({
+  name: z.string().trim().min(1).max(255).optional(),
+  email: z.string().trim().email().max(255).optional().or(z.literal("")),
+  phone: z.string().trim().max(50).optional(),
+  address: z.string().trim().max(1000).optional(),
+  city: z.string().trim().max(100).optional(),
+  state: z.string().trim().max(100).optional(),
+  pincode: z.string().trim().max(20).optional(),
+});
+
+export const updateSchool = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateSchoolSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, schools } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ schoolId: users.schoolId, role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("Not authenticated");
+    if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    await db.update(schools).set({
+      name: data.name,
+      email: data.email || null,
+      phone: data.phone || null,
+      address: data.address || null,
+      city: data.city || null,
+      state: data.state || null,
+      pincode: data.pincode || null,
+    }).where(eq(schools.id, user.schoolId));
+
+    return { ok: true };
+  });
+
+const updateSchoolLogoSchema = z.object({
+  logo: z.string().trim().min(1),
+});
+
+export const updateSchoolLogo = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateSchoolLogoSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, schools } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ schoolId: users.schoolId, role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("Not authenticated");
+    if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    const match = data.logo.match(/^data:image\/([a-zA-Z0-9+]+);base64,/);
+    if (!match) throw new Error("Invalid image data");
+
+    const mimeExt = match[1].toLowerCase();
+    const extMap: Record<string, string> = {
+      png: "png",
+      jpeg: "jpg",
+      jpg: "jpg",
+      webp: "webp",
+      gif: "gif",
+      "svg+xml": "svg",
+    };
+    const ext = extMap[mimeExt];
+    if (!ext) throw new Error("Unsupported image format");
+
+    const base64 = data.logo.slice(match[0].length);
+    const buffer = Buffer.from(base64, "base64");
+    if (buffer.length > 5 * 1024 * 1024) throw new Error("Image must be under 5MB");
+
+    const mimeType = `image/${mimeExt === "svg" ? "svg+xml" : mimeExt}`;
+    const fileName = `logos/school-${user.schoolId}-${Date.now()}.${ext}`;
+
+    let logoUrl: string;
+
+    const r2AccountId = process.env.R2_ACCOUNT_ID;
+    const r2KeyId     = process.env.R2_ACCESS_KEY_ID;
+    const r2Secret    = process.env.R2_SECRET_ACCESS_KEY;
+    const r2Bucket    = process.env.R2_BUCKET_NAME;
+    const r2PublicUrl = process.env.R2_PUBLIC_URL;
+
+    const hasR2 =
+      r2AccountId && !r2AccountId.startsWith("your-") &&
+      r2KeyId     && !r2KeyId.startsWith("your-") &&
+      r2Secret    && !r2Secret.startsWith("your-") &&
+      r2Bucket    && r2PublicUrl;
+
+    if (hasR2) {
+      const s3 = new S3Client({
+        region: "auto",
+        endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+        credentials: { accessKeyId: r2KeyId!, secretAccessKey: r2Secret! },
+      });
+      await s3.send(new PutObjectCommand({
+        Bucket: r2Bucket!,
+        Key: fileName,
+        Body: buffer,
+        ContentType: mimeType,
+      }));
+      logoUrl = `${r2PublicUrl!.replace(/\/$/, "")}/${fileName}`;
+    } else {
+      // Fallback: local disk (dev only)
+      const uploadDir = path.join(process.cwd(), "public", "uploads", "logos");
+      await mkdir(uploadDir, { recursive: true });
+      const localName = `school-${user.schoolId}-${Date.now()}.${ext}`;
+      await writeFile(path.join(uploadDir, localName), buffer);
+      logoUrl = `/uploads/logos/${localName}`;
+    }
+
+    await db.update(schools).set({ logoUrl }).where(eq(schools.id, user.schoolId));
+    return { ok: true, logoUrl };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMISSIONS / INQUIRY FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const listInquiriesSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+});
+
+export const listInquiries = createServerFn({ method: "GET" })
+  .validator((input: unknown) => listInquiriesSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { inquiries } = await import("@/lib/db/schema");
+
+    return db
+      .select({
+        id: inquiries.id,
+        parentName: inquiries.parentName,
+        email: inquiries.email,
+        phone: inquiries.phone,
+        childName: inquiries.childName,
+        childDob: inquiries.childDob,
+        programInterest: inquiries.programInterest,
+        source: inquiries.source,
+        status: inquiries.status,
+        notes: inquiries.notes,
+        createdAt: inquiries.createdAt,
+        updatedAt: inquiries.updatedAt,
+      })
+      .from(inquiries)
+      .where(and(eq(inquiries.schoolId, data.schoolId), eq(inquiries.locationId, data.locationId)))
+      .orderBy(desc(inquiries.createdAt));
+  });
+
+const addInquirySchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  parentName: z.string().trim().min(1).max(255),
+  email: z.string().trim().email().max(255).optional().or(z.literal("")),
+  phone: z.string().trim().max(50).optional(),
+  childName: z.string().trim().min(1).max(255),
+  childDob: z.string().optional(),
+  programInterest: z.string().trim().max(100).optional(),
+  source: z.string().trim().max(100).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const addInquiry = createServerFn({ method: "POST" })
+  .validator((input: unknown) => addInquirySchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { inquiries } = await import("@/lib/db/schema");
+
+    const [res] = await db.insert(inquiries).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      parentName: data.parentName,
+      email: data.email || null,
+      phone: data.phone || null,
+      childName: data.childName,
+      childDob: data.childDob ? new Date(data.childDob) : null,
+      programInterest: data.programInterest || null,
+      source: data.source || null,
+      notes: data.notes || null,
+      status: "new",
+    });
+
+    return { ok: true, inquiryId: Number((res as any).insertId) };
+  });
+
+const updateInquirySchema = z.object({
+  inquiryId: z.number(),
+  parentName: z.string().trim().min(1).max(255).optional(),
+  email: z.string().trim().max(255).optional().or(z.literal("")),
+  phone: z.string().trim().max(50).optional(),
+  childName: z.string().trim().max(255).optional(),
+  childDob: z.string().optional(),
+  programInterest: z.string().trim().max(100).optional(),
+  source: z.string().trim().max(100).optional(),
+  notes: z.string().max(2000).optional(),
+  status: z.enum(["new", "contacted", "tour_scheduled", "applied", "waitlisted", "rejected", "enrolled"]).optional(),
+});
+
+export const updateInquiry = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateInquirySchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { inquiries } = await import("@/lib/db/schema");
+
+    await db.update(inquiries).set({
+      parentName: data.parentName,
+      email: data.email || null,
+      phone: data.phone || null,
+      childName: data.childName,
+      childDob: data.childDob ? new Date(data.childDob) : undefined,
+      programInterest: data.programInterest || null,
+      source: data.source || null,
+      notes: data.notes || null,
+      status: data.status,
+    }).where(eq(inquiries.id, data.inquiryId));
+
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLASSES CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+const listClassesSchema = z.object({ schoolId: z.number(), locationId: z.number() });
+
+export const listClasses = createServerFn({ method: "GET" })
+  .validator((input: unknown) => listClassesSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { classes, classEnrollments } = await import("@/lib/db/schema");
+
+    const rows = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        ageGroup: classes.ageGroup,
+        roomName: classes.roomName,
+        capacity: classes.capacity,
+        startTime: classes.startTime,
+        endTime: classes.endTime,
+        academicYear: classes.academicYear,
+        status: classes.status,
+      })
+      .from(classes)
+      .where(and(eq(classes.schoolId, data.schoolId), eq(classes.locationId, data.locationId)))
+      .orderBy(asc(classes.name));
+
+    // Attach enrolled count per class
+    return Promise.all(rows.map(async (c) => {
+      const [{ cnt }] = await db
+        .select({ cnt: count() })
+        .from(classEnrollments)
+        .where(and(eq(classEnrollments.classId, c.id), eq(classEnrollments.status, "active")));
+      return { ...c, enrolledCount: Number(cnt) };
+    }));
+  });
+
+const addClassSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  ageGroup: z.string().trim().min(1).max(100),
+  roomName: z.string().trim().max(255).optional(),
+  capacity: z.number().int().min(1),
+  startTime: z.string().max(10).optional(),
+  endTime: z.string().max(10).optional(),
+  academicYear: z.string().max(20).optional(),
+});
+
+export const addClass = createServerFn({ method: "POST" })
+  .validator((input: unknown) => addClassSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { classes } = await import("@/lib/db/schema");
+    const [res] = await db.insert(classes).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      name: data.name, ageGroup: data.ageGroup,
+      roomName: data.roomName || null, capacity: data.capacity,
+      startTime: data.startTime || null, endTime: data.endTime || null,
+      academicYear: data.academicYear || null, status: "active",
+    });
+    return { ok: true, classId: Number((res as any).insertId) };
+  });
+
+const updateClassSchema = z.object({
+  classId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  ageGroup: z.string().trim().min(1).max(100),
+  roomName: z.string().trim().max(255).optional(),
+  capacity: z.number().int().min(1),
+  startTime: z.string().max(10).optional(),
+  endTime: z.string().max(10).optional(),
+  academicYear: z.string().max(20).optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+});
+
+export const updateClass = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateClassSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { classes } = await import("@/lib/db/schema");
+    await db.update(classes).set({
+      name: data.name, ageGroup: data.ageGroup,
+      roomName: data.roomName || null, capacity: data.capacity,
+      startTime: data.startTime || null, endTime: data.endTime || null,
+      academicYear: data.academicYear || null,
+      status: data.status ?? undefined,
+    }).where(eq(classes.id, data.classId));
+    return { ok: true };
+  });
+
+const archiveClassSchema = z.object({ classId: z.number() });
+
+export const archiveClass = createServerFn({ method: "POST" })
+  .validator((input: unknown) => archiveClassSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { classes } = await import("@/lib/db/schema");
+    await db.update(classes).set({ status: "inactive" }).where(eq(classes.id, data.classId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAFF CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+const listStaffSchema = z.object({ schoolId: z.number(), locationId: z.number() });
+
+export const listStaff = createServerFn({ method: "GET" })
+  .validator((input: unknown) => listStaffSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { staff, staffClassAssignments, classes } = await import("@/lib/db/schema");
+
+    const rows = await db
+      .select({
+        id: staff.id,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        email: staff.email,
+        phone: staff.phone,
+        role: staff.role,
+        joinDate: staff.joinDate,
+        salary: staff.salary,
+        status: staff.status,
+        backgroundCheckStatus: staff.backgroundCheckStatus,
+        backgroundCheckDocUrl: staff.backgroundCheckDocUrl,
+      })
+      .from(staff)
+      .where(and(eq(staff.schoolId, data.schoolId), eq(staff.locationId, data.locationId)))
+      .orderBy(asc(staff.firstName));
+
+    return Promise.all(rows.map(async (s) => {
+      const assignments = await db
+        .select({ className: classes.name })
+        .from(staffClassAssignments)
+        .innerJoin(classes, eq(staffClassAssignments.classId, classes.id))
+        .where(eq(staffClassAssignments.staffId, s.id));
+      return {
+        ...s,
+        joinDate: s.joinDate instanceof Date ? s.joinDate.toISOString().slice(0, 10) : (s.joinDate ?? null),
+        classes: assignments.map((a) => a.className),
+      };
+    }));
+  });
+
+const addStaffSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().max(255).default(""),
+  email: z.string().trim().email().max(255).optional().or(z.literal("")),
+  phone: z.string().trim().max(50).optional(),
+  role: z.enum(["teacher", "assistant", "admin", "principal", "support"]).default("teacher"),
+  joinDate: z.string().optional(),
+  salary: z.string().optional(),
+});
+
+export const addStaffMember = createServerFn({ method: "POST" })
+  .validator((input: unknown) => addStaffSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { staff } = await import("@/lib/db/schema");
+    const [res] = await db.insert(staff).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      firstName: data.firstName, lastName: data.lastName,
+      email: data.email || null, phone: data.phone || null,
+      role: data.role,
+      joinDate: data.joinDate ? new Date(data.joinDate) : null,
+      salary: data.salary || null,
+      status: "active", backgroundCheckStatus: "pending",
+    });
+    return { ok: true, staffId: Number((res as any).insertId) };
+  });
+
+const updateStaffSchema = z.object({
+  staffId: z.number(),
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().max(255).optional().default(""),
+  email: z.string().trim().max(255).optional().or(z.literal("")),
+  phone: z.string().trim().max(50).optional(),
+  role: z.enum(["teacher", "assistant", "admin", "principal", "support"]).optional(),
+  joinDate: z.string().optional(),
+  salary: z.string().optional(),
+  status: z.enum(["active", "inactive", "terminated", "on_leave"]).optional(),
+  backgroundCheckStatus: z.enum(["pending", "in_progress", "verified", "rejected", "expired"]).optional(),
+});
+
+export const updateStaffMember = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateStaffSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { staff } = await import("@/lib/db/schema");
+    await db.update(staff).set({
+      firstName: data.firstName, lastName: data.lastName ?? "",
+      email: data.email || null, phone: data.phone || null,
+      role: data.role ?? undefined,
+      joinDate: data.joinDate ? new Date(data.joinDate) : undefined,
+      salary: data.salary || null,
+      status: data.status ?? undefined,
+      backgroundCheckStatus: data.backgroundCheckStatus ?? undefined,
+    }).where(eq(staff.id, data.staffId));
+    return { ok: true };
+  });
+
+const archiveStaffSchema = z.object({ staffId: z.number() });
+
+export const archiveStaff = createServerFn({ method: "POST" })
+  .validator((input: unknown) => archiveStaffSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { staff } = await import("@/lib/db/schema");
+    await db.update(staff).set({ status: "terminated" }).where(eq(staff.id, data.staffId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEES / INVOICES CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+const listInvoicesSchema = z.object({ schoolId: z.number(), locationId: z.number() });
+
+export const listInvoices = createServerFn({ method: "GET" })
+  .validator((input: unknown) => listInvoicesSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { invoices, students } = await import("@/lib/db/schema");
+
+    const rows = await db
+      .select({
+        id: invoices.id,
+        studentId: invoices.studentId,
+        amount: invoices.amount,
+        dueDate: invoices.dueDate,
+        status: invoices.status,
+        paidAt: invoices.paidAt,
+        createdAt: invoices.createdAt,
+        feeStructureId: invoices.feeStructureId,
+        studentFirstName: students.firstName,
+        studentLastName: students.lastName,
+      })
+      .from(invoices)
+      .innerJoin(students, eq(invoices.studentId, students.id))
+      .where(and(eq(invoices.schoolId, data.schoolId), eq(invoices.locationId, data.locationId)))
+      .orderBy(desc(invoices.createdAt));
+
+    return rows.map((r) => ({
+      ...r,
+      dueDate: r.dueDate ? r.dueDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) : null,
+      paidAt: r.paidAt ? r.paidAt.toISOString() : null,
+      createdAt: r.createdAt ? r.createdAt.toISOString() : null,
+      studentName: `${r.studentFirstName} ${r.studentLastName}`.trim(),
+    }));
+  });
+
+const addInvoiceSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  studentId: z.number(),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount"),
+  dueDate: z.string().optional(),
+  feeStructureId: z.number().optional(),
+});
+
+export const addInvoice = createServerFn({ method: "POST" })
+  .validator((input: unknown) => addInvoiceSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { invoices } = await import("@/lib/db/schema");
+    const [res] = await db.insert(invoices).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      studentId: data.studentId,
+      amount: data.amount,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      feeStructureId: data.feeStructureId ?? null,
+      status: "draft",
+    });
+    return { ok: true, invoiceId: Number((res as any).insertId) };
+  });
+
+const updateInvoiceSchema = z.object({
+  invoiceId: z.number(),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  dueDate: z.string().optional(),
+  status: z.enum(["draft", "sent", "paid", "overdue", "cancelled", "refunded"]).optional(),
+  paidAt: z.string().optional(),
+});
+
+export const updateInvoice = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateInvoiceSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { invoices } = await import("@/lib/db/schema");
+    await db.update(invoices).set({
+      amount: data.amount ?? undefined,
+      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+      status: data.status ?? undefined,
+      paidAt: data.paidAt ? new Date(data.paidAt) : (data.status === "paid" ? new Date() : undefined),
+    }).where(eq(invoices.id, data.invoiceId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BRANCH EDIT
+// ─────────────────────────────────────────────────────────────────────────────
+
+const updateBranchSchema = z.object({
+  locationId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  address: z.string().trim().max(1000).optional(),
+  city: z.string().trim().max(100).optional(),
+  state: z.string().trim().max(100).optional(),
+  pincode: z.string().trim().max(20).optional(),
+  phone: z.string().trim().max(50).optional(),
+  capacity: z.number().int().optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+});
+
+export const updateBranch = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateBranchSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, locations } = await import("@/lib/db/schema");
+    const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!["school_admin", "super_admin"].includes(user?.role ?? "")) throw new Error("Not authorized");
+    await db.update(locations).set({
+      name: data.name,
+      address: data.address || null,
+      city: data.city || null,
+      state: data.state || null,
+      pincode: data.pincode || null,
+      phone: data.phone || null,
+      capacity: data.capacity ?? null,
+      status: data.status ?? undefined,
+    }).where(eq(locations.id, data.locationId));
+    return { ok: true };
+  });
+
+// Soft-delete helpers
+const archiveStudentSchema = z.object({ studentId: z.number() });
+export const archiveStudent = createServerFn({ method: "POST" })
+  .validator((input: unknown) => archiveStudentSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { students } = await import("@/lib/db/schema");
+    await db.update(students).set({ status: "withdrawn" }).where(eq(students.id, data.studentId));
+    return { ok: true };
+  });
+
+const archiveInquirySchema = z.object({ inquiryId: z.number() });
+export const archiveInquiry = createServerFn({ method: "POST" })
+  .validator((input: unknown) => archiveInquirySchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { inquiries } = await import("@/lib/db/schema");
+    await db.update(inquiries).set({ status: "rejected" }).where(eq(inquiries.id, data.inquiryId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEE STRUCTURES CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+const listFeeStructuresSchema = z.object({ schoolId: z.number(), locationId: z.number() });
+export const listFeeStructures = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listFeeStructuresSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { feeStructures, classes } = await import("@/lib/db/schema");
+    return db
+      .select({
+        id: feeStructures.id, name: feeStructures.name,
+        amount: feeStructures.amount, frequency: feeStructures.frequency,
+        dueDay: feeStructures.dueDay, description: feeStructures.description,
+        classId: feeStructures.classId, className: classes.name,
+        createdAt: feeStructures.createdAt,
+      })
+      .from(feeStructures)
+      .leftJoin(classes, eq(feeStructures.classId, classes.id))
+      .where(and(eq(feeStructures.schoolId, data.schoolId), eq(feeStructures.locationId, data.locationId)))
+      .orderBy(asc(feeStructures.name));
+  });
+
+const addFeeStructureSchema = z.object({
+  schoolId: z.number(), locationId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  frequency: z.enum(["monthly", "quarterly", "annually", "one_time"]),
+  dueDay: z.number().int().min(1).max(31).optional(),
+  classId: z.number().optional(),
+  description: z.string().max(1000).optional(),
+});
+export const addFeeStructure = createServerFn({ method: "POST" })
+  .validator((i: unknown) => addFeeStructureSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { feeStructures } = await import("@/lib/db/schema");
+    const [r] = await db.insert(feeStructures).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      name: data.name, amount: data.amount, frequency: data.frequency,
+      dueDay: data.dueDay ?? 1, classId: data.classId ?? null,
+      description: data.description || null,
+    });
+    return { ok: true, feeStructureId: Number((r as any).insertId) };
+  });
+
+const updateFeeStructureSchema = z.object({
+  feeStructureId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  frequency: z.enum(["monthly", "quarterly", "annually", "one_time"]),
+  dueDay: z.number().int().min(1).max(31).optional(),
+  classId: z.number().optional(),
+  description: z.string().max(1000).optional(),
+});
+export const updateFeeStructure = createServerFn({ method: "POST" })
+  .validator((i: unknown) => updateFeeStructureSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { feeStructures } = await import("@/lib/db/schema");
+    await db.update(feeStructures).set({
+      name: data.name, amount: data.amount, frequency: data.frequency,
+      dueDay: data.dueDay ?? 1, classId: data.classId ?? null,
+      description: data.description || null,
+    }).where(eq(feeStructures.id, data.feeStructureId));
+    return { ok: true };
+  });
+
+const archiveFeeStructureSchema = z.object({ feeStructureId: z.number() });
+export const archiveFeeStructure = createServerFn({ method: "POST" })
+  .validator((i: unknown) => archiveFeeStructureSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { feeStructures } = await import("@/lib/db/schema");
+    await db.delete(feeStructures).where(eq(feeStructures.id, data.feeStructureId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAFF ATTENDANCE — MARK
+// ─────────────────────────────────────────────────────────────────────────────
+
+const markAttendanceSchema = z.object({
+  staffId: z.number(),
+  schoolId: z.number(),
+  locationId: z.number(),
+  date: z.string(), // YYYY-MM-DD
+  status: z.enum(["present", "absent", "half_day", "leave"]),
+  notes: z.string().max(500).optional(),
+});
+export const markStaffAttendance = createServerFn({ method: "POST" })
+  .validator((i: unknown) => markAttendanceSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { staffAttendance } = await import("@/lib/db/schema");
+    // Upsert: delete existing record for same staffId+date, then insert
+    await db.delete(staffAttendance).where(
+      and(eq(staffAttendance.staffId, data.staffId), eq(staffAttendance.date, new Date(data.date)))
+    );
+    await db.insert(staffAttendance).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      staffId: data.staffId,
+      date: new Date(data.date),
+      status: data.status,
+      notes: data.notes || null,
+    });
+    return { ok: true };
+  });
+
+const getAttendanceForDateSchema = z.object({
+  schoolId: z.number(), locationId: z.number(), date: z.string(),
+});
+export const getAttendanceForDate = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getAttendanceForDateSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { staffAttendance, staff } = await import("@/lib/db/schema");
+    return db
+      .select({
+        staffId: staffAttendance.staffId,
+        status: staffAttendance.status,
+        notes: staffAttendance.notes,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        role: staff.role,
+      })
+      .from(staffAttendance)
+      .innerJoin(staff, eq(staffAttendance.staffId, staff.id))
+      .where(
+        and(
+          eq(staffAttendance.schoolId, data.schoolId),
+          eq(staffAttendance.locationId, data.locationId),
+          eq(staffAttendance.date, new Date(data.date))
+        )
+      );
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAFF ↔ CLASS ASSIGNMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+const assignStaffToClassSchema = z.object({
+  schoolId: z.number(), locationId: z.number(),
+  staffId: z.number(), classId: z.number(),
+  academicYear: z.string().max(20).optional(),
+});
+export const assignStaffToClass = createServerFn({ method: "POST" })
+  .validator((i: unknown) => assignStaffToClassSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { staffClassAssignments, classes } = await import("@/lib/db/schema");
+
+    // Prevent duplicate assignment
+    const existing = await db
+      .select({ id: staffClassAssignments.id })
+      .from(staffClassAssignments)
+      .where(and(eq(staffClassAssignments.staffId, data.staffId), eq(staffClassAssignments.classId, data.classId)))
+      .limit(1);
+    if (existing.length > 0) return { ok: true, alreadyAssigned: true };
+
+    // ── Time-clash check ────────────────────────────────────────────────────
+    // Fetch the timing of the class being assigned
+    const [newClass] = await db
+      .select({ startTime: classes.startTime, endTime: classes.endTime, name: classes.name })
+      .from(classes)
+      .where(eq(classes.id, data.classId))
+      .limit(1);
+    if (!newClass) throw new Error("Class not found");
+
+    if (newClass.startTime && newClass.endTime) {
+      // Fetch all current assignments for this staff member with their class timings
+      const currentAssignments = await db
+        .select({ startTime: classes.startTime, endTime: classes.endTime, name: classes.name })
+        .from(staffClassAssignments)
+        .innerJoin(classes, eq(staffClassAssignments.classId, classes.id))
+        .where(eq(staffClassAssignments.staffId, data.staffId));
+
+      // Convert HH:MM to minutes for easy comparison
+      const toMin = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + m;
+      };
+
+      const newStart = toMin(newClass.startTime);
+      const newEnd   = toMin(newClass.endTime);
+
+      for (const ca of currentAssignments) {
+        if (!ca.startTime || !ca.endTime) continue;
+        const existStart = toMin(ca.startTime);
+        const existEnd   = toMin(ca.endTime);
+        // Overlap: new starts before existing ends AND new ends after existing starts
+        if (newStart < existEnd && newEnd > existStart) {
+          throw new Error(
+            `Schedule clash: "${newClass.name}" (${newClass.startTime}–${newClass.endTime}) overlaps with "${ca.name}" (${ca.startTime}–${ca.endTime}) already assigned to this staff member.`
+          );
+        }
+      }
+    }
+    // ── End time-clash check ────────────────────────────────────────────────
+
+    await db.insert(staffClassAssignments).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      staffId: data.staffId, classId: data.classId,
+      academicYear: data.academicYear ?? null,
+    });
+    return { ok: true, alreadyAssigned: false };
+  });
+
+const removeStaffFromClassSchema = z.object({ staffId: z.number(), classId: z.number() });
+export const removeStaffFromClass = createServerFn({ method: "POST" })
+  .validator((i: unknown) => removeStaffFromClassSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { staffClassAssignments } = await import("@/lib/db/schema");
+    await db.delete(staffClassAssignments).where(
+      and(eq(staffClassAssignments.staffId, data.staffId), eq(staffClassAssignments.classId, data.classId))
+    );
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMERGENCY CONTACT — STANDALONE UPDATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+const updateEmergencyContactSchema = z.object({
+  contactId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  phone: z.string().trim().min(1).max(50),
+  relation: z.string().trim().max(100),
+});
+export const updateEmergencyContact = createServerFn({ method: "POST" })
+  .validator((i: unknown) => updateEmergencyContactSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { emergencyContacts } = await import("@/lib/db/schema");
+    await db.update(emergencyContacts).set({
+      name: data.name, phone: data.phone, relation: data.relation,
+    }).where(eq(emergencyContacts.id, data.contactId));
+    return { ok: true };
+  });
+
+const addEmergencyContactSchema = z.object({
+  schoolId: z.number(), locationId: z.number(), studentId: z.number(),
+  name: z.string().trim().min(1).max(255),
+  phone: z.string().trim().min(1).max(50),
+  relation: z.string().trim().max(100),
+});
+export const addEmergencyContact = createServerFn({ method: "POST" })
+  .validator((i: unknown) => addEmergencyContactSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { emergencyContacts } = await import("@/lib/db/schema");
+    const [r] = await db.insert(emergencyContacts).values({
+      schoolId: data.schoolId, locationId: data.locationId,
+      studentId: data.studentId,
+      name: data.name, phone: data.phone, relation: data.relation,
+    });
+    return { ok: true, contactId: Number((r as any).insertId) };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDENT ATTENDANCE
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Mark bulk attendance for a class+date ────────────────────────────────────
+const markStudentAttendanceSchema = z.object({
+  schoolId:   z.number(),
+  locationId: z.number(),
+  classId:    z.number(),
+  date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  markedBy:   z.number().optional(),
+  records: z.array(z.object({
+    studentId: z.number(),
+    status:    z.enum(["present", "absent", "half_day", "leave"]),
+    notes:     z.string().max(500).optional(),
+  })).min(1),
+});
+
+export const markStudentAttendance = createServerFn({ method: "POST" })
+  .validator((i: unknown) => markStudentAttendanceSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { studentAttendance } = await import("@/lib/db/schema");
+
+    // Delete existing records for this class+date then bulk insert (upsert pattern)
+    await db.delete(studentAttendance).where(
+      and(
+        eq(studentAttendance.classId, data.classId),
+        eq(studentAttendance.date, data.date as any),
+      )
+    );
+
+    await db.insert(studentAttendance).values(
+      data.records.map((r) => ({
+        schoolId:   data.schoolId,
+        locationId: data.locationId,
+        classId:    data.classId,
+        studentId:  r.studentId,
+        date:       data.date as any,
+        status:     r.status,
+        markedBy:   data.markedBy ?? null,
+        notes:      r.notes ?? null,
+      }))
+    );
+
+    return { ok: true, count: data.records.length };
+  });
+
+// ── Get attendance for a class on a specific date ────────────────────────────
+const getStudentAttendanceForDateSchema = z.object({
+  schoolId:   z.number(),
+  locationId: z.number(),
+  classId:    z.number(),
+  date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const getStudentAttendanceForDate = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getStudentAttendanceForDateSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { studentAttendance, students } = await import("@/lib/db/schema");
+
+    const rows = await db
+      .select({
+        studentId:   studentAttendance.studentId,
+        status:      studentAttendance.status,
+        notes:       studentAttendance.notes,
+        firstName:   students.firstName,
+        lastName:    students.lastName,
+      })
+      .from(studentAttendance)
+      .innerJoin(students, eq(studentAttendance.studentId, students.id))
+      .where(
+        and(
+          eq(studentAttendance.classId, data.classId),
+          eq(studentAttendance.date, data.date as any),
+        )
+      );
+
+    return rows;
+  });
+
+// ── Get attendance history (filterable by class, student, date range) ─────────
+const getAttendanceHistorySchema = z.object({
+  schoolId:   z.number(),
+  locationId: z.number(),
+  classId:    z.number().optional(),
+  studentId:  z.number().optional(),
+  fromDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  toDate:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export const getAttendanceHistory = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getAttendanceHistorySchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { studentAttendance, students, classes } = await import("@/lib/db/schema");
+    const { gte, lte } = await import("drizzle-orm");
+
+    const conditions = [
+      eq(studentAttendance.schoolId, data.schoolId),
+      eq(studentAttendance.locationId, data.locationId),
+    ];
+    if (data.classId)   conditions.push(eq(studentAttendance.classId, data.classId));
+    if (data.studentId) conditions.push(eq(studentAttendance.studentId, data.studentId));
+    if (data.fromDate)  conditions.push(gte(studentAttendance.date, data.fromDate as any));
+    if (data.toDate)    conditions.push(lte(studentAttendance.date, data.toDate as any));
+
+    const rows = await db
+      .select({
+        id:          studentAttendance.id,
+        date:        studentAttendance.date,
+        status:      studentAttendance.status,
+        notes:       studentAttendance.notes,
+        studentId:   studentAttendance.studentId,
+        firstName:   students.firstName,
+        lastName:    students.lastName,
+        classId:     studentAttendance.classId,
+        className:   classes.name,
+      })
+      .from(studentAttendance)
+      .innerJoin(students, eq(studentAttendance.studentId, students.id))
+      .innerJoin(classes, eq(studentAttendance.classId, classes.id))
+      .where(and(...conditions))
+      .orderBy(desc(studentAttendance.date));
+
+    return rows.map((r) => ({ ...r, date: String(r.date) }));
+  });
+
+// ── Attendance summary stats (for dashboard widget) ───────────────────────────
+const getAttendanceSummarySchema = z.object({
+  schoolId:   z.number(),
+  locationId: z.number(),
+  date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export const getAttendanceSummary = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getAttendanceSummarySchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { studentAttendance, staffAttendance, students, staff } = await import("@/lib/db/schema");
+    const { sql: sqlRaw } = await import("drizzle-orm");
+
+    const today = data.date ?? new Date().toISOString().slice(0, 10);
+
+    // Student counts
+    const [studentStats] = await db
+      .select({
+        present:  sqlRaw<number>`SUM(CASE WHEN ${studentAttendance.status} = 'present' THEN 1 ELSE 0 END)`,
+        absent:   sqlRaw<number>`SUM(CASE WHEN ${studentAttendance.status} = 'absent'  THEN 1 ELSE 0 END)`,
+        halfDay:  sqlRaw<number>`SUM(CASE WHEN ${studentAttendance.status} = 'half_day' THEN 1 ELSE 0 END)`,
+        total:    sqlRaw<number>`COUNT(*)`,
+      })
+      .from(studentAttendance)
+      .where(
+        and(
+          eq(studentAttendance.schoolId, data.schoolId),
+          eq(studentAttendance.locationId, data.locationId),
+          eq(studentAttendance.date, today as any),
+        )
+      );
+
+    // Total enrolled students (for calculating % absent even if not marked)
+    const [{ enrolledCount }] = await db
+      .select({ enrolledCount: count(students.id) })
+      .from(students)
+      .where(
+        and(
+          eq(students.schoolId, data.schoolId),
+          eq(students.locationId, data.locationId),
+          eq(students.status, "enrolled"),
+        )
+      );
+
+    // Staff attendance for today
+    const [staffStats] = await db
+      .select({
+        present: sqlRaw<number>`SUM(CASE WHEN ${staffAttendance.status} = 'present' THEN 1 ELSE 0 END)`,
+        total:   sqlRaw<number>`COUNT(*)`,
+      })
+      .from(staffAttendance)
+      .where(
+        and(
+          eq(staffAttendance.schoolId, data.schoolId),
+          eq(staffAttendance.locationId, data.locationId),
+          eq(staffAttendance.date, today as any),
+        )
+      );
+
+    return {
+      date: today,
+      students: {
+        present:  Number(studentStats?.present  ?? 0),
+        absent:   Number(studentStats?.absent   ?? 0),
+        halfDay:  Number(studentStats?.halfDay  ?? 0),
+        marked:   Number(studentStats?.total    ?? 0),
+        enrolled: Number(enrolledCount ?? 0),
+      },
+      staff: {
+        present: Number(staffStats?.present ?? 0),
+        marked:  Number(staffStats?.total   ?? 0),
+      },
+    };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANNOUNCEMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Super admin: create announcement ─────────────────────────────────────────
+const createAnnouncementSchema = z.object({
+  title:      z.string().trim().min(1).max(255),
+  body:       z.string().trim().min(1),
+  type:       z.enum(["info", "warning", "success", "critical"]).default("info"),
+  targetRole: z.enum(["all", "school_admin", "location_admin", "teacher", "accountant"]).default("all"),
+  expiresAt:  z.string().datetime().optional(), // ISO string
+});
+
+export const createAnnouncement = createServerFn({ method: "POST" })
+  .validator((i: unknown) => createAnnouncementSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, announcements } = await import("@/lib/db/schema");
+    const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+    const [r] = await db.insert(announcements).values({
+      title:      data.title,
+      body:       data.body,
+      type:       data.type,
+      targetRole: data.targetRole,
+      isActive:   1,
+      expiresAt:  data.expiresAt ? new Date(data.expiresAt) : null,
+      createdBy:  userId,
+    });
+    return { ok: true, id: Number((r as any).insertId) };
+  });
+
+// ── Super admin: list all announcements ──────────────────────────────────────
+export const listAllAnnouncements = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) throw new Error("Not authenticated");
+  const { payload } = await verifySessionToken(token);
+  const userId = Number(payload.userId);
+  const { db } = await import("@/lib/db");
+  const { users, announcements } = await import("@/lib/db/schema");
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+
+  const rows = await db
+    .select()
+    .from(announcements)
+    .orderBy(desc(announcements.createdAt));
+  return rows;
+});
+
+// ── Super admin: toggle active / deactivate ───────────────────────────────────
+const toggleAnnouncementSchema = z.object({ id: z.number(), isActive: z.number().min(0).max(1) });
+export const toggleAnnouncement = createServerFn({ method: "POST" })
+  .validator((i: unknown) => toggleAnnouncementSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, announcements } = await import("@/lib/db/schema");
+    const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+    await db.update(announcements).set({ isActive: data.isActive }).where(eq(announcements.id, data.id));
+    return { ok: true };
+  });
+
+// ── Super admin: delete announcement ─────────────────────────────────────────
+const deleteAnnouncementSchema = z.object({ id: z.number() });
+export const deleteAnnouncement = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteAnnouncementSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, announcements, announcementDismissals } = await import("@/lib/db/schema");
+    const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.role !== "super_admin") throw new Error("Not authorized");
+    await db.delete(announcementDismissals).where(eq(announcementDismissals.announcementId, data.id));
+    await db.delete(announcements).where(eq(announcements.id, data.id));
+    return { ok: true };
+  });
+
+// ── Any user: get active announcements for their role (for banner) ────────────
+export const getActiveAnnouncements = createServerFn({ method: "GET" }).handler(async () => {
+  const req = getRequest();
+  const cookieHeader = req?.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+  const token = match?.[1];
+  if (!token) return [];
+  const { payload } = await verifySessionToken(token).catch(() => ({ payload: null }));
+  if (!payload) return [];
+  const userId = Number((payload as any).userId);
+  const { db } = await import("@/lib/db");
+  const { users, announcements, announcementDismissals } = await import("@/lib/db/schema");
+  const { sql: sqlRaw, notInArray, or: drizzleOr } = await import("drizzle-orm");
+
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) return [];
+
+  const now = new Date();
+
+  // Dismissed by this user
+  const dismissed = await db
+    .select({ announcementId: announcementDismissals.announcementId })
+    .from(announcementDismissals)
+    .where(eq(announcementDismissals.userId, userId));
+  const dismissedIds = dismissed.map((d) => d.announcementId);
+
+  // Active, not expired, not dismissed, targeted at this role or "all"
+  const rows = await db
+    .select()
+    .from(announcements)
+    .where(
+      and(
+        eq(announcements.isActive, 1),
+        ...(dismissedIds.length > 0 ? [notInArray(announcements.id, dismissedIds)] : []),
+      )
+    )
+    .orderBy(desc(announcements.createdAt));
+
+  return rows.filter((a) => {
+    if (a.expiresAt && new Date(a.expiresAt) < now) return false;
+    if (a.targetRole === "all") return true;
+    return a.targetRole === user.role;
+  });
+});
+
+// ── Any user: dismiss an announcement ────────────────────────────────────────
+const dismissAnnouncementSchema = z.object({ announcementId: z.number() });
+export const dismissAnnouncement = createServerFn({ method: "POST" })
+  .validator((i: unknown) => dismissAnnouncementSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { announcementDismissals } = await import("@/lib/db/schema");
+    // Ignore duplicate dismissals
+    await db.insert(announcementDismissals).values({
+      announcementId: data.announcementId,
+      userId,
+    }).onDuplicateKeyUpdate({ set: { dismissedAt: new Date() } });
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENT UPLOAD (birth certificate, immunization record, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// helper — reuse R2 pattern from logo upload
+async function uploadToR2orDisk(
+  buffer: Buffer,
+  mimeType: string,
+  key: string,       // e.g. "documents/student-3-birth_certificate-1234.pdf"
+): Promise<string> {
+  const r2AccountId = process.env.R2_ACCOUNT_ID;
+  const r2KeyId     = process.env.R2_ACCESS_KEY_ID;
+  const r2Secret    = process.env.R2_SECRET_ACCESS_KEY;
+  const r2Bucket    = process.env.R2_BUCKET_NAME;
+  const r2PublicUrl = process.env.R2_PUBLIC_URL;
+
+  const hasR2 =
+    r2AccountId && !r2AccountId.startsWith("your-") &&
+    r2KeyId     && !r2KeyId.startsWith("your-") &&
+    r2Secret    && !r2Secret.startsWith("your-") &&
+    r2Bucket    && r2PublicUrl;
+
+  if (hasR2) {
+    const s3 = new S3Client({
+      region: "auto",
+      endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: r2KeyId!, secretAccessKey: r2Secret! },
+    });
+    await s3.send(new PutObjectCommand({ Bucket: r2Bucket!, Key: key, Body: buffer, ContentType: mimeType }));
+    return `${r2PublicUrl!.replace(/\/$/, "")}/${key}`;
+  } else {
+    // local dev fallback
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "documents");
+    await mkdir(uploadDir, { recursive: true });
+    const localName = key.replace(/\//g, "-");
+    await writeFile(path.join(uploadDir, localName), buffer);
+    return `/uploads/documents/${localName}`;
+  }
+}
+
+const uploadDocumentSchema = z.object({
+  studentId: z.number(),
+  type: z.enum(["birth_certificate", "immunization_record", "photo", "other"]),
+  // base64 data-url: "data:<mime>;base64,<data>"
+  fileDataUrl: z.string(),
+  fileName: z.string().max(255),
+});
+
+export const uploadDocument = createServerFn({ method: "POST" })
+  .validator((i: unknown) => uploadDocumentSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, documents } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId || !user?.locationId) throw new Error("Not authorized");
+
+    // Parse data URL
+    const dataUrlMatch = data.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!dataUrlMatch) throw new Error("Invalid file data");
+    const mimeType = dataUrlMatch[1];
+    const buffer   = Buffer.from(dataUrlMatch[2], "base64");
+    if (buffer.length > 10 * 1024 * 1024) throw new Error("File must be under 10MB");
+
+    // Derive extension from mime
+    const extMap: Record<string, string> = {
+      "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+      "application/pdf": "pdf",
+    };
+    const ext = extMap[mimeType] ?? "bin";
+
+    const key = `documents/student-${data.studentId}-${data.type}-${Date.now()}.${ext}`;
+    const publicUrl = await uploadToR2orDisk(buffer, mimeType, key);
+
+    const [r] = await db.insert(documents).values({
+      schoolId:   user.schoolId,
+      locationId: user.locationId,
+      studentId:  data.studentId,
+      type:       data.type,
+      r2Key:      key,
+      publicUrl,
+    });
+
+    return { ok: true, id: Number((r as any).insertId), publicUrl, type: data.type };
+  });
+
+const listDocumentsSchema = z.object({ studentId: z.number() });
+export const listDocuments = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listDocumentsSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, documents } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId) throw new Error("Not authorized");
+
+    const rows = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.studentId, data.studentId), eq(documents.schoolId, user.schoolId)))
+      .orderBy(desc(documents.uploadedAt));
+
+    return rows;
+  });
+
+const deleteDocumentSchema = z.object({ documentId: z.number() });
+export const deleteDocument = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteDocumentSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, documents } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId) throw new Error("Not authorized");
+
+    await db.delete(documents).where(
+      and(eq(documents.id, data.documentId), eq(documents.schoolId, user.schoolId))
+    );
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAFF PAYROLL
+// ─────────────────────────────────────────────────────────────────────────────
+
+const listPayrollSchema = z.object({ staffId: z.number() });
+export const listPayrollRecords = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listPayrollSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, staffPayroll } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId) throw new Error("Not authorized");
+
+    const rows = await db
+      .select()
+      .from(staffPayroll)
+      .where(and(eq(staffPayroll.staffId, data.staffId), eq(staffPayroll.schoolId, user.schoolId)))
+      .orderBy(desc(staffPayroll.month));
+    return rows;
+  });
+
+const addPayrollSchema = z.object({
+  staffId: z.number(),
+  month: z.string().regex(/^\d{4}-\d{2}$/), // "YYYY-MM"
+  basicSalary: z.string().regex(/^\d+(\.\d{1,2})?$/),
+  deductions: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  bonus: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  notes: z.string().optional(),
+});
+export const addPayrollRecord = createServerFn({ method: "POST" })
+  .validator((i: unknown) => addPayrollSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, staffPayroll } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId || !user?.locationId) throw new Error("Not authorized");
+
+    const basic     = parseFloat(data.basicSalary);
+    const deduct    = parseFloat(data.deductions ?? "0");
+    const bon       = parseFloat(data.bonus ?? "0");
+    const net       = basic - deduct + bon;
+
+    const [r] = await db.insert(staffPayroll).values({
+      schoolId:    user.schoolId,
+      locationId:  user.locationId,
+      staffId:     data.staffId,
+      month:       data.month,
+      basicSalary: data.basicSalary,
+      deductions:  data.deductions ?? "0",
+      bonus:       data.bonus ?? "0",
+      netSalary:   net.toFixed(2),
+      notes:       data.notes ?? null,
+      status:      "pending",
+    });
+    return { ok: true, id: Number((r as any).insertId), netSalary: net.toFixed(2) };
+  });
+
+const markPayrollPaidSchema = z.object({ payrollId: z.number() });
+export const markPayrollPaid = createServerFn({ method: "POST" })
+  .validator((i: unknown) => markPayrollPaidSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, staffPayroll } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId) throw new Error("Not authorized");
+
+    await db.update(staffPayroll)
+      .set({ status: "paid", paidAt: new Date() })
+      .where(and(eq(staffPayroll.id, data.payrollId), eq(staffPayroll.schoolId, user.schoolId)));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKGROUND VERIFICATION DOC UPLOAD (for staff)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const uploadBgDocSchema = z.object({
+  staffId: z.number(),
+  fileDataUrl: z.string(),
+  fileName: z.string().max(255),
+});
+export const uploadBgVerificationDoc = createServerFn({ method: "POST" })
+  .validator((i: unknown) => uploadBgDocSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+    const { db } = await import("@/lib/db");
+    const { users, staff } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user?.schoolId) throw new Error("Not authorized");
+
+    const dataUrlMatch = data.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!dataUrlMatch) throw new Error("Invalid file data");
+    const mimeType = dataUrlMatch[1];
+    const buffer   = Buffer.from(dataUrlMatch[2], "base64");
+    if (buffer.length > 10 * 1024 * 1024) throw new Error("File must be under 10MB");
+
+    const extMap: Record<string, string> = {
+      "image/jpeg": "jpg", "image/png": "png", "application/pdf": "pdf",
+    };
+    const ext = extMap[mimeType] ?? "bin";
+    const key = `documents/staff-${data.staffId}-bgcheck-${Date.now()}.${ext}`;
+    const publicUrl = await uploadToR2orDisk(buffer, mimeType, key);
+
+    await db.update(staff)
+      .set({ backgroundCheckDocUrl: publicUrl, backgroundCheckStatus: "in_progress" })
+      .where(and(eq(staff.id, data.staffId), eq(staff.schoolId, user.schoolId)));
+
+    return { ok: true, publicUrl };
+  });
+

@@ -1,0 +1,10 @@
+node_modules
+.output
+.vinxi
+.tanstack
+.nitro
+*.local
+.env
+.env.local
+.env.production
+.vercel/
