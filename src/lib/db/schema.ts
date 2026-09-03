@@ -343,7 +343,7 @@ export const plans = mysqlTable("plans", {
   period: varchar("period", { length: 50 }).notNull().default("forever"),
   currency: varchar("currency", { length: 10 }).default("INR"),
   description: text("description"),
-  features: text("features").default("[]"),
+  features: varchar("features", { length: 2000 }).default("[]"),
   featured: int("featured").default(0),
   displayOrder: int("display_order").default(0),
   status: mysqlEnum("status", ["active", "inactive"]).default("active"),
