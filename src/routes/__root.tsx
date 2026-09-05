@@ -22,6 +22,7 @@ import {
   BarChart2,
   CreditCard,
   RefreshCcw,
+  BookOpen,
 } from "lucide-react";
 import appCss from "../styles.css?url";
 import { TenantProvider, useTenant } from "@/lib/tenant";
@@ -65,7 +66,8 @@ const SCHOOL_ADMIN_NAV = [
 ];
 
 const TEACHER_NAV = [
-  { to: "/teacher", label: "My Dashboard", icon: LayoutDashboard },
+  { to: "/teacher",     label: "My Dashboard",  icon: LayoutDashboard },
+  { to: "/curriculum",  label: "Activities",    icon: BookOpen },
 ];
 
 const PARENT_NAV = [
@@ -212,7 +214,7 @@ function AppShell() {
       const home = roleHome(user.role);
       const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations"];
       const accountantRoutes = ["/dashboard", "/fees"];
-      const teacherRoutes = ["/teacher"];
+      const teacherRoutes = ["/teacher", "/curriculum"];
       const parentRoutes = ["/parent"];
       const superRoutes = ["/super-admin"];
       if (user.role === "teacher" || user.role === "staff") {

@@ -421,3 +421,18 @@ export const classesRelations = relations(classes, ({ many }) => ({
   feeStructures: many(feeStructures),
   staffAssignments: many(staffClassAssignments),
 }));
+
+// ── Curriculum Activities ─────────────────────────────────────────────────────
+export const curriculumActivities = mysqlTable("curriculum_activities", {
+  id:          int("id").primaryKey().autoincrement(),
+  schoolId:    int("school_id").notNull().references(() => schools.id),
+  locationId:  int("location_id").notNull().references(() => locations.id),
+  classId:     int("class_id").notNull().references(() => classes.id),
+  uploadedBy:  int("uploaded_by").notNull().references(() => staff.id),
+  title:       varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  activityDate: date("activity_date").notNull(),
+  photoUrl:    varchar("photo_url", { length: 500 }),
+  r2Key:       varchar("r2_key", { length: 500 }),
+  createdAt:   timestamp("created_at").defaultNow(),
+});

@@ -16,6 +16,7 @@ import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as ClassesRouteImport } from './routes/classes'
 import { Route as ConfirmRouteImport } from './routes/confirm'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CurriculumRouteImport } from './routes/curriculum'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -77,6 +78,11 @@ const ConfirmRoute = ConfirmRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CurriculumRoute = CurriculumRouteImport.update({
+  id: '/curriculum',
+  path: '/curriculum',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/classes': typeof ClassesRoute
   '/confirm': typeof ConfirmRoute
   '/contact': typeof ContactRoute
+  '/curriculum': typeof CurriculumRoute
   '/dashboard': typeof DashboardRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -259,6 +266,7 @@ export interface FileRoutesByTo {
   '/classes': typeof ClassesRoute
   '/confirm': typeof ConfirmRoute
   '/contact': typeof ContactRoute
+  '/curriculum': typeof CurriculumRoute
   '/dashboard': typeof DashboardRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -294,6 +302,7 @@ export interface FileRoutesById {
   '/classes': typeof ClassesRoute
   '/confirm': typeof ConfirmRoute
   '/contact': typeof ContactRoute
+  '/curriculum': typeof CurriculumRoute
   '/dashboard': typeof DashboardRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -332,6 +341,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/confirm'
     | '/contact'
+    | '/curriculum'
     | '/dashboard'
     | '/fees'
     | '/forgot-password'
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/confirm'
     | '/contact'
+    | '/curriculum'
     | '/dashboard'
     | '/fees'
     | '/forgot-password'
@@ -402,6 +413,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/confirm'
     | '/contact'
+    | '/curriculum'
     | '/dashboard'
     | '/fees'
     | '/forgot-password'
@@ -439,6 +451,7 @@ export interface RootRouteChildren {
   ClassesRoute: typeof ClassesRoute
   ConfirmRoute: typeof ConfirmRoute
   ContactRoute: typeof ContactRoute
+  CurriculumRoute: typeof CurriculumRoute
   DashboardRoute: typeof DashboardRoute
   FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -508,6 +521,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/curriculum': {
+      id: '/curriculum'
+      path: '/curriculum'
+      fullPath: '/curriculum'
+      preLoaderRoute: typeof CurriculumRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -756,6 +776,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClassesRoute: ClassesRoute,
   ConfirmRoute: ConfirmRoute,
   ContactRoute: ContactRoute,
+  CurriculumRoute: CurriculumRoute,
   DashboardRoute: DashboardRoute,
   FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

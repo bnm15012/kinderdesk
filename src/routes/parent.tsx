@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getParentPortal } from "@/lib/auth";
-import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard } from "lucide-react";
+import { getParentPortal, getCurriculumActivities } from "@/lib/auth";
+import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image } from "lucide-react";
 
 export const Route = createFileRoute("/parent")({
   component: ParentPortal,
@@ -21,6 +21,11 @@ type PortalData = {
   children: Child[];
   fees: Fee[];
 };
+type Activity = {
+  id: number; classId: number; className: string; title: string;
+  description: string | null; activityDate: Date | string; photoUrl: string | null;
+  createdAt: Date | string | null; uploaderName: string;
+};
 
 const STATUS_BADGE: Record<string, string> = {
   enrolled:   "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -36,15 +41,20 @@ const FEE_BADGE: Record<string, string> = {
 };
 
 function ParentPortal() {
-  const getPortalFn = useServerFn(getParentPortal);
-  const [data, setData] = useState<PortalData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const getPortalFn      = useServerFn(getParentPortal);
+  const getActivitiesFn  = useServerFn(getCurriculumActivities);
+  const [data, setData]         = useState<PortalData | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
   const [activeChild, setActiveChild] = useState<number>(0);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
-    getPortalFn()
-      .then((d) => setData(d as PortalData))
+    Promise.all([
+      getPortalFn().then((d) => setData(d as PortalData)),
+      getActivitiesFn({ data: {} }).then((a) => setActivities(a as Activity[])).catch(() => {}),
+    ])
       .catch((e) => setError(e?.message ?? "Failed to load portal"))
       .finally(() => setLoading(false));
   }, []);
@@ -202,7 +212,73 @@ function ParentPortal() {
               </table>
             )}
           </div>
+
+          {/* Curriculum Activity Feed */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+              <div className="w-1 h-5 bg-violet-600 rounded-full" />
+              <BookOpen className="w-4 h-4 text-violet-600" />
+              <h2 className="text-sm font-bold text-slate-800">Classroom Activities</h2>
+              {activities.length > 0 && (
+                <span className="ml-auto text-xs text-slate-400">{activities.length} activities</span>
+              )}
+            </div>
+            {!activities.length ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center mb-3">
+                  <BookOpen className="w-6 h-6 text-violet-300" />
+                </div>
+                <p className="text-sm text-slate-500 font-medium">No activities posted yet</p>
+                <p className="text-xs text-slate-400 mt-1">Your child's teacher will post classroom activities here</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {activities.map((act) => (
+                  <div key={act.id} className="flex gap-4 p-5 hover:bg-slate-50 transition">
+                    {/* Photo thumbnail */}
+                    <div
+                      className={`w-20 h-20 rounded-xl overflow-hidden shrink-0 ${act.photoUrl ? "cursor-pointer" : ""}`}
+                      onClick={() => act.photoUrl && setLightbox(act.photoUrl)}
+                    >
+                      {act.photoUrl ? (
+                        <img src={act.photoUrl} alt={act.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-200" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center">
+                          <Image className="w-7 h-7 text-violet-300" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-900 text-sm leading-snug mb-1">{act.title}</h3>
+                      {act.description && <p className="text-xs text-slate-500 line-clamp-2 mb-2">{act.description}</p>}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <BookOpen className="w-3 h-3" /> {act.className}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(act.activityDate as string).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                        <span className="text-xs text-slate-400">by {act.uploaderName}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/90" onClick={() => setLightbox(null)}>
+          <button className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition">
+            <X className="w-5 h-5" />
+          </button>
+          <img src={lightbox} alt="Activity" className="max-w-full max-h-full rounded-xl shadow-2xl object-contain" onClick={(e) => e.stopPropagation()} />
+        </div>
       )}
     </div>
   );

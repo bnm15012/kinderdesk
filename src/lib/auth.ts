@@ -3449,3 +3449,220 @@ export const uploadBgVerificationDoc = createServerFn({ method: "POST" })
     return { ok: true, publicUrl };
   });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CURRICULUM ACTIVITIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+const uploadCurriculumActivitySchema = z.object({
+  classId:      z.number(),
+  title:        z.string().min(1).max(255),
+  description:  z.string().max(2000).optional(),
+  activityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // base64 data-url: "data:<mime>;base64,<data>"
+  fileDataUrl:  z.string().optional(),
+  fileName:     z.string().max(255).optional(),
+});
+
+export const uploadCurriculumActivity = createServerFn({ method: "POST" })
+  .validator((i: unknown) => uploadCurriculumActivitySchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+
+    const { db } = await import("@/lib/db");
+    const { users, staff, staffClassAssignments, classes, curriculumActivities } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email })
+      .from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new Error("Not authenticated");
+    if (user.role !== "teacher" && user.role !== "staff" && user.role !== "school_admin" && user.role !== "location_admin")
+      throw new Error("Not authorized");
+
+    // Resolve staff record
+    const [staffRecord] = await db
+      .select({ id: staff.id })
+      .from(staff)
+      .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+      .limit(1);
+    if (!staffRecord) throw new Error("Staff record not found");
+
+    // Verify teacher is assigned to this class (skip check for admins)
+    if (user.role === "teacher" || user.role === "staff") {
+      const [assigned] = await db
+        .select({ id: staffClassAssignments.id })
+        .from(staffClassAssignments)
+        .innerJoin(classes, eq(staffClassAssignments.classId, classes.id))
+        .where(and(
+          eq(staffClassAssignments.staffId, staffRecord.id),
+          eq(staffClassAssignments.classId, data.classId),
+          eq(classes.schoolId, user.schoolId),
+        ))
+        .limit(1);
+      if (!assigned) throw new Error("Not authorized for this class");
+    }
+
+    let photoUrl: string | undefined;
+    let r2Key: string | undefined;
+
+    if (data.fileDataUrl && data.fileName) {
+      const [, meta, b64] = data.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/) ?? [];
+      if (!meta || !b64) throw new Error("Invalid file data");
+      const buffer = Buffer.from(b64, "base64");
+      const ext = data.fileName.split(".").pop() ?? "jpg";
+      r2Key = `curriculum/${user.schoolId}/${data.classId}/${Date.now()}.${ext}`;
+      photoUrl = await uploadToR2orDisk(buffer, meta, r2Key);
+    }
+
+    if (!user.locationId) throw new Error("Location not set for user");
+    const [result] = await db.insert(curriculumActivities).values({
+      schoolId:     user.schoolId,
+      locationId:   user.locationId,
+      classId:      data.classId,
+      uploadedBy:   staffRecord.id,
+      title:        data.title,
+      description:  data.description ?? null,
+      activityDate: new Date(data.activityDate),
+      photoUrl:     photoUrl ?? null,
+      r2Key:        r2Key ?? null,
+    });
+
+    return { ok: true, id: Number((result as any).insertId) };
+  });
+
+const getCurriculumActivitiesSchema = z.object({
+  classId: z.number().optional(),
+  studentId: z.number().optional(),
+});
+
+export const getCurriculumActivities = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getCurriculumActivitiesSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+
+    const { db } = await import("@/lib/db");
+    const { users, staff, parents, students, classEnrollments, curriculumActivities } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email })
+      .from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new Error("Not authenticated");
+
+    // For parent: find their children's class IDs then fetch activities
+    if (user.role === "parent") {
+      const parentRows = await db
+        .select({ studentId: parents.studentId })
+        .from(parents)
+        .where(and(eq(parents.schoolId, user.schoolId), eq(parents.email, user.email ?? "")));
+
+      const childIds = parentRows.map((p) => p.studentId);
+      if (!childIds.length) return [];
+
+      // Filter by specific student if requested
+      const relevantIds = data.studentId ? childIds.filter((id) => id === data.studentId) : childIds;
+      if (!relevantIds.length) return [];
+
+      // Get class IDs for these students
+      const enrollments = await db
+        .select({ classId: classEnrollments.classId, studentId: classEnrollments.studentId })
+        .from(classEnrollments)
+        .where(and(inArray(classEnrollments.studentId, relevantIds), eq(classEnrollments.status, "active")));
+
+      const classIds = [...new Set(enrollments.map((e) => e.classId))];
+      if (!classIds.length) return [];
+
+      return db
+        .select({
+          id: curriculumActivities.id,
+          classId: curriculumActivities.classId,
+          title: curriculumActivities.title,
+          description: curriculumActivities.description,
+          activityDate: curriculumActivities.activityDate,
+          photoUrl: curriculumActivities.photoUrl,
+          createdAt: curriculumActivities.createdAt,
+          uploaderName: sql<string>`CONCAT(${staff.firstName}, ' ', ${staff.lastName})`,
+          className: sql<string>`(SELECT name FROM classes WHERE id = ${curriculumActivities.classId})`,
+        })
+        .from(curriculumActivities)
+        .innerJoin(staff, eq(curriculumActivities.uploadedBy, staff.id))
+        .where(and(
+          inArray(curriculumActivities.classId, classIds),
+          eq(curriculumActivities.schoolId, user.schoolId),
+        ))
+        .orderBy(desc(curriculumActivities.activityDate), desc(curriculumActivities.createdAt));
+    }
+
+    // For teacher/admin: fetch by classId
+    const conditions = [eq(curriculumActivities.schoolId, user.schoolId)];
+    if (data.classId) conditions.push(eq(curriculumActivities.classId, data.classId));
+
+    return db
+      .select({
+        id: curriculumActivities.id,
+        classId: curriculumActivities.classId,
+        title: curriculumActivities.title,
+        description: curriculumActivities.description,
+        activityDate: curriculumActivities.activityDate,
+        photoUrl: curriculumActivities.photoUrl,
+        createdAt: curriculumActivities.createdAt,
+        uploaderName: sql<string>`CONCAT(${staff.firstName}, ' ', ${staff.lastName})`,
+        className: sql<string>`(SELECT name FROM classes WHERE id = ${curriculumActivities.classId})`,
+      })
+      .from(curriculumActivities)
+      .innerJoin(staff, eq(curriculumActivities.uploadedBy, staff.id))
+      .where(and(...conditions))
+      .orderBy(desc(curriculumActivities.activityDate), desc(curriculumActivities.createdAt));
+  });
+
+const deleteCurriculumActivitySchema = z.object({ id: z.number() });
+export const deleteCurriculumActivity = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteCurriculumActivitySchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+
+    const { db } = await import("@/lib/db");
+    const { users, staff, curriculumActivities } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, role: users.role, schoolId: users.schoolId, email: users.email })
+      .from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new Error("Not authenticated");
+
+    const [activity] = await db
+      .select({ id: curriculumActivities.id, schoolId: curriculumActivities.schoolId, uploadedBy: curriculumActivities.uploadedBy })
+      .from(curriculumActivities)
+      .where(and(eq(curriculumActivities.id, data.id), eq(curriculumActivities.schoolId, user.schoolId)))
+      .limit(1);
+    if (!activity) throw new Error("Activity not found");
+
+    // Teachers can only delete their own uploads; admins can delete any
+    if (user.role === "teacher" || user.role === "staff") {
+      const [staffRecord] = await db
+        .select({ id: staff.id })
+        .from(staff)
+        .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+        .limit(1);
+      if (!staffRecord || activity.uploadedBy !== staffRecord.id) throw new Error("Not authorized");
+    }
+
+    await db.delete(curriculumActivities).where(eq(curriculumActivities.id, data.id));
+    return { ok: true };
+  });
+
