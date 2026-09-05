@@ -32,9 +32,9 @@ export function PublicLayout({
               <Link to="/about" className="text-sm text-slate-600 hover:text-blue-600 transition font-medium [&.active]:text-blue-600 [&.active]:font-semibold">
                 About
               </Link>
-              <a href="/#pricing" className="text-sm text-slate-600 hover:text-blue-600 transition font-medium">
+              <Link to="/pricing" className="text-sm text-slate-600 hover:text-blue-600 transition font-medium [&.active]:text-blue-600 [&.active]:font-semibold">
                 Pricing
-              </a>
+              </Link>
               <Link to="/contact" className="text-sm text-slate-600 hover:text-blue-600 transition font-medium [&.active]:text-blue-600 [&.active]:font-semibold">
                 Contact Us
               </Link>
@@ -98,7 +98,7 @@ export function PublicLayout({
                 <h3 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">Product</h3>
                 <ul className="space-y-3 text-sm">
                   <li><a href="#" className="hover:text-white transition">Features</a></li>
-                  <li><a href="/#pricing" className="hover:text-white transition">Pricing</a></li>
+                  <li><Link to="/pricing" className="hover:text-white transition">Pricing</Link></li>
                   <li><Link to="/signup" className="hover:text-white transition">Free trial</Link></li>
                   <li><Link to="/about" className="hover:text-white transition">About us</Link></li>
                   <li><Link to="/contact" className="hover:text-white transition">Contact Us</Link></li>

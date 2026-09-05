@@ -1,13 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   Users, DollarSign, Building2, Shield, Calendar,
   GraduationCap, ClipboardList, Bell, BarChart3,
-  ArrowRight, Star, CheckCircle2, Zap,
+  ArrowRight, Star, CheckCircle2, Zap, MessageCircle,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public-layout";
-import { getPlans } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -118,74 +115,7 @@ const testimonials = [
   },
 ];
 
-type Plan = {
-  id?: number;
-  slug?: string;
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  featured: boolean;
-  cta: string;
-  ctaHref: string;
-  status?: string;
-};
 
-const DEFAULT_PLANS: Plan[] = [
-  {
-    name: "Free",
-    price: "₹0",
-    period: "forever",
-    description: "Perfect for getting started with a single branch.",
-    cta: "Get started free",
-    ctaHref: "/signup",
-    featured: false,
-    features: [
-      "1 school, 1 location",
-      "Up to 50 students",
-      "Admissions & enrollment",
-      "Basic fee management",
-      "3 staff accounts",
-    ],
-  },
-  {
-    name: "Growth",
-    price: "₹1,499",
-    period: "per month",
-    description: "For growing schools with multiple classes and staff.",
-    cta: "Start free trial",
-    ctaHref: "/signup",
-    featured: true,
-    features: [
-      "1 school, up to 5 locations",
-      "Unlimited students",
-      "Full admissions pipeline",
-      "Razorpay fee collection",
-      "Unlimited staff accounts",
-      "Attendance & scheduling",
-      "Reports & analytics",
-      "Priority support",
-    ],
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "contact us",
-    description: "Multi-school chains and franchise networks.",
-    cta: "Contact sales",
-    ctaHref: "/contact",
-    featured: false,
-    features: [
-      "Unlimited schools & locations",
-      "Custom integrations",
-      "Dedicated account manager",
-      "SLA guarantee",
-      "On-premise option",
-      "Custom reporting",
-    ],
-  },
-];
 
 const trustBadges = [
   "256-bit SSL encryption",
@@ -195,19 +125,6 @@ const trustBadges = [
 ];
 
 function Home() {
-  const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
-  const getPlansFn = useServerFn(getPlans);
-
-  useEffect(() => {
-    getPlansFn()
-      .then((res: any) => {
-        if (Array.isArray(res) && res.length > 0) setPlans(res);
-      })
-      .catch(() => {
-        // keep default plans on error
-      });
-  }, []);
-
   return (
     <PublicLayout>
 
@@ -631,62 +548,73 @@ function Home() {
 
 
       {/* ════════════════════════════════════════
-          PRICING
+          GET A QUOTE
           ════════════════════════════════════════ */}
-      <section id="pricing" className="bg-white py-24">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <span className="text-xs font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Simple pricing</span>
-            <h2 className="text-4xl font-extrabold text-slate-900 mt-4 mb-4">Pay as you grow</h2>
-            <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              Start free, upgrade when you need more. No hidden fees, no annual lock-in.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl border-2 p-8 flex flex-col ${
-                  plan.featured
-                    ? "border-blue-600 bg-blue-600 text-white shadow-2xl scale-[1.03]"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              >
-                {plan.featured && (
-                  <div className="text-xs font-bold uppercase tracking-widest bg-white/20 text-white px-3 py-1 rounded-full self-start mb-4">
-                    Most popular
-                  </div>
-                )}
-                <div className="text-lg font-bold mb-1">{plan.name}</div>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className="text-4xl font-extrabold">{plan.price}</span>
-                  {plan.price !== "Custom" && (
-                    <span className={`text-sm mb-1 ${plan.featured ? "text-blue-200" : "text-slate-500"}`}>
-                      /{plan.period}
-                    </span>
-                  )}
-                </div>
-                <p className={`text-sm mb-6 ${plan.featured ? "text-blue-200" : "text-slate-500"}`}>
-                  {plan.description}
+      <section className="bg-white py-24">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              {/* Left: copy */}
+              <div className="p-10 xl:p-14 flex flex-col justify-center">
+                <span className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-4">Pricing</span>
+                <h2 className="text-3xl xl:text-4xl font-extrabold text-white leading-tight mb-4">
+                  Pricing that fits<br />your school size
+                </h2>
+                <p className="text-blue-100 text-base leading-relaxed mb-8">
+                  Every school is different — number of students, branches, and staff all matter. Talk to us and we'll put together a plan that makes sense for you. No generic tiers, no surprises.
                 </p>
-                <ul className="space-y-3 flex-1 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm">
-                      <CheckCircle2 className={`w-4 h-4 mt-0.5 shrink-0 ${plan.featured ? "text-blue-200" : "text-blue-600"}`} />
-                      <span className={plan.featured ? "text-blue-50" : "text-slate-700"}>{f}</span>
+                <ul className="space-y-3 mb-8">
+                  {[
+                    "Free plan to get started",
+                    "Flexible pricing as you grow",
+                    "No hidden fees, no lock-in",
+                    "Custom quotes for chains & franchises",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-sm text-blue-50">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+                      {item}
                     </li>
                   ))}
                 </ul>
-                <Link
-                  to={plan.ctaHref as "/signup" | "/contact"}
-                  className={`w-full text-center py-3 rounded-xl font-semibold text-sm transition block ${
-                    plan.featured ? "bg-white text-blue-700 hover:bg-blue-50" : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href={WA_LINK}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold text-sm transition shadow-lg"
+                  >
+                    {WA_ICON}
+                    Chat on WhatsApp
+                  </a>
+                  <Link
+                    to="/pricing"
+                    className="inline-flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold text-sm transition"
+                  >
+                    View plan details
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
-            ))}
+
+              {/* Right: highlights */}
+              <div className="bg-white/10 backdrop-blur-sm p-10 xl:p-14 flex flex-col justify-center gap-6">
+                {[
+                  { icon: Users, title: "Free forever plan", desc: "Start with 1 branch and up to 50 students — completely free, no card needed." },
+                  { icon: Building2, title: "Multi-branch schools", desc: "Running 2+ branches? We'll tailor pricing to your exact setup." },
+                  { icon: MessageCircle, title: "Talk to us directly", desc: "No sales funnel. Chat with us on WhatsApp and get a quote in minutes." },
+                ].map(({ icon: Icon, title, desc }) => (
+                  <div key={title} className="flex gap-4">
+                    <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold text-sm mb-0.5">{title}</div>
+                      <div className="text-blue-200 text-sm leading-relaxed">{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>

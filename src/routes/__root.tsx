@@ -34,7 +34,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getSession } from "@/lib/auth";
 
 export const publicPaths = [
-  "/", "/about", "/contact", "/refund-policy", "/privacy-policy", "/terms-of-service",
+  "/", "/about", "/contact", "/pricing", "/refund-policy", "/privacy-policy", "/terms-of-service",
   "/login", "/signup", "/forgot-password", "/reset-password", "/invite",
 ];
 
