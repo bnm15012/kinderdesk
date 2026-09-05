@@ -2000,7 +2000,7 @@ export const updateSchoolLogo = createServerFn({ method: "POST" })
     if (buffer.length > 5 * 1024 * 1024) throw new Error("Image must be under 5MB");
 
     const mimeType = `image/${mimeExt === "svg" ? "svg+xml" : mimeExt}`;
-    const fileName = `logos/school-${user.schoolId}-${Date.now()}.${ext}`;
+    const fileName = `schools/${user.schoolId}/logo/logo-${Date.now()}.${ext}`;
 
     let logoUrl: string;
 
@@ -2031,11 +2031,11 @@ export const updateSchoolLogo = createServerFn({ method: "POST" })
       logoUrl = `${r2PublicUrl!.replace(/\/$/, "")}/${fileName}`;
     } else {
       // Fallback: local disk (dev only)
-      const uploadDir = path.join(process.cwd(), "public", "uploads", "logos");
+      const uploadDir = path.join(process.cwd(), "public", "uploads", "schools", String(user.schoolId), "logo");
       await mkdir(uploadDir, { recursive: true });
-      const localName = `school-${user.schoolId}-${Date.now()}.${ext}`;
+      const localName = `logo-${Date.now()}.${ext}`;
       await writeFile(path.join(uploadDir, localName), buffer);
-      logoUrl = `/uploads/logos/${localName}`;
+      logoUrl = `/uploads/schools/${user.schoolId}/logo/${localName}`;
     }
 
     await db.update(schools).set({ logoUrl }).where(eq(schools.id, user.schoolId));
@@ -3204,12 +3204,11 @@ async function uploadToR2orDisk(
     await s3.send(new PutObjectCommand({ Bucket: r2Bucket!, Key: key, Body: buffer, ContentType: mimeType }));
     return `${r2PublicUrl!.replace(/\/$/, "")}/${key}`;
   } else {
-    // local dev fallback
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "documents");
-    await mkdir(uploadDir, { recursive: true });
-    const localName = key.replace(/\//g, "-");
-    await writeFile(path.join(uploadDir, localName), buffer);
-    return `/uploads/documents/${localName}`;
+    // local dev fallback — mirror the R2 key structure under public/uploads/
+    const filePath = path.join(process.cwd(), "public", "uploads", ...key.split("/"));
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, buffer);
+    return `/uploads/${key}`;
   }
 }
 
@@ -3250,7 +3249,7 @@ export const uploadDocument = createServerFn({ method: "POST" })
     };
     const ext = extMap[mimeType] ?? "bin";
 
-    const key = `documents/student-${data.studentId}-${data.type}-${Date.now()}.${ext}`;
+    const key = `schools/${user.schoolId}/students/${data.studentId}/documents/${data.type}-${Date.now()}.${ext}`;
     const publicUrl = await uploadToR2orDisk(buffer, mimeType, key);
 
     const [r] = await db.insert(documents).values({
@@ -3439,7 +3438,7 @@ export const uploadBgVerificationDoc = createServerFn({ method: "POST" })
       "image/jpeg": "jpg", "image/png": "png", "application/pdf": "pdf",
     };
     const ext = extMap[mimeType] ?? "bin";
-    const key = `documents/staff-${data.staffId}-bgcheck-${Date.now()}.${ext}`;
+    const key = `schools/${user.schoolId}/staff/${data.staffId}/documents/bgcheck-${Date.now()}.${ext}`;
     const publicUrl = await uploadToR2orDisk(buffer, mimeType, key);
 
     await db.update(staff)
@@ -3478,22 +3477,25 @@ export const uploadCurriculumActivity = createServerFn({ method: "POST" })
     const { users, staff, staffClassAssignments, classes, curriculumActivities } = await import("@/lib/db/schema");
 
     const [user] = await db
-      .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email })
+      .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
       .from(users).where(eq(users.id, userId)).limit(1);
     if (!user) throw new Error("Not authenticated");
     if (user.role !== "teacher" && user.role !== "staff" && user.role !== "school_admin" && user.role !== "location_admin")
       throw new Error("Not authorized");
 
-    // Resolve staff record
+    // Resolve staff record (may not exist for school_admin users)
     const [staffRecord] = await db
-      .select({ id: staff.id })
+      .select({ id: staff.id, firstName: staff.firstName, lastName: staff.lastName })
       .from(staff)
       .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
       .limit(1);
-    if (!staffRecord) throw new Error("Staff record not found");
+
+    const isAdminRole = user.role === "school_admin" || user.role === "location_admin";
+
+    if (!staffRecord && !isAdminRole) throw new Error("Staff record not found");
 
     // Verify teacher is assigned to this class (skip check for admins)
-    if (user.role === "teacher" || user.role === "staff") {
+    if ((user.role === "teacher" || user.role === "staff") && staffRecord) {
       const [assigned] = await db
         .select({ id: staffClassAssignments.id })
         .from(staffClassAssignments)
@@ -3507,6 +3509,11 @@ export const uploadCurriculumActivity = createServerFn({ method: "POST" })
       if (!assigned) throw new Error("Not authorized for this class");
     }
 
+    // Build uploader name
+    const uploaderName = staffRecord
+      ? `${staffRecord.firstName ?? ""} ${staffRecord.lastName ?? ""}`.trim()
+      : `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
+
     let photoUrl: string | undefined;
     let r2Key: string | undefined;
 
@@ -3515,21 +3522,22 @@ export const uploadCurriculumActivity = createServerFn({ method: "POST" })
       if (!meta || !b64) throw new Error("Invalid file data");
       const buffer = Buffer.from(b64, "base64");
       const ext = data.fileName.split(".").pop() ?? "jpg";
-      r2Key = `curriculum/${user.schoolId}/${data.classId}/${Date.now()}.${ext}`;
+      r2Key = `schools/${user.schoolId}/curriculum/class-${data.classId}/${Date.now()}.${ext}`;
       photoUrl = await uploadToR2orDisk(buffer, meta, r2Key);
     }
 
     if (!user.locationId) throw new Error("Location not set for user");
     const [result] = await db.insert(curriculumActivities).values({
-      schoolId:     user.schoolId,
-      locationId:   user.locationId,
-      classId:      data.classId,
-      uploadedBy:   staffRecord.id,
-      title:        data.title,
-      description:  data.description ?? null,
-      activityDate: new Date(data.activityDate),
-      photoUrl:     photoUrl ?? null,
-      r2Key:        r2Key ?? null,
+      schoolId:       user.schoolId,
+      locationId:     user.locationId,
+      classId:        data.classId,
+      uploadedBy:     staffRecord?.id ?? null,
+      uploadedByName: uploaderName || null,
+      title:          data.title,
+      description:    data.description ?? null,
+      activityDate:   new Date(data.activityDate),
+      photoUrl:       photoUrl ?? null,
+      r2Key:          r2Key ?? null,
     });
 
     return { ok: true, id: Number((result as any).insertId) };
@@ -3591,11 +3599,11 @@ export const getCurriculumActivities = createServerFn({ method: "GET" })
           activityDate: curriculumActivities.activityDate,
           photoUrl: curriculumActivities.photoUrl,
           createdAt: curriculumActivities.createdAt,
-          uploaderName: sql<string>`CONCAT(${staff.firstName}, ' ', ${staff.lastName})`,
+          uploaderName: sql<string>`COALESCE(NULLIF(CONCAT(COALESCE(${staff.firstName},''),' ',COALESCE(${staff.lastName},'')), ' '), ${curriculumActivities.uploadedByName}, 'Admin')`,
           className: sql<string>`(SELECT name FROM classes WHERE id = ${curriculumActivities.classId})`,
         })
         .from(curriculumActivities)
-        .innerJoin(staff, eq(curriculumActivities.uploadedBy, staff.id))
+        .leftJoin(staff, eq(curriculumActivities.uploadedBy, staff.id))
         .where(and(
           inArray(curriculumActivities.classId, classIds),
           eq(curriculumActivities.schoolId, user.schoolId),
@@ -3616,11 +3624,11 @@ export const getCurriculumActivities = createServerFn({ method: "GET" })
         activityDate: curriculumActivities.activityDate,
         photoUrl: curriculumActivities.photoUrl,
         createdAt: curriculumActivities.createdAt,
-        uploaderName: sql<string>`CONCAT(${staff.firstName}, ' ', ${staff.lastName})`,
+        uploaderName: sql<string>`COALESCE(NULLIF(CONCAT(COALESCE(${staff.firstName},''),' ',COALESCE(${staff.lastName},'')), ' '), ${curriculumActivities.uploadedByName}, 'Admin')`,
         className: sql<string>`(SELECT name FROM classes WHERE id = ${curriculumActivities.classId})`,
       })
       .from(curriculumActivities)
-      .innerJoin(staff, eq(curriculumActivities.uploadedBy, staff.id))
+      .leftJoin(staff, eq(curriculumActivities.uploadedBy, staff.id))
       .where(and(...conditions))
       .orderBy(desc(curriculumActivities.activityDate), desc(curriculumActivities.createdAt));
   });

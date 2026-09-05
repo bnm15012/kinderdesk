@@ -55,9 +55,10 @@ const ADMIN_NAV = [
   { to: "/admissions",  label: "Admissions",  icon: UserPlus },
   { to: "/students",    label: "Students",    icon: Users },
   { to: "/attendance",  label: "Attendance",  icon: CalendarCheck },
-  { to: "/fees",       label: "Fees",       icon: DollarSign },
-  { to: "/staff",      label: "Staff",      icon: Briefcase },
-  { to: "/classes",    label: "Classes",    icon: DoorOpen },
+  { to: "/fees",        label: "Fees",        icon: DollarSign },
+  { to: "/staff",       label: "Staff",       icon: Briefcase },
+  { to: "/classes",     label: "Classes",     icon: DoorOpen },
+  { to: "/curriculum",  label: "Activities",  icon: BookOpen },
 ];
 
 const SCHOOL_ADMIN_NAV = [
@@ -212,7 +213,7 @@ function AppShell() {
       setRole(user.role);
       // Role-based redirect
       const home = roleHome(user.role);
-      const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations"];
+      const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum"];
       const accountantRoutes = ["/dashboard", "/fees"];
       const teacherRoutes = ["/teacher", "/curriculum"];
       const parentRoutes = ["/parent"];
