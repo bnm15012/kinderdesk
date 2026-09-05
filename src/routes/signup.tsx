@@ -229,8 +229,8 @@ function Signup() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>School email</label>
-                    <input type="email" value={schoolEmail} onChange={(e) => setSchoolEmail(e.target.value)} placeholder="school@example.com" className={inputCls} required />
+                    <label className={labelCls}>School contact email</label>
+                    <input type="email" value={schoolEmail} onChange={(e) => setSchoolEmail(e.target.value)} placeholder="info@yourschool.com" className={inputCls} required />
                   </div>
                   <div>
                     <label className={labelCls}>Phone number</label>

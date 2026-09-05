@@ -48,6 +48,23 @@ export async function sendConfirmationEmail(email: string, token: string, appUrl
   });
 }
 
+export async function sendOtpEmail(email: string, code: string) {
+  const transport = getTransport();
+  await transport.sendMail({
+    from: FROM,
+    to: email,
+    subject: "Your KinderDesk password reset code",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#0f172a">Password reset code</h2>
+        <p>Use the code below to reset your KinderDesk password. It expires in 15 minutes.</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#6366f1;padding:20px 0">${code}</div>
+        <p style="color:#64748b;font-size:13px">If you didn't request this, ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, token: string, appUrl: string) {
   const transport = getTransport();
   const link = `${appUrl}/reset-password?token=${token}`;

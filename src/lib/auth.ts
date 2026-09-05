@@ -305,42 +305,109 @@ export const forgotPassword = createServerFn({ method: "POST" })
   .validator((input: unknown) => forgotSchema.parse(input))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { users } = await import("@/lib/db/schema");
+    const { users, otps } = await import("@/lib/db/schema");
 
     const email = normalizeEmail(data.email);
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    // Always return ok to avoid email enumeration
     if (!user) return { ok: true };
 
-    const token = await new jose.SignJWT({ userId: user.id, purpose: "reset" })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("15m")
-      .sign(JWT_SECRET);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const now = new Date();
+    const expires = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
 
-    // In a real app, send this token via email using SMTP.
-    // For testing, it is returned in the response.
-    return { ok: true, token };
+    await db.insert(otps).values({
+      email,
+      code,
+      type: "password_reset",
+      expiresAt: expires,
+      used: 0,
+    });
+
+    const { sendOtpEmail } = await import("@/lib/email");
+    await sendOtpEmail(email, code);
+
+    return { ok: true };
+  });
+
+export const verifyOtp = createServerFn({ method: "POST" })
+  .validator((d: { email: string; code: string }) => d)
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { otps } = await import("@/lib/db/schema");
+
+    const email = normalizeEmail(data.email);
+    const now = new Date();
+
+    const [otp] = await db
+      .select()
+      .from(otps)
+      .where(
+        and(
+          eq(otps.email, email),
+          eq(otps.code, data.code),
+          eq(otps.type, "password_reset"),
+          eq(otps.used, 0),
+          gt(otps.expiresAt, now),
+        ),
+      )
+      .limit(1);
+
+    if (!otp) throw new Error("Invalid or expired OTP. Please try again.");
+
+    // Mark OTP used
+    await db.update(otps).set({ used: 1 }).where(eq(otps.id, otp.id));
+
+    // Issue a short-lived reset token stored in otps table
+    const resetToken = randomHex(24);
+    const resetExpires = new Date(now.getTime() + 10 * 60 * 1000); // 10 min
+
+    await db.insert(otps).values({
+      email,
+      code: resetToken,
+      type: "password_reset",
+      expiresAt: resetExpires,
+      used: 0,
+    });
+
+    return { resetToken };
   });
 
 const resetSchema = z.object({
-  token: z.string().min(1),
-  password: z.string().min(8).max(100),
+  email: z.string().trim().email().max(255),
+  resetToken: z.string().min(1),
+  newPassword: z.string().min(8).max(100),
 });
 
 export const resetPassword = createServerFn({ method: "POST" })
   .validator((input: unknown) => resetSchema.parse(input))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { users } = await import("@/lib/db/schema");
+    const { users, otps } = await import("@/lib/db/schema");
 
-    const { payload } = await jose.jwtVerify(data.token, JWT_SECRET);
-    if (payload.purpose !== "reset") throw new Error("Invalid reset token");
+    const email = normalizeEmail(data.email);
+    const now = new Date();
 
-    const userId = Number(payload.userId);
-    if (!userId) throw new Error("Invalid reset token");
+    const [tokenRow] = await db
+      .select()
+      .from(otps)
+      .where(
+        and(
+          eq(otps.email, email),
+          eq(otps.code, data.resetToken),
+          eq(otps.type, "password_reset"),
+          eq(otps.used, 0),
+          gt(otps.expiresAt, now),
+        ),
+      )
+      .limit(1);
 
-    const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+    if (!tokenRow) throw new Error("Reset session expired. Please start over.");
+
+    await db.update(otps).set({ used: 1 }).where(eq(otps.id, tokenRow.id));
+
+    const passwordHash = await bcrypt.hash(data.newPassword, BCRYPT_ROUNDS);
+    await db.update(users).set({ passwordHash }).where(eq(users.email, email));
 
     return { ok: true };
   });

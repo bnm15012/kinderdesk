@@ -1,63 +1,25 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { resetPassword } from "@/lib/auth";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { GraduationCap } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
   component: ResetPassword,
 });
 
+// Password reset is handled entirely in /forgot-password (3-step OTP flow).
+// This page exists only as a fallback redirect.
 function ResetPassword() {
-  const navigate = useNavigate();
-  const resetFn = useServerFn(resetPassword);
-  const [token, setToken] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    try {
-      await resetFn({ data: { token, password } });
-      navigate({ to: "/login" });
-    } catch (err: any) {
-      setError(err?.message ?? "Reset failed");
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 px-4">
-      <div className="w-full max-w-md p-8 bg-white/95 rounded-2xl border border-white/10 shadow-2xl">
-        <h1 className="text-2xl font-bold mb-6 text-center">Set new password</h1>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Reset token</label>
-            <textarea
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="w-full p-2 rounded-lg border border-[var(--color-border)] text-sm"
-              rows={3}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">New password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 rounded-lg border border-[var(--color-border)]"
-              required
-            />
-          </div>
-          {error && <p className="text-sm text-[var(--color-destructive)]">{error}</p>}
-          <button type="submit" className="w-full py-2 bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90">
-            Reset password
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-center text-[var(--color-muted-foreground)]">
-          <Link to="/login" className="text-[var(--color-primary)] hover:underline">Back to login</Link>
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="text-center space-y-4">
+        <div className="flex justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600">
+            <GraduationCap className="h-6 w-6 text-white" />
+          </span>
+        </div>
+        <p className="text-slate-600 text-sm">Please use the forgot password flow to reset your password.</p>
+        <Link to="/forgot-password" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+          Reset password
+        </Link>
       </div>
     </div>
   );
