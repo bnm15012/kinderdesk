@@ -3,11 +3,16 @@ import { getRequest } from "@tanstack/react-start/server";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { z } from "zod";
-import { eq, and, count, desc, asc, inArray, gte, or, sql } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, gte, or, sql, gt } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { fmtDate } from "@/lib/utils";
+
+function randomHex(bytes = 32) {
+  return randomBytes(bytes).toString("hex");
+}
 
 const SESSION_COOKIE = "bb_session";
 const BCRYPT_ROUNDS = 10;
@@ -59,11 +64,17 @@ export const signup = createServerFn({ method: "POST" })
   .validator((input: unknown) => signupSchema.parse(input))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { schools, locations, users, subscriptions } = await import("@/lib/db/schema");
+    const { schools, locations, users, subscriptions, otps } = await import("@/lib/db/schema");
 
     const email = normalizeEmail(data.email);
     const now = new Date();
     const slug = `${generateSlug(data.schoolName)}-${now.getTime().toString(36)}`;
+
+    // Check duplicate email
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (existing) throw new Error("This email is already registered. Try signing in instead.");
+
+    const skipConfirmation = process.env.SKIP_EMAIL_CONFIRMATION === "true";
 
     const [schoolResult] = await db.insert(schools).values({
       name: data.schoolName,
@@ -114,18 +125,31 @@ export const signup = createServerFn({ method: "POST" })
       lastName: "",
       role: "school_admin",
       status: "active",
+      emailConfirmed: skipConfirmation ? 1 : 0,
     });
     const userId = Number((userResult as any).insertId);
 
-    const token = await createSessionToken({
-      userId,
-      schoolId,
-      locationId,
-      role: "school_admin",
+    if (skipConfirmation) {
+      // Dev: auto-login immediately
+      const token = await createSessionToken({ userId, schoolId, locationId, role: "school_admin", email });
+      return { confirmed: true, token };
+    }
+
+    // Production: send confirmation email
+    const confirmToken = randomHex(32);
+    await db.insert(otps).values({
       email,
+      code: confirmToken,
+      type: "email_confirm",
+      expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+      used: 0,
     });
 
-    return { userId, schoolId, locationId, token };
+    const appUrl = process.env.VITE_APP_URL ?? "http://localhost:3000";
+    const { sendConfirmationEmail } = await import("@/lib/email");
+    await sendConfirmationEmail(email, confirmToken, appUrl);
+
+    return { confirmed: false, token: null };
   });
 
 const loginSchema = z.object({
@@ -147,6 +171,11 @@ export const login = createServerFn({ method: "POST" })
 
     const ok = await bcrypt.compare(data.password, user.passwordHash);
     if (!ok) throw new Error("Invalid email or password");
+
+    const skipConfirmation = process.env.SKIP_EMAIL_CONFIRMATION === "true";
+    if (!user.emailConfirmed && !skipConfirmation) {
+      throw new Error("Please confirm your email before signing in. Check your inbox for the confirmation link.");
+    }
 
     await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
 
@@ -179,6 +208,58 @@ export const login = createServerFn({ method: "POST" })
 export const logout = createServerFn({ method: "POST" }).handler(async () => {
   return { ok: true };
 });
+
+// ── confirmEmail — verify token from the confirmation email link ──────────────
+export const confirmEmail = createServerFn({ method: "GET" })
+  .validator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { otps, users } = await import("@/lib/db/schema");
+
+    const now = new Date();
+    const [otp] = await db
+      .select()
+      .from(otps)
+      .where(
+        and(
+          eq(otps.code, data.token),
+          eq(otps.type, "email_confirm"),
+          eq(otps.used, 0),
+          gt(otps.expiresAt, now),
+        ),
+      )
+      .limit(1);
+
+    if (!otp) throw new Error("This confirmation link is invalid or has expired.");
+
+    // Mark token used
+    await db.update(otps).set({ used: 1 }).where(eq(otps.id, otp.id));
+
+    // Mark user confirmed + active
+    await db
+      .update(users)
+      .set({ emailConfirmed: 1, status: "active" })
+      .where(eq(users.email, otp.email));
+
+    // Auto-login: create session token
+    const [user] = await db
+      .select({ id: users.id, schoolId: users.schoolId, locationId: users.locationId, role: users.role })
+      .from(users)
+      .where(eq(users.email, otp.email))
+      .limit(1);
+
+    if (!user) throw new Error("User not found.");
+
+    const token = await createSessionToken({
+      userId: user.id,
+      schoolId: user.schoolId,
+      locationId: user.locationId,
+      role: user.role,
+      email: otp.email,
+    });
+
+    return { token };
+  });
 
 export const getSession = createServerFn({ method: "GET" }).handler(async () => {
   const req = getRequest();

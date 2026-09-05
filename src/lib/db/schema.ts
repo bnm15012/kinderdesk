@@ -65,9 +65,21 @@ export const users = mysqlTable("users", {
     "accountant",
   ]).default("staff"),
   status: mysqlEnum("status", ["active", "inactive", "invited", "suspended"]).default("invited"),
+  emailConfirmed: int("email_confirmed").default(0).notNull(),
   lastLogin: datetime("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// ── OTPs / confirmation tokens ────────────────────────────────────────────────
+export const otps = mysqlTable("otps", {
+  id:         int("id").primaryKey().autoincrement(),
+  email:      varchar("email", { length: 255 }).notNull(),
+  code:       varchar("code", { length: 128 }).notNull(),
+  type:       mysqlEnum("type", ["email_confirm", "password_reset"]).default("email_confirm").notNull(),
+  expiresAt:  datetime("expires_at").notNull(),
+  used:       int("used").default(0).notNull(),
+  createdAt:  timestamp("created_at").defaultNow(),
 });
 
 // ── Classes & Rooms ─────────────────────────────────────────────────────────

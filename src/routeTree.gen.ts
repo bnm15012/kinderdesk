@@ -14,6 +14,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdmissionsRouteImport } from './routes/admissions'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as ClassesRouteImport } from './routes/classes'
+import { Route as ConfirmRouteImport } from './routes/confirm'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FeesRouteImport } from './routes/fees'
@@ -66,6 +67,11 @@ const AttendanceRoute = AttendanceRouteImport.update({
 const ClassesRoute = ClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmRoute = ConfirmRouteImport.update({
+  id: '/confirm',
+  path: '/confirm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/admissions': typeof AdmissionsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
+  '/confirm': typeof ConfirmRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/fees': typeof FeesRoute
@@ -250,6 +257,7 @@ export interface FileRoutesByTo {
   '/admissions': typeof AdmissionsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
+  '/confirm': typeof ConfirmRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/fees': typeof FeesRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/admissions': typeof AdmissionsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
+  '/confirm': typeof ConfirmRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/fees': typeof FeesRoute
@@ -321,6 +330,7 @@ export interface FileRouteTypes {
     | '/admissions'
     | '/attendance'
     | '/classes'
+    | '/confirm'
     | '/contact'
     | '/dashboard'
     | '/fees'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/admissions'
     | '/attendance'
     | '/classes'
+    | '/confirm'
     | '/contact'
     | '/dashboard'
     | '/fees'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/admissions'
     | '/attendance'
     | '/classes'
+    | '/confirm'
     | '/contact'
     | '/dashboard'
     | '/fees'
@@ -425,6 +437,7 @@ export interface RootRouteChildren {
   AdmissionsRoute: typeof AdmissionsRoute
   AttendanceRoute: typeof AttendanceRoute
   ClassesRoute: typeof ClassesRoute
+  ConfirmRoute: typeof ConfirmRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
   FeesRoute: typeof FeesRoute
@@ -481,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/classes'
       preLoaderRoute: typeof ClassesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirm': {
+      id: '/confirm'
+      path: '/confirm'
+      fullPath: '/confirm'
+      preLoaderRoute: typeof ConfirmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -734,6 +754,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdmissionsRoute: AdmissionsRoute,
   AttendanceRoute: AttendanceRoute,
   ClassesRoute: ClassesRoute,
+  ConfirmRoute: ConfirmRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
   FeesRoute: FeesRoute,

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { signup } from "@/lib/auth";
-import { GraduationCap, CheckCircle2, Eye, EyeOff, ArrowRight, Building2, User, Lock, ShieldCheck } from "lucide-react";
+import { GraduationCap, CheckCircle2, Eye, EyeOff, ArrowRight, Building2, User, Lock, ShieldCheck, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/signup")({
   component: Signup,
@@ -64,6 +64,7 @@ function Signup() {
   const signupFn = useServerFn(signup);
 
   const [step, setStep] = useState(0);
+  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
   const [schoolName, setSchoolName] = useState("");
   const [schoolEmail, setSchoolEmail] = useState("");
   const [schoolPhone, setSchoolPhone] = useState("");
@@ -100,13 +101,18 @@ function Signup() {
     try {
       const res = (await signupFn({
         data: { schoolName, schoolEmail, schoolPhone, schoolAddress, schoolCity, schoolState, schoolPincode, schoolCountry, fullName, email, password },
-      })) as { token?: string };
-      if (res.token) {
+      })) as { confirmed: boolean; token: string | null };
+      if (res.confirmed && res.token) {
+        // Dev: auto-login and redirect
         const maxAge = 30 * 24 * 60 * 60;
         document.cookie = `bb_session=${res.token}; Path=/; SameSite=Lax; Max-Age=${maxAge}`;
+        setStep(2);
+        setTimeout(() => navigate({ to: "/dashboard" }), 1800);
+      } else {
+        // Production: show "check your email" screen
+        setNeedsEmailConfirm(true);
+        setStep(2);
       }
-      setStep(2);
-      setTimeout(() => navigate({ to: "/dashboard" }), 1800);
     } catch (err: any) {
       setError(err?.message ?? "Signup failed. Please try again.");
     } finally {
@@ -362,7 +368,7 @@ function Signup() {
             )}
 
             {/* ── Step 3: Success ── */}
-            {step === 2 && (
+            {step === 2 && !needsEmailConfirm && (
               <div className="text-center py-8">
                 <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
                   <CheckCircle2 className="w-10 h-10 text-emerald-600" />
@@ -375,6 +381,21 @@ function Signup() {
                     <div key={i} className="w-2 h-2 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ── Step 3: Email confirmation required (production) ── */}
+            {step === 2 && needsEmailConfirm && (
+              <div className="text-center py-8">
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                  <Mail className="w-10 h-10 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Check your email</h2>
+                <p className="text-slate-500 text-sm mb-1">
+                  We've sent a confirmation link to <span className="font-semibold text-slate-700">{email}</span>.
+                </p>
+                <p className="text-slate-400 text-sm">Click the link in the email to activate your account. It expires in 24 hours.</p>
+                <p className="text-slate-400 text-xs mt-4">Didn't receive it? Check your spam folder.</p>
               </div>
             )}
           </div>
