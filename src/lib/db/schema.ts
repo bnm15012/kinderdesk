@@ -27,6 +27,8 @@ export const schools = mysqlTable("schools", {
   currency: varchar("currency", { length: 10 }).default("INR"),
   plan: varchar("plan", { length: 50 }).default("free"),
   maxLocations: int("max_locations").default(1),
+  maxStudents:  int("max_students").default(50),
+  maxStaff:     int("max_staff").default(3),
   status: mysqlEnum("status", ["active", "suspended", "pending", "archived"]).default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),

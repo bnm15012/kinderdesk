@@ -21,6 +21,69 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? "dev-secre
 // Roles that can access any location within their school
 const SCHOOL_WIDE_ROLES = new Set(["super_admin", "school_admin", "accountant"]);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAN LIMITS — single source of truth
+// These are defaults; per-school overrides live in schools.max_students etc.
+// ─────────────────────────────────────────────────────────────────────────────
+export const PLAN_LIMITS: Record<string, { maxStudents: number; maxStaff: number; maxLocations: number }> = {
+  free:       { maxStudents: 50,        maxStaff: 3,         maxLocations: 1  },
+  growth:     { maxStudents: Infinity,  maxStaff: Infinity,  maxLocations: 5  },
+  enterprise: { maxStudents: Infinity,  maxStaff: Infinity,  maxLocations: Infinity },
+};
+
+// Error class that carries a machine-readable code the UI can act on
+export class PlanLimitError extends Error {
+  code = "PLAN_LIMIT_EXCEEDED";
+  resource: string;
+  current: number;
+  limit: number;
+  plan: string;
+  constructor(resource: string, current: number, limit: number, plan: string) {
+    super(`PLAN_LIMIT_EXCEEDED:${resource}:${current}:${limit}:${plan}`);
+    this.resource = resource;
+    this.current  = current;
+    this.limit    = limit;
+    this.plan     = plan;
+  }
+}
+
+// Call this before inserting a new resource. Throws PlanLimitError if over limit.
+async function checkPlanLimit(schoolId: number, resource: "students" | "staff" | "locations") {
+  const { db } = await import("@/lib/db");
+  const { schools, students, staff, locations } = await import("@/lib/db/schema");
+
+  const [school] = await db
+    .select({ plan: schools.plan, maxStudents: schools.maxStudents, maxStaff: schools.maxStaff, maxLocations: schools.maxLocations })
+    .from(schools).where(eq(schools.id, schoolId)).limit(1);
+  if (!school) throw new Error("School not found");
+
+  const planDefaults = PLAN_LIMITS[school.plan ?? "free"] ?? PLAN_LIMITS.free;
+
+  let limit: number;
+  let current: number;
+
+  if (resource === "students") {
+    limit = school.maxStudents ?? planDefaults.maxStudents;
+    const [{ cnt }] = await db.select({ cnt: count() }).from(students)
+      .where(and(eq(students.schoolId, schoolId)));
+    current = Number(cnt);
+  } else if (resource === "staff") {
+    limit = school.maxStaff ?? planDefaults.maxStaff;
+    const [{ cnt }] = await db.select({ cnt: count() }).from(staff)
+      .where(and(eq(staff.schoolId, schoolId), eq(staff.status, "active")));
+    current = Number(cnt);
+  } else {
+    limit = school.maxLocations ?? planDefaults.maxLocations;
+    const [{ cnt }] = await db.select({ cnt: count() }).from(locations)
+      .where(and(eq(locations.schoolId, schoolId), eq(locations.status, "active")));
+    current = Number(cnt);
+  }
+
+  if (limit !== Infinity && current >= limit) {
+    throw new PlanLimitError(resource, current, limit, school.plan ?? "free");
+  }
+}
+
 function normalizeEmail(email: string) {
   return email.toLowerCase().trim();
 }
@@ -1673,7 +1736,10 @@ export const addStudent = createServerFn({ method: "POST" })
     const { db } = await import("@/lib/db");
     const { students, parents, emergencyContacts, medicalNotes } = await import("@/lib/db/schema");
 
-    // Capacity guard
+    // Plan limit guard
+    await checkPlanLimit(data.schoolId, "students");
+
+    // Class capacity guard
     if (data.currentClassId) {
       const { classes, classEnrollments } = await import("@/lib/db/schema");
       const [cls] = await db.select({ capacity: classes.capacity }).from(classes).where(eq(classes.id, data.currentClassId)).limit(1);
@@ -1907,6 +1973,9 @@ export const addBranch = createServerFn({ method: "POST" })
       .limit(1);
     if (!user) throw new Error("Not authenticated");
     if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    // Plan limit guard
+    if (user.schoolId) await checkPlanLimit(user.schoolId, "locations");
 
     const [res] = await db.insert(locations).values({
       schoolId: user.schoolId,
@@ -2318,6 +2387,10 @@ export const addStaffMember = createServerFn({ method: "POST" })
   .validator((input: unknown) => addStaffSchema.parse(input))
   .handler(async ({ data }) => {
     await requireAuth(data.schoolId, data.locationId);
+
+    // Plan limit guard
+    await checkPlanLimit(data.schoolId, "staff");
+
     const { db } = await import("@/lib/db");
     const { staff } = await import("@/lib/db/schema");
     const [res] = await db.insert(staff).values({

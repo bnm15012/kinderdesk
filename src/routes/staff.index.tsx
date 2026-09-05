@@ -10,6 +10,7 @@ import { listStaff, addStaffMember, archiveStaff, sendInvite } from "@/lib/auth"
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PlanLimitDialog, parsePlanLimitError } from "@/components/plan-limit-dialog";
 
 export const Route = createFileRoute("/staff/")({
   component: Staff,
@@ -137,7 +138,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel }: 
           </>
         )}
       </div>
-      {error && (
+      {error && !parsePlanLimitError(error) && (
         <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
@@ -169,18 +170,23 @@ function AddStaffModal({ onClose, onSaved, schoolId, locationId }: {
     finally { setSaving(false); }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="text-lg font-bold text-slate-900">Add Staff Member</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-6">
-          <StaffForm onSubmit={submit} onCancel={onClose} saving={saving} error={error} submitLabel="Save Staff" />
+    <>
+      {error && parsePlanLimitError(error) && (
+        <PlanLimitDialog error={error} onClose={() => setError("")} />
+      )}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
+            <h2 className="text-lg font-bold text-slate-900">Add Staff Member</h2>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="p-6">
+            <StaffForm onSubmit={submit} onCancel={onClose} saving={saving} error={error} submitLabel="Save Staff" />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -11,6 +11,7 @@ import { listStudents, addStudent, archiveStudent, listClassesForSchool } from "
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PlanLimitDialog, parsePlanLimitError } from "@/components/plan-limit-dialog";
 import { fmtDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/students/")({
@@ -281,10 +282,13 @@ function AddStudentModal({
             </div>
           </div>
 
-          {error && (
+          {error && !parsePlanLimitError(error) && (
             <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" /> {error}
             </div>
+          )}
+          {error && parsePlanLimitError(error) && (
+            <PlanLimitDialog error={error} onClose={() => setError("")} />
           )}
 
           <div className="flex justify-end gap-3 pt-1">

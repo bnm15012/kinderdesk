@@ -6,6 +6,7 @@ import {
   AlertCircle, Pencil, Phone, Mail,
 } from "lucide-react";
 import { getSchoolWithLocations, addBranch, updateSchool, updateBranch, updateSchoolLogo } from "@/lib/auth";
+import { PlanLimitDialog, parsePlanLimitError } from "@/components/plan-limit-dialog";
 
 export const Route = createFileRoute("/schools")({
   component: SchoolsPage,
@@ -60,62 +61,67 @@ function AddBranchModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="text-lg font-bold text-slate-900">Add New Branch</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-5 h-5" /></button>
+    <>
+      {error && parsePlanLimitError(error) && (
+        <PlanLimitDialog error={error} onClose={() => setError("")} />
+      )}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
+            <h2 className="text-lg font-bold text-slate-900">Add New Branch</h2>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-5 h-5" /></button>
+          </div>
+          <form onSubmit={submit} className="p-6 space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Branch name *</label>
+              <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. South Branch" className={inputCls} required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
+                <input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="98765 43210" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Capacity</label>
+                <input type="number" value={f.capacity} onChange={(e) => set("capacity", e.target.value)} placeholder="100" className={inputCls} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Address</label>
+              <input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Street address" className={inputCls} />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">City</label>
+                <input value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Mumbai" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">State</label>
+                <input value={f.state} onChange={(e) => set("state", e.target.value)} placeholder="Maharashtra" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pincode</label>
+                <input value={f.pincode} onChange={(e) => set("pincode", e.target.value)} placeholder="400001" className={inputCls} />
+              </div>
+            </div>
+
+            {error && !parsePlanLimitError(error) && (
+              <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-1">
+              <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-medium transition">Cancel</button>
+              <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-bold transition">
+                {saving ? "Adding…" : "Add Branch"}
+              </button>
+            </div>
+          </form>
         </div>
-        <form onSubmit={submit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Branch name *</label>
-            <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. South Branch" className={inputCls} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
-              <input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="98765 43210" className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Capacity</label>
-              <input type="number" value={f.capacity} onChange={(e) => set("capacity", e.target.value)} placeholder="100" className={inputCls} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Address</label>
-            <input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Street address" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">City</label>
-              <input value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Mumbai" className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">State</label>
-              <input value={f.state} onChange={(e) => set("state", e.target.value)} placeholder="Maharashtra" className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pincode</label>
-              <input value={f.pincode} onChange={(e) => set("pincode", e.target.value)} placeholder="400001" className={inputCls} />
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0" /> {error}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-medium transition">Cancel</button>
-            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-bold transition">
-              {saving ? "Adding…" : "Add Branch"}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </>
   );
 }
 
