@@ -150,15 +150,15 @@ function Login() {
         <div className="hidden lg:block absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="hidden lg:block absolute bottom-0 left-0 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50 translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
-        {/* Mobile top bar — logo + page title on same line */}
-        <div className="lg:hidden relative z-10 px-6 pt-10 pb-6 flex items-center justify-between">
+        {/* Mobile top bar — logo pinned top-left */}
+        <div className="lg:hidden relative z-10 px-6 pt-10 pb-6">
           <Link to="/" className="inline-flex items-center gap-2.5">
             <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-1 ring-white/30">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold text-white drop-shadow">KinderDesk</span>
+            <span className="text-white/70 font-medium text-base">· Sign in</span>
           </Link>
-          <span className="text-white/80 text-sm font-semibold">Sign in</span>
         </div>
 
         {/* Form area */}
@@ -169,10 +169,10 @@ function Login() {
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 xl:p-10">
             {/* Header */}
             <div className="mb-8">
-              <div className="hidden lg:flex w-12 h-12 bg-blue-600 rounded-xl items-center justify-center mb-5 shadow-md shadow-blue-200">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-5 shadow-md shadow-blue-200">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 mb-1.5 hidden lg:block">Sign in</h1>
+              <h1 className="text-2xl font-extrabold text-slate-900 mb-1.5">Sign in</h1>
               <p className="text-slate-500 text-sm">
                 Don't have an account?{" "}
                 <Link to="/signup" className="text-blue-600 font-semibold hover:underline">
