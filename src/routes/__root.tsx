@@ -242,7 +242,9 @@ function AppShell() {
       const parentRoutes = ["/parent"];
       const superRoutes = ["/super-admin"];
       if (user.role === "teacher" || user.role === "staff") {
-        if (adminRoutes.includes(pathname) || parentRoutes.includes(pathname) || superRoutes.includes(pathname))
+        if (teacherRoutes.includes(pathname)) {
+          // allowed — do nothing
+        } else if (adminRoutes.includes(pathname) || parentRoutes.includes(pathname) || superRoutes.includes(pathname))
           navigate({ to: home });
       } else if (user.role === "parent") {
         if (adminRoutes.includes(pathname) || teacherRoutes.includes(pathname) || superRoutes.includes(pathname))
