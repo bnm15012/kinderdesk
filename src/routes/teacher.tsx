@@ -392,36 +392,6 @@ function TeacherDashboard() {
         )}
       </div>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-4">
-        <Link
-          to="/teacher/attendance"
-          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-300 hover:shadow-sm transition flex items-center gap-4 group"
-        >
-          <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-            <CalendarCheck className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition">Mark Attendance</p>
-            <p className="text-xs text-slate-400">Record today's student attendance</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 ml-auto transition" />
-        </Link>
-        <Link
-          to="/curriculum"
-          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-violet-300 hover:shadow-sm transition flex items-center gap-4 group"
-        >
-          <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center shrink-0">
-            <BookOpen className="w-5 h-5 text-violet-600" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition">Upload Activity</p>
-            <p className="text-xs text-slate-400">Share today's classroom activities</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-violet-500 ml-auto transition" />
-        </Link>
-      </div>
-
       {/* Attendance modal (for own attendance) */}
       {showAttModal && staffId && data && (
         <AttendanceModal
