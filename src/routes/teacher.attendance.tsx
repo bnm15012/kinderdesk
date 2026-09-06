@@ -172,14 +172,14 @@ function TeacherAttendancePage() {
         {/* Student table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {/* Stats bar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
-            <p className="text-sm text-slate-500">{enrolled.length} enrolled students · {date}</p>
-            <div className="flex gap-5 text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-6 py-3.5 border-b border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-500">{enrolled.length} enrolled · {date}</p>
+            <div className="flex gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-                <CheckCircle2 className="w-4 h-4" /> {present} present
+                <CheckCircle2 className="w-4 h-4 shrink-0" /> {present} present
               </span>
               <span className="flex items-center gap-1.5 text-red-500 font-semibold">
-                <XCircle className="w-4 h-4" /> {absent} absent
+                <XCircle className="w-4 h-4 shrink-0" /> {absent} absent
               </span>
             </div>
           </div>
