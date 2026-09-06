@@ -497,42 +497,33 @@ function Home() {
       {/* ════════════════════════════════════════
           TESTIMONIALS — photo background
           ════════════════════════════════════════ */}
-      <section className="relative py-28 overflow-hidden">
-        {/* Background image with strong overlay */}
-        <img
-          src="https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=1800&q=80"
-          alt="Preschool environment"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-blue-900/85" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6">
+      <section className="bg-slate-50 py-24">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-14">
             <div className="flex items-center justify-center gap-1 mb-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
               ))}
             </div>
-            <h2 className="text-3xl font-extrabold text-white mb-2">What school leaders are saying</h2>
-            <p className="text-blue-200 text-base">Real feedback from real principals, directors, and admins.</p>
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-2">What school leaders are saying</h2>
+            <p className="text-slate-500 text-base">Real feedback from real principals, directors, and admins.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((t) => (
-              <div key={t.name} className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-7">
+              <div key={t.name} className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm hover:shadow-md transition flex flex-col">
                 <div className="flex items-center gap-1 mb-5">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                   ))}
                 </div>
-                <p className="text-white text-sm leading-relaxed mb-6 italic">"{t.quote}"</p>
-                <div className="flex items-center gap-3 pt-4 border-t border-white/15">
+                <p className="text-slate-700 text-sm leading-relaxed mb-6 italic flex-1">"{t.quote}"</p>
+                <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white ${t.color}`}>
                     {t.initials}
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-white">{t.name}</div>
-                    <div className="text-xs text-blue-200">{t.title}</div>
+                    <div className="text-sm font-semibold text-slate-900">{t.name}</div>
+                    <div className="text-xs text-slate-500">{t.title}</div>
                   </div>
                 </div>
               </div>
