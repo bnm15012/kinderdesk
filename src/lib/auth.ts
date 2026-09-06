@@ -1066,11 +1066,13 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
           dueDate: invoices.dueDate,
           status: invoices.status,
           razorpayOrderId: invoices.razorpayOrderId,
+          paidAt: invoices.paidAt,
+          paidMethod: invoices.paidMethod,
         })
         .from(invoices)
         .where(and(
           inArray(invoices.studentId, childIds),
-          inArray(invoices.status, ["sent", "overdue", "draft"])
+          inArray(invoices.status, ["sent", "overdue", "draft", "paid"])
         ))
         .orderBy(asc(invoices.dueDate))
     : [];
@@ -1084,6 +1086,8 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
     fees: fees.map((f) => ({
       ...f,
       dueDate: f.dueDate ? fmtDate(f.dueDate) : null,
+      paidAt: f.paidAt ? f.paidAt.toISOString() : null,
+      paidMethod: f.paidMethod ?? null,
     })),
   };
 });
@@ -4046,5 +4050,356 @@ export const deleteCurriculumActivity = createServerFn({ method: "POST" })
 
     await db.delete(curriculumActivities).where(eq(curriculumActivities.id, data.id));
     return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEE AUTOMATION — Auto-overdue flip + Monthly invoice generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+const feeAutomationSchema = z.object({ schoolId: z.number(), locationId: z.number() });
+
+export const runFeeAutomation = createServerFn({ method: "POST" })
+  .validator((i: unknown) => feeAutomationSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { invoices, feeStructures, students, classEnrollments } = await import("@/lib/db/schema");
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // ── 1. Flip sent invoices past due date → overdue ────────────────────────
+    await db.update(invoices)
+      .set({ status: "overdue" })
+      .where(and(
+        eq(invoices.schoolId, data.schoolId),
+        eq(invoices.locationId, data.locationId),
+        eq(invoices.status, "sent"),
+        sql`${invoices.dueDate} < ${todayStr}`,
+      ));
+
+    // ── 2. Auto-generate monthly invoices on the 1st of the month ────────────
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+    // Only generate on 1st–3rd of month to avoid re-triggering edge cases
+    if (today.getDate() > 3) {
+      return { ok: true, generated: 0, flipped: 0 };
+    }
+
+    // Get all monthly fee structures for this school/location
+    const structures = await db.select().from(feeStructures)
+      .where(and(
+        eq(feeStructures.schoolId, data.schoolId),
+        eq(feeStructures.locationId, data.locationId),
+        eq(feeStructures.frequency, "monthly"),
+      ));
+
+    if (!structures.length) return { ok: true, generated: 0, flipped: 0 };
+
+    // Get enrolled students
+    const enrollments = await db.select({
+      studentId: classEnrollments.studentId,
+      classId: classEnrollments.classId,
+    }).from(classEnrollments)
+      .where(and(
+        eq(classEnrollments.schoolId, data.schoolId),
+        eq(classEnrollments.locationId, data.locationId),
+        eq(classEnrollments.status, "active"),
+      ));
+
+    if (!enrollments.length) return { ok: true, generated: 0, flipped: 0 };
+
+    // Check existing auto-generated invoices for this month to avoid duplicates
+    const existing = await db.select({ feeStructureId: invoices.feeStructureId, studentId: invoices.studentId })
+      .from(invoices)
+      .where(and(
+        eq(invoices.schoolId, data.schoolId),
+        eq(invoices.locationId, data.locationId),
+        eq(invoices.generatedMonth, currentMonth),
+      ));
+
+    const existingSet = new Set(existing.map((e) => `${e.feeStructureId}-${e.studentId}`));
+
+    const toInsert: {
+      schoolId: number; locationId: number; studentId: number;
+      feeStructureId: number; amount: string; dueDate: Date | null;
+      status: "sent"; generatedMonth: string;
+    }[] = [];
+
+    for (const fs of structures) {
+      // Match by classId if fee structure is class-specific, else apply to all
+      const applicableEnrollments = fs.classId
+        ? enrollments.filter((e) => e.classId === fs.classId)
+        : enrollments;
+
+      for (const en of applicableEnrollments) {
+        const key = `${fs.id}-${en.studentId}`;
+        if (existingSet.has(key)) continue;
+
+        // Build due date: dueDay of current month
+        const dueDay = fs.dueDay ?? 1;
+        const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+
+        toInsert.push({
+          schoolId: data.schoolId,
+          locationId: data.locationId,
+          studentId: en.studentId,
+          feeStructureId: fs.id,
+          amount: fs.amount,
+          dueDate,
+          status: "sent",
+          generatedMonth: currentMonth,
+        });
+      }
+    }
+
+    if (toInsert.length) {
+      await db.insert(invoices).values(toInsert);
+    }
+
+    return { ok: true, generated: toInsert.length };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK INVOICE PAID (Cash / manual)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const markInvoicePaidSchema = z.object({
+  invoiceId: z.number(),
+  method: z.enum(["cash", "bank_transfer", "cheque", "other"]),
+  notes: z.string().max(500).optional(),
+});
+
+export const markInvoicePaid = createServerFn({ method: "POST" })
+  .validator((i: unknown) => markInvoicePaidSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { invoices, payments } = await import("@/lib/db/schema");
+
+    // Fetch invoice to get schoolId/locationId/amount for payment record
+    const [inv] = await db.select().from(invoices).where(eq(invoices.id, data.invoiceId)).limit(1);
+    if (!inv) throw new Error("Invoice not found");
+
+    await db.update(invoices).set({
+      status: "paid",
+      paidAt: new Date(),
+      paidMethod: data.method,
+      paidNotes: data.notes ?? null,
+    }).where(eq(invoices.id, data.invoiceId));
+
+    await db.insert(payments).values({
+      schoolId: inv.schoolId,
+      locationId: inv.locationId,
+      invoiceId: data.invoiceId,
+      amount: inv.amount,
+      method: data.method,
+    });
+
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEND INVOICE — flip draft → sent (notifies parent by email if possible)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const sendInvoiceSchema = z.object({ invoiceId: z.number() });
+
+export const sendInvoice = createServerFn({ method: "POST" })
+  .validator((i: unknown) => sendInvoiceSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { invoices, students, parents, schools } = await import("@/lib/db/schema");
+
+    const [inv] = await db.select({
+      id: invoices.id, schoolId: invoices.schoolId, locationId: invoices.locationId,
+      studentId: invoices.studentId, amount: invoices.amount, dueDate: invoices.dueDate,
+      status: invoices.status,
+    }).from(invoices).where(eq(invoices.id, data.invoiceId)).limit(1);
+    if (!inv) throw new Error("Invoice not found");
+
+    await db.update(invoices).set({ status: "sent" }).where(eq(invoices.id, data.invoiceId));
+
+    // Try to email parent
+    try {
+      const [school] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, inv.schoolId)).limit(1);
+      const [student] = await db.select({ firstName: students.firstName, lastName: students.lastName })
+        .from(students).where(eq(students.id, inv.studentId)).limit(1);
+      const parentRows = await db.select({ email: parents.email, name: parents.name })
+        .from(parents)
+        .where(and(eq(parents.studentId, inv.studentId), eq(parents.isPrimary, 1)));
+
+      const primaryParent = parentRows[0] ?? null;
+      if (primaryParent?.email) {
+        const { sendInvoiceEmail } = await import("@/lib/email");
+        const appUrl = process.env.APP_URL ?? "https://kinderdesk.vercel.app";
+        await sendInvoiceEmail({
+          to: primaryParent.email,
+          parentName: primaryParent.name,
+          studentName: `${student?.firstName ?? ""} ${student?.lastName ?? ""}`.trim(),
+          schoolName: school?.name ?? "Your School",
+          amount: inv.amount,
+          dueDate: inv.dueDate ? fmtDate(inv.dueDate) : null,
+          invoiceId: inv.id,
+          payUrl: `${appUrl}/parent`,
+        });
+      }
+    } catch (_) {
+      // Email failure is non-fatal — invoice is already marked sent
+    }
+
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAZORPAY — create order for an invoice
+// ─────────────────────────────────────────────────────────────────────────────
+
+const createRazorpayOrderSchema = z.object({ invoiceId: z.number() });
+
+export const createRazorpayOrder = createServerFn({ method: "POST" })
+  .validator((i: unknown) => createRazorpayOrderSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { invoices, schools } = await import("@/lib/db/schema");
+
+    const [inv] = await db.select().from(invoices).where(eq(invoices.id, data.invoiceId)).limit(1);
+    if (!inv) throw new Error("Invoice not found");
+    if (inv.status === "paid") throw new Error("Invoice already paid");
+
+    const [school] = await db.select({ razorpayKeyId: schools.razorpayKeyId, razorpayKeySecret: schools.razorpayKeySecret })
+      .from(schools).where(eq(schools.id, inv.schoolId)).limit(1);
+    if (!school?.razorpayKeyId || !school?.razorpayKeySecret) {
+      throw new Error("Razorpay is not configured for this school. Please contact the school admin.");
+    }
+
+    // Create Razorpay order via REST API (no SDK needed)
+    const amountPaise = Math.round(parseFloat(inv.amount) * 100);
+    const authHeader = `Basic ${Buffer.from(`${school.razorpayKeyId}:${school.razorpayKeySecret}`).toString("base64")}`;
+
+    const res = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authHeader },
+      body: JSON.stringify({
+        amount: amountPaise,
+        currency: "INR",
+        receipt: `inv_${inv.id}`,
+        notes: { invoiceId: inv.id },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Razorpay order creation failed: ${err}`);
+    }
+
+    const order = await res.json() as { id: string };
+
+    // Save order ID on invoice
+    await db.update(invoices).set({ razorpayOrderId: order.id }).where(eq(invoices.id, inv.id));
+
+    return { orderId: order.id, amount: amountPaise, keyId: school.razorpayKeyId };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAZORPAY — verify payment after checkout success
+// ─────────────────────────────────────────────────────────────────────────────
+
+const verifyRazorpayPaymentSchema = z.object({
+  invoiceId: z.number(),
+  razorpayOrderId: z.string(),
+  razorpayPaymentId: z.string(),
+  razorpaySignature: z.string(),
+});
+
+export const verifyRazorpayPayment = createServerFn({ method: "POST" })
+  .validator((i: unknown) => verifyRazorpayPaymentSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { invoices, schools, payments } = await import("@/lib/db/schema");
+
+    const [inv] = await db.select({ id: invoices.id, schoolId: invoices.schoolId, locationId: invoices.locationId, amount: invoices.amount })
+      .from(invoices).where(eq(invoices.id, data.invoiceId)).limit(1);
+    if (!inv) throw new Error("Invoice not found");
+
+    const [school] = await db.select({ razorpayKeySecret: schools.razorpayKeySecret })
+      .from(schools).where(eq(schools.id, inv.schoolId)).limit(1);
+    if (!school?.razorpayKeySecret) throw new Error("Razorpay not configured");
+
+    // Verify HMAC-SHA256 signature
+    const { createHmac } = await import("node:crypto");
+    const expectedSig = createHmac("sha256", school.razorpayKeySecret)
+      .update(`${data.razorpayOrderId}|${data.razorpayPaymentId}`)
+      .digest("hex");
+
+    if (expectedSig !== data.razorpaySignature) {
+      throw new Error("Payment signature verification failed");
+    }
+
+    // Mark invoice paid
+    await db.update(invoices).set({
+      status: "paid",
+      paidAt: new Date(),
+      paidMethod: "razorpay",
+      razorpayPaymentId: data.razorpayPaymentId,
+    }).where(eq(invoices.id, inv.id));
+
+    // Record payment
+    await db.insert(payments).values({
+      schoolId: inv.schoolId,
+      locationId: inv.locationId,
+      invoiceId: inv.id,
+      amount: inv.amount,
+      method: "razorpay",
+      razorpayPaymentId: data.razorpayPaymentId,
+    });
+
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCHOOL SETTINGS — save Razorpay keys
+// ─────────────────────────────────────────────────────────────────────────────
+
+const saveRazorpayKeysSchema = z.object({
+  schoolId: z.number(),
+  razorpayKeyId: z.string().trim().min(1),
+  razorpayKeySecret: z.string().trim().min(1),
+});
+
+export const saveRazorpayKeys = createServerFn({ method: "POST" })
+  .validator((i: unknown) => saveRazorpayKeysSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { schools } = await import("@/lib/db/schema");
+    await db.update(schools).set({
+      razorpayKeyId: data.razorpayKeyId,
+      razorpayKeySecret: data.razorpayKeySecret,
+    }).where(eq(schools.id, data.schoolId));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET SCHOOL RAZORPAY STATUS (for settings UI — never expose secret)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const getSchoolPaymentSettingsSchema = z.object({ schoolId: z.number() });
+
+export const getSchoolPaymentSettings = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getSchoolPaymentSettingsSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { schools } = await import("@/lib/db/schema");
+    const [school] = await db.select({ razorpayKeyId: schools.razorpayKeyId, hasSecret: schools.razorpayKeySecret })
+      .from(schools).where(eq(schools.id, data.schoolId)).limit(1);
+    return {
+      razorpayKeyId: school?.razorpayKeyId ?? null,
+      hasSecret: !!(school?.hasSecret),
+    };
   });
 

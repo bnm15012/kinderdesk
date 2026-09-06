@@ -4,8 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   X, Plus, Search, AlertCircle, ChevronRight, DollarSign,
   Pencil, Save, XCircle, CheckCircle2, Clock, Ban, Layers, Trash2,
+  Banknote, Send, CreditCard, Loader2, RefreshCw,
 } from "lucide-react";
-import { listInvoices, addInvoice, updateInvoice, listStudents, listFeeStructures, addFeeStructure, updateFeeStructure, archiveFeeStructure, listClassesForSchool } from "@/lib/auth";
+import { listInvoices, addInvoice, updateInvoice, listStudents, listFeeStructures, addFeeStructure, updateFeeStructure, archiveFeeStructure, listClassesForSchool, runFeeAutomation, markInvoicePaid, sendInvoice, createRazorpayOrder, verifyRazorpayPayment } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -431,11 +432,11 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                       <button onClick={() => { setEditing(fs); setModalOpen(true); }}
-                        className="p-1.5 rounded-lg hover:bg-violet-50 text-slate-400 hover:text-violet-600 transition">
+                        className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-500 hover:text-violet-700 transition">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => remove(fs)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition">
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 hover:text-red-700 transition">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -479,6 +480,65 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
+// ── Cash Payment Modal ──────────────────────────────────────────────────────
+
+function CashPaymentModal({ inv, onClose, onPaid }: { inv: Invoice; onClose: () => void; onPaid: () => void }) {
+  const markPaidFn = useServerFn(markInvoicePaid);
+  const [method, setMethod] = useState<"cash" | "bank_transfer" | "cheque" | "other">("cash");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true); setError("");
+    try {
+      await markPaidFn({ data: { invoiceId: inv.id, method, notes: notes || undefined } });
+      onPaid();
+    } catch (err: any) { setError(err?.message ?? "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Mark as Paid</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{inv.studentName} — {fmt(inv.amount)}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={submit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Payment method</label>
+            <select value={method} onChange={(e) => setMethod(e.target.value as typeof method)}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-500">
+              <option value="cash">Cash</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Notes (optional)</label>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Cash received at reception on 5 Sept"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:border-blue-500 focus:bg-white" />
+          </div>
+          {error && <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"><AlertCircle className="w-4 h-4 shrink-0" />{error}</div>}
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium">Cancel</button>
+            <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-bold transition">
+              {saving ? "Marking paid…" : "Confirm Payment"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Fees() {
   const { tenant } = useTenant();
   const toast = useToast();
@@ -486,12 +546,15 @@ function Fees() {
   const listStudentsFn = useServerFn(listStudents);
   const listClassesFn = useServerFn(listClassesForSchool);
   const updateFn = useServerFn(updateInvoice);
+  const runAutomationFn = useServerFn(runFeeAutomation);
+  const sendInvoiceFn = useServerFn(sendInvoice);
 
   const [tab, setTab] = useState<"invoices" | "structures">("invoices");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [automating, setAutomating] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -499,6 +562,8 @@ function Fees() {
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmInvoice, setConfirmInvoice] = useState<Invoice | null>(null);
+  const [cashPayInvoice, setCashPayInvoice] = useState<Invoice | null>(null);
+  const [sendingId, setSendingId] = useState<number | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -515,7 +580,13 @@ function Fees() {
       .catch((e) => setError(e?.message ?? "Failed to load"))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); }, [tenant.schoolId, tenant.locationId]);
+
+  useEffect(() => {
+    load();
+    // Auto-run fee automation on mount (overdue flip + monthly generation)
+    runAutomationFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } })
+      .catch(() => {}); // silent — non-fatal
+  }, [tenant.schoolId, tenant.locationId]);
 
   const handleCancel = (inv: Invoice, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -535,6 +606,34 @@ function Fees() {
       toast(err?.message ?? "Failed to cancel invoice", "error");
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleSendInvoice = async (inv: Invoice, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSendingId(inv.id);
+    try {
+      await sendInvoiceFn({ data: { invoiceId: inv.id } });
+      setInvoices((p) => p.map((i) => i.id === inv.id ? { ...i, status: "sent" } : i));
+      toast(`Invoice sent to parent${inv.studentName ? ` for ${inv.studentName}` : ""}`, "success");
+    } catch (err: any) {
+      toast(err?.message ?? "Failed to send invoice", "error");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const handleRunAutomation = async () => {
+    setAutomating(true);
+    try {
+      const result = await runAutomationFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } }) as any;
+      const generated = result?.generated ?? 0;
+      toast(`Automation complete${generated > 0 ? ` — ${generated} invoice(s) generated` : ""}`, "success");
+      load();
+    } catch (err: any) {
+      toast(err?.message ?? "Automation failed", "error");
+    } finally {
+      setAutomating(false);
     }
   };
 
@@ -561,9 +660,17 @@ function Fees() {
           <p className="text-sm text-slate-500 mt-0.5">Invoices, structures &amp; payment tracking</p>
         </div>
         {tab === "invoices" && (
-          <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm shrink-0">
-            <Plus className="w-4 h-4" /> <span>Create Invoice</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <button onClick={handleRunAutomation} disabled={automating}
+              className="inline-flex items-center gap-2 px-3 py-2.5 border border-slate-200 text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 text-sm font-semibold rounded-xl transition disabled:opacity-50"
+              title="Auto-flip overdue invoices and generate monthly invoices from fee structures">
+              {automating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              <span>Run Automation</span>
+            </button>
+            <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
+              <Plus className="w-4 h-4" /> <span>Create Invoice</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -673,9 +780,30 @@ function Fees() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* Send (draft → sent + email parent) */}
+                            {inv.status === "draft" && (
+                              <button
+                                onClick={(e) => handleSendInvoice(inv, e)}
+                                disabled={sendingId === inv.id}
+                                className="p-1.5 rounded-lg text-violet-500 hover:text-violet-700 hover:bg-violet-50 transition disabled:opacity-40"
+                                title="Send invoice to parent"
+                              >
+                                {sendingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                            {/* Mark as Paid (cash/manual) */}
+                            {(inv.status === "sent" || inv.status === "overdue") && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setCashPayInvoice(inv); }}
+                                className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition"
+                                title="Mark as paid (cash/manual)"
+                              >
+                                <Banknote className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelected(inv); }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                              className="p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition"
                               title="Edit invoice"
                             >
                               <Pencil className="w-3.5 h-3.5" />
@@ -684,7 +812,7 @@ function Fees() {
                               <button
                                 onClick={(e) => handleCancel(inv, e)}
                                 disabled={cancellingId === inv.id}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                                className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-40"
                                 title="Cancel invoice"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -726,6 +854,18 @@ function Fees() {
         onConfirm={doCancel}
         onCancel={() => setConfirmInvoice(null)}
       />
+
+      {cashPayInvoice && (
+        <CashPaymentModal
+          inv={cashPayInvoice}
+          onClose={() => setCashPayInvoice(null)}
+          onPaid={() => {
+            setInvoices((p) => p.map((i) => i.id === cashPayInvoice.id ? { ...i, status: "paid" } : i));
+            toast(`Payment recorded for ${cashPayInvoice.studentName}`, "success");
+            setCashPayInvoice(null);
+          }}
+        />
+      )}
     </div>
   );
 }

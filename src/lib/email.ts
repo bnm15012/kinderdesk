@@ -100,3 +100,45 @@ export async function sendStaffInviteEmail(email: string, inviteUrl: string, sch
     `,
   });
 }
+
+export async function sendInvoiceEmail(opts: {
+  to: string;
+  parentName: string;
+  studentName: string;
+  schoolName: string;
+  amount: string;
+  dueDate: string | null;
+  invoiceId: number;
+  payUrl: string;
+}) {
+  const transport = getTransport();
+  const amountFmt = `₹${parseFloat(opts.amount).toLocaleString("en-IN")}`;
+  const dueLine = opts.dueDate ? `<p style="color:#64748b;font-size:14px">Due date: <strong style="color:#0f172a">${opts.dueDate}</strong></p>` : "";
+  await transport.sendMail({
+    from: FROM,
+    to: opts.to,
+    subject: `Fee Invoice #${opts.invoiceId} — ${amountFmt} due | ${opts.schoolName}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+        <div style="background:#6366f1;padding:24px 32px">
+          <h1 style="color:#ffffff;margin:0;font-size:20px">${opts.schoolName}</h1>
+          <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px">Fee Invoice</p>
+        </div>
+        <div style="padding:28px 32px">
+          <p style="color:#0f172a;font-size:15px">Dear ${opts.parentName},</p>
+          <p style="color:#334155;font-size:14px">A fee invoice has been raised for <strong>${opts.studentName}</strong>.</p>
+          <div style="background:#f8fafc;border-radius:8px;padding:20px;margin:20px 0;border:1px solid #e2e8f0">
+            <p style="margin:0 0 6px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em">Invoice #${opts.invoiceId}</p>
+            <p style="margin:0;font-size:28px;font-weight:700;color:#6366f1">${amountFmt}</p>
+            ${dueLine}
+          </div>
+          <p style="color:#334155;font-size:14px">You can pay online through the parent portal or pay in cash at the school reception.</p>
+          <a href="${opts.payUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin:8px 0 20px">View &amp; Pay Invoice</a>
+          <p style="color:#94a3b8;font-size:12px;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px">
+            This is an automated message from KinderDesk. Please do not reply to this email.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}

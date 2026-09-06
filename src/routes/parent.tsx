@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getParentPortal, getCurriculumActivities } from "@/lib/auth";
-import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image } from "lucide-react";
+import { getParentPortal, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment } from "@/lib/auth";
+import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/parent")({
   component: ParentPortal,
@@ -15,6 +15,7 @@ type Child = {
 type Fee = {
   id: number; studentId: number; amount: string;
   dueDate: string | null; status: string; razorpayOrderId: string | null;
+  paidAt: string | null; paidMethod: string | null;
 };
 type PortalData = {
   user: { firstName: string | null; lastName: string | null; email: string };
@@ -40,15 +41,78 @@ const FEE_BADGE: Record<string, string> = {
   draft:   "bg-slate-100 text-slate-600",
 };
 
+// Load Razorpay checkout.js script
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if ((window as any).Razorpay) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 function ParentPortal() {
   const getPortalFn      = useServerFn(getParentPortal);
   const getActivitiesFn  = useServerFn(getCurriculumActivities);
+  const createOrderFn    = useServerFn(createRazorpayOrder);
+  const verifyFn         = useServerFn(verifyRazorpayPayment);
   const [data, setData]         = useState<PortalData | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [activeChild, setActiveChild] = useState<number>(0);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<number | null>(null);
+  const [payError, setPayError] = useState<string>("");
+
+  const handlePayNow = async (fee: Fee) => {
+    setPayingId(fee.id); setPayError("");
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error("Failed to load Razorpay. Check your internet connection.");
+
+      const order = await createOrderFn({ data: { invoiceId: fee.id } }) as { orderId: string; amount: number; keyId: string };
+
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new (window as any).Razorpay({
+          key: order.keyId,
+          amount: order.amount,
+          currency: "INR",
+          order_id: order.orderId,
+          name: "School Fee Payment",
+          description: `Invoice #${fee.id}`,
+          prefill: { email: data?.user.email ?? "" },
+          theme: { color: "#6366f1" },
+          handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+            try {
+              await verifyFn({ data: {
+                invoiceId: fee.id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }});
+              // Update local state
+              setData((prev) => prev ? {
+                ...prev,
+                fees: prev.fees.map((f) => f.id === fee.id ? { ...f, status: "paid", paidAt: new Date().toISOString(), paidMethod: "razorpay" } : f),
+              } : prev);
+              resolve();
+            } catch (err: any) { reject(err); }
+          },
+          modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
+        });
+        rzp.open();
+      });
+    } catch (err: any) {
+      if (err?.message !== "Payment cancelled") {
+        setPayError(err?.message ?? "Payment failed. Please try again.");
+      }
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -76,6 +140,8 @@ function ParentPortal() {
   const totalDue = childFees
     .filter((f) => ["sent","overdue"].includes(f.status))
     .reduce((a, f) => a + parseFloat(f.amount), 0);
+  const pendingFees = childFees.filter((f) => ["sent","overdue"].includes(f.status));
+  const paidFees = childFees.filter((f) => f.status === "paid");
 
   return (
     <div className="space-y-7">
@@ -166,54 +232,120 @@ function ParentPortal() {
             ))}
           </div>
 
-          {/* Fee list */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
-              <div className="w-1 h-5 bg-blue-600 rounded-full" />
-              <h2 className="text-sm font-bold text-slate-800">Fee invoices</h2>
+          {/* Pay error banner */}
+          {payError && (
+            <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0" /> {payError}
+              <button onClick={() => setPayError("")} className="ml-auto text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
             </div>
-            {!childFees.length ? (
-              <p className="px-6 py-10 text-sm text-slate-400 text-center">No invoices for this child yet.</p>
-            ) : (
+          )}
+
+          {/* Pending invoices */}
+          {pendingFees.length > 0 && (
+            <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-red-500 to-orange-500" />
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+                <div className="w-1 h-5 bg-red-500 rounded-full" />
+                <h2 className="text-sm font-bold text-slate-800">Pending Payments</h2>
+                <span className="ml-auto text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">{pendingFees.length} due</span>
+              </div>
               <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    <th className="px-5 py-3.5">Invoice</th>
-                    <th className="px-5 py-3.5">Amount</th>
-                    <th className="px-5 py-3.5">Due date</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {childFees.map((fee) => (
-                    <tr key={fee.id} className="hover:bg-slate-50 transition">
-                      <td className="px-5 py-4 text-slate-500 font-medium">#{fee.id}</td>
-                      <td className="px-5 py-4 font-bold text-slate-900">₹{parseFloat(fee.amount).toLocaleString("en-IN")}</td>
-                      <td className="px-5 py-4 text-slate-500">{fee.dueDate ?? "—"}</td>
-                      <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${FEE_BADGE[fee.status] ?? "bg-slate-100 text-slate-600"}`}>
-                          {fee.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        {["sent","overdue"].includes(fee.status) ? (
-                          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
-                            <CreditCard className="w-3.5 h-3.5" />
-                            Pay now
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <th className="px-5 py-3.5">Invoice</th>
+                      <th className="px-5 py-3.5">Amount</th>
+                      <th className="px-5 py-3.5">Due date</th>
+                      <th className="px-5 py-3.5">Status</th>
+                      <th className="px-5 py-3.5">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingFees.map((fee) => (
+                      <tr key={fee.id} className="hover:bg-slate-50 transition">
+                        <td className="px-5 py-4 text-slate-500 font-medium">#{fee.id}</td>
+                        <td className="px-5 py-4 font-bold text-slate-900">₹{parseFloat(fee.amount).toLocaleString("en-IN")}</td>
+                        <td className="px-5 py-4 text-slate-500">
+                          {fee.dueDate ?? "—"}
+                          {fee.status === "overdue" && <span className="ml-1 text-xs text-red-500 font-semibold">(overdue)</span>}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${FEE_BADGE[fee.status] ?? "bg-slate-100 text-slate-600"}`}>
+                            {fee.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <button
+                            onClick={() => handlePayNow(fee)}
+                            disabled={payingId === fee.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold rounded-lg transition"
+                          >
+                            {payingId === fee.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                            {payingId === fee.id ? "Processing…" : "Pay online"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center gap-2">
+                <span>💡 You can also pay in cash at the school reception — staff will mark it as paid.</span>
+              </div>
             </div>
-            )}
-          </div>
+          )}
+
+          {/* Paid invoices */}
+          {paidFees.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+                <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <h2 className="text-sm font-bold text-slate-800">Payment History</h2>
+                <span className="ml-auto text-xs text-slate-400">{paidFees.length} paid</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <th className="px-5 py-3.5">Invoice</th>
+                      <th className="px-5 py-3.5">Amount</th>
+                      <th className="px-5 py-3.5">Paid on</th>
+                      <th className="px-5 py-3.5">Method</th>
+                      <th className="px-5 py-3.5">Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paidFees.map((fee) => (
+                      <tr key={fee.id} className="hover:bg-slate-50 transition">
+                        <td className="px-5 py-4 text-slate-500 font-medium">#{fee.id}</td>
+                        <td className="px-5 py-4 font-bold text-emerald-700">₹{parseFloat(fee.amount).toLocaleString("en-IN")}</td>
+                        <td className="px-5 py-4 text-slate-500">
+                          {fee.paidAt ? new Date(fee.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="capitalize text-slate-600 text-xs font-medium">{fee.paidMethod?.replace("_", " ") ?? "—"}</span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                            <CheckCircle2 className="w-3 h-3" /> Paid
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* No invoices at all */}
+          {childFees.length === 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
+              <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-slate-200" />
+              <p className="text-sm text-slate-400">No invoices for this child yet.</p>
+            </div>
+          )}
 
           {/* Curriculum Activity Feed */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
