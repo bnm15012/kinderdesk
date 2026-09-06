@@ -227,8 +227,8 @@ function TopBar({ role }: { role: string | null | undefined }) {
         <p className="text-xs text-slate-400 leading-tight truncate">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        {canSwitchTenant && <SchoolLocationSwitcher current={tenant} onChange={setTenant} />}
-        {canSwitchTenant && <div className="hidden sm:block h-7 w-px bg-slate-200" />}
+        {canSwitchTenant && <div className="hidden md:block"><SchoolLocationSwitcher current={tenant} onChange={setTenant} /></div>}
+        {canSwitchTenant && <div className="hidden md:block h-7 w-px bg-slate-200" />}
         <UserMenu />
       </div>
     </header>

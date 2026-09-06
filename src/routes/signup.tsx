@@ -180,7 +180,7 @@ function Signup() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="flex-1 flex items-start justify-center bg-slate-50 px-6 py-10 overflow-y-auto relative">
+      <div className={`flex-1 flex ${step === 2 && needsEmailConfirm ? "items-center" : "items-start"} justify-center bg-slate-50 px-6 py-10 overflow-y-auto relative`}>
         {/* Mobile gradient + decorative blobs — hidden on desktop */}
         <div className="lg:hidden absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_#6366f1_0%,_#3b82f6_35%,_#0ea5e9_65%,_#06b6d4_100%)] pointer-events-none" />
         <div className="lg:hidden absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-500/40 blur-3xl pointer-events-none" />
