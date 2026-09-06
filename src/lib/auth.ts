@@ -843,7 +843,7 @@ export const acceptInvite = createServerFn({ method: "POST" })
     const { users } = await import("@/lib/db/schema");
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-    await db.update(users).set({ passwordHash, status: "active" }).where(eq(users.id, userId));
+    await db.update(users).set({ passwordHash, status: "active", emailConfirmed: 1 }).where(eq(users.id, userId));
 
     const [user] = await db
       .select({ id: users.id, schoolId: users.schoolId, locationId: users.locationId, role: users.role, email: users.email })
