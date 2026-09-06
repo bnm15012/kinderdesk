@@ -45,6 +45,7 @@ import { Route as SuperAdminPaymentsRouteImport } from './routes/super-admin.pay
 import { Route as SuperAdminPlansRouteImport } from './routes/super-admin.plans'
 import { Route as SuperAdminSchoolsRouteImport } from './routes/super-admin.schools'
 import { Route as SuperAdminSubscriptionsRouteImport } from './routes/super-admin.subscriptions'
+import { Route as TeacherAttendanceRouteImport } from './routes/teacher.attendance'
 import { Route as SuperAdminSchoolsSchoolIdRouteImport } from './routes/super-admin.schools.$schoolId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -227,6 +228,11 @@ const SuperAdminSubscriptionsRoute = SuperAdminSubscriptionsRouteImport.update({
   path: '/subscriptions',
   getParentRoute: () => SuperAdminRoute,
 } as any)
+const TeacherAttendanceRoute = TeacherAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => TeacherRoute,
+} as any)
 const SuperAdminSchoolsSchoolIdRoute =
   SuperAdminSchoolsSchoolIdRouteImport.update({
     id: '/$schoolId',
@@ -260,7 +266,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof StaffRouteWithChildren
   '/students': typeof StudentsRouteWithChildren
   '/super-admin': typeof SuperAdminRouteWithChildren
-  '/teacher': typeof TeacherRoute
+  '/teacher': typeof TeacherRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
@@ -269,6 +275,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/plans': typeof SuperAdminPlansRoute
   '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
+  '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
   '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
@@ -297,7 +304,7 @@ export interface FileRoutesByTo {
   '/schools': typeof SchoolsRoute
   '/signup': typeof SignupRoute
   '/super-admin': typeof SuperAdminRouteWithChildren
-  '/teacher': typeof TeacherRoute
+  '/teacher': typeof TeacherRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
@@ -306,6 +313,7 @@ export interface FileRoutesByTo {
   '/super-admin/plans': typeof SuperAdminPlansRoute
   '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
+  '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff': typeof StaffIndexRoute
   '/students': typeof StudentsIndexRoute
   '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
@@ -337,7 +345,7 @@ export interface FileRoutesById {
   '/staff': typeof StaffRouteWithChildren
   '/students': typeof StudentsRouteWithChildren
   '/super-admin': typeof SuperAdminRouteWithChildren
-  '/teacher': typeof TeacherRoute
+  '/teacher': typeof TeacherRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
@@ -346,6 +354,7 @@ export interface FileRoutesById {
   '/super-admin/plans': typeof SuperAdminPlansRoute
   '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
+  '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
   '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
@@ -387,6 +396,7 @@ export interface FileRouteTypes {
     | '/super-admin/plans'
     | '/super-admin/schools'
     | '/super-admin/subscriptions'
+    | '/teacher/attendance'
     | '/staff/'
     | '/students/'
     | '/super-admin/schools/$schoolId'
@@ -424,6 +434,7 @@ export interface FileRouteTypes {
     | '/super-admin/plans'
     | '/super-admin/schools'
     | '/super-admin/subscriptions'
+    | '/teacher/attendance'
     | '/staff'
     | '/students'
     | '/super-admin/schools/$schoolId'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/super-admin/plans'
     | '/super-admin/schools'
     | '/super-admin/subscriptions'
+    | '/teacher/attendance'
     | '/staff/'
     | '/students/'
     | '/super-admin/schools/$schoolId'
@@ -494,7 +506,7 @@ export interface RootRouteChildren {
   StaffRoute: typeof StaffRouteWithChildren
   StudentsRoute: typeof StudentsRouteWithChildren
   SuperAdminRoute: typeof SuperAdminRouteWithChildren
-  TeacherRoute: typeof TeacherRoute
+  TeacherRoute: typeof TeacherRouteWithChildren
   TermsOfServiceRoute: typeof TermsOfServiceRoute
 }
 
@@ -752,6 +764,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperAdminSubscriptionsRouteImport
       parentRoute: typeof SuperAdminRoute
     }
+    '/teacher/attendance': {
+      id: '/teacher/attendance'
+      path: '/attendance'
+      fullPath: '/teacher/attendance'
+      preLoaderRoute: typeof TeacherAttendanceRouteImport
+      parentRoute: typeof TeacherRoute
+    }
     '/super-admin/schools/$schoolId': {
       id: '/super-admin/schools/$schoolId'
       path: '/$schoolId'
@@ -819,6 +838,17 @@ const SuperAdminRouteWithChildren = SuperAdminRoute._addFileChildren(
   SuperAdminRouteChildren,
 )
 
+interface TeacherRouteChildren {
+  TeacherAttendanceRoute: typeof TeacherAttendanceRoute
+}
+
+const TeacherRouteChildren: TeacherRouteChildren = {
+  TeacherAttendanceRoute: TeacherAttendanceRoute,
+}
+
+const TeacherRouteWithChildren =
+  TeacherRoute._addFileChildren(TeacherRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -845,7 +875,7 @@ const rootRouteChildren: RootRouteChildren = {
   StaffRoute: StaffRouteWithChildren,
   StudentsRoute: StudentsRouteWithChildren,
   SuperAdminRoute: SuperAdminRouteWithChildren,
-  TeacherRoute: TeacherRoute,
+  TeacherRoute: TeacherRouteWithChildren,
   TermsOfServiceRoute: TermsOfServiceRoute,
 }
 export const routeTree = rootRouteImport
