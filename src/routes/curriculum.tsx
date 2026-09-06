@@ -206,7 +206,7 @@ function CurriculumPage() {
         </div>
       )}
 
-      {/* Activity grid */}
+      {/* Activity feed — grouped by date */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 border-dashed flex flex-col items-center justify-center py-16 text-center px-4">
           <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
@@ -219,43 +219,77 @@ function CurriculumPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((act) => (
-            <div key={act.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group">
-              {/* Photo */}
-              {act.photoUrl ? (
-                <div className="relative aspect-video cursor-pointer overflow-hidden bg-slate-100" onClick={() => setLightbox(act.photoUrl!)}>
-                  <img src={act.photoUrl} alt={act.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        <div className="space-y-8">
+          {(() => {
+            // Group activities by activityDate
+            const groups = new Map<string, Activity[]>();
+            for (const act of filtered) {
+              const dateKey = (act.activityDate as string).slice(0, 10);
+              if (!groups.has(dateKey)) groups.set(dateKey, []);
+              groups.get(dateKey)!.push(act);
+            }
+            const sortedDates = [...groups.keys()].sort((a, b) => b.localeCompare(a));
+            const today = new Date().toISOString().slice(0, 10);
+            const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+            return sortedDates.map((dateKey) => {
+              const dayActs = groups.get(dateKey)!;
+              const label =
+                dateKey === today ? "Today"
+                : dateKey === yesterday ? "Yesterday"
+                : new Date(dateKey).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+              return (
+                <div key={dateKey}>
+                  {/* Date header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm font-bold text-slate-800">{label}</span>
+                      <span className="text-xs text-slate-400 font-medium">· {dayActs.length} {dayActs.length === 1 ? "activity" : "activities"}</span>
+                    </div>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+
+                  {/* Cards for this date */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {dayActs.map((act) => (
+                      <div key={act.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group">
+                        {act.photoUrl ? (
+                          <div className="relative aspect-video cursor-pointer overflow-hidden bg-slate-100" onClick={() => setLightbox(act.photoUrl!)}>
+                            <img src={act.photoUrl} alt={act.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          </div>
+                        ) : (
+                          <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                            <Image className="w-10 h-10 text-blue-200" />
+                          </div>
+                        )}
+                        <div className="p-3">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">{act.title}</h3>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleDelete(act.id)}
+                                className="shrink-0 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          {act.description && <p className="text-xs text-slate-500 line-clamp-2 mb-2">{act.description}</p>}
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                              <BookOpen className="w-3 h-3" /> {act.className}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-                  <Image className="w-10 h-10 text-blue-200" />
-                </div>
-              )}
-              {/* Info */}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">{act.title}</h3>
-                  <button
-                    onClick={() => handleDelete(act.id)}
-                    className="shrink-0 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                {act.description && <p className="text-xs text-slate-500 line-clamp-2 mb-2">{act.description}</p>}
-                <div className="flex items-center gap-3 mt-2 pt-2 border-t border-slate-100">
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                    <BookOpen className="w-3 h-3" /> {act.className}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(act.activityDate as string).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+              );
+            });
+          })()}
         </div>
       )}
 
