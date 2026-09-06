@@ -117,12 +117,7 @@ const testimonials = [
 
 
 
-const trustBadges = [
-  "256-bit SSL encryption",
-  "Daily encrypted backups",
-  "DPDP Act ready",
-  "Role-based data isolation",
-];
+
 
 function Home() {
   return (
@@ -653,19 +648,7 @@ function Home() {
       </section>
 
 
-      {/* ════════════════════════════════════════
-          TRUST STRIP
-          ════════════════════════════════════════ */}
-      <section className="bg-slate-50 border-y border-slate-200 py-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-10">
-          {trustBadges.map((badge) => (
-            <div key={badge} className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              {badge}
-            </div>
-          ))}
-        </div>
-      </section>
+
 
 
       {/* ════════════════════════════════════════
