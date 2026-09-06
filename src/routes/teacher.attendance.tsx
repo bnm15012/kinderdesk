@@ -37,6 +37,7 @@ function TeacherAttendancePage() {
 
   const todayStr = todayIST();
 
+  const [date,       setDate]       = useState(todayStr);
   const [classes,    setClasses]    = useState<ClassInfo[]>([]);
   const [selected,   setSelected]   = useState<ClassInfo | null>(null);
   const [schoolId,   setSchoolId]   = useState(0);
@@ -75,11 +76,11 @@ function TeacherAttendancePage() {
       .finally(() => setStudLoading(false));
   }, [selected?.classId, schoolId]);
 
-  // Load existing attendance when students load
+  // Load existing attendance when students or date changes
   useEffect(() => {
     if (!selected || students.length === 0 || !schoolId) return;
     setAttLoading(true); setSaved(false); setSaveError("");
-    getAttFn({ data: { schoolId, locationId, classId: selected.classId, date: todayStr } })
+    getAttFn({ data: { schoolId, locationId, classId: selected.classId, date } })
       .then((rows: any[]) => {
         const map: Record<number, AttStatus> = {};
         students.filter((s) => s.status === "enrolled").forEach((s) => { map[s.id] = "present"; });
@@ -89,7 +90,7 @@ function TeacherAttendancePage() {
       })
       .catch(() => {})
       .finally(() => setAttLoading(false));
-  }, [students.length, selected?.classId]);
+  }, [students.length, selected?.classId, date]);
 
   const setStatus = (studentId: number, status: AttStatus) => {
     setSaved(false);
@@ -104,7 +105,7 @@ function TeacherAttendancePage() {
     try {
       await markAttFn({
         data: {
-          schoolId, locationId, classId: selected.classId, date: todayStr,
+          schoolId, locationId, classId: selected.classId, date,
           records: enrolled.map((s) => ({ studentId: s.id, status: attMap[s.id] ?? "present" })),
         },
       });
@@ -130,21 +131,31 @@ function TeacherAttendancePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">Attendance</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{todayStr}</p>
+          <p className="text-sm text-slate-500 mt-0.5">Select a date and mark attendance</p>
         </div>
-        {selected && (
-          <button
-            onClick={saveAttendance}
-            disabled={saving || attLoading || enrolled.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold transition"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? "Saving…" : saved ? "Saved ✓" : "Save attendance"}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Date picker */}
+          <input
+            type="date"
+            value={date}
+            max={todayStr}
+            onChange={(e) => { setDate(e.target.value); setSaved(false); }}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {selected && (
+            <button
+              onClick={saveAttendance}
+              disabled={saving || attLoading || enrolled.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold transition"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? "Saving…" : saved ? "Saved ✓" : "Save attendance"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Class selector */}
