@@ -550,70 +550,103 @@ function Home() {
       {/* ════════════════════════════════════════
           GET A QUOTE
           ════════════════════════════════════════ */}
-      <section className="bg-white py-24">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl overflow-hidden shadow-2xl">
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-              {/* Left: copy */}
-              <div className="p-10 xl:p-14 flex flex-col justify-center">
-                <span className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-4">Pricing</span>
-                <h2 className="text-3xl xl:text-4xl font-extrabold text-white leading-tight mb-4">
-                  Pricing that fits<br />your school size
-                </h2>
-                <p className="text-blue-100 text-base leading-relaxed mb-8">
-                  Every school is different — number of students, branches, and staff all matter. Talk to us and we'll put together a plan that makes sense for you. No generic tiers, no surprises.
-                </p>
-                <ul className="space-y-3 mb-8">
-                  {[
-                    "Free plan to get started",
-                    "Flexible pricing as you grow",
-                    "No hidden fees, no lock-in",
-                    "Custom quotes for chains & franchises",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm text-blue-50">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <a
-                    href={WA_LINK}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold text-sm transition shadow-lg"
-                  >
-                    {WA_ICON}
-                    Chat on WhatsApp
-                  </a>
-                  <Link
-                    to="/pricing"
-                    className="inline-flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-6 py-3 rounded-xl font-semibold text-sm transition"
-                  >
-                    View plan details
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+      <section className="bg-slate-950 py-24 relative overflow-hidden">
+        {/* subtle background glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-6">
+          {/* Header */}
+          <div className="text-center mb-14">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-blue-400 bg-blue-400/10 border border-blue-400/20 rounded-full px-4 py-1.5 mb-5">Pricing</span>
+            <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-4">
+              Pricing that fits<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">your school size</span>
+            </h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+              Every school is different. Talk to us and we'll put together a plan that makes sense for you — no generic tiers, no surprises.
+            </p>
+          </div>
+
+          {/* 3 highlight cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
+            {[
+              {
+                icon: Users,
+                color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20",
+                title: "Free forever plan",
+                desc: "Start with 1 branch and up to 50 students — completely free, no card needed.",
+              },
+              {
+                icon: Building2,
+                color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20",
+                title: "Multi-branch schools",
+                desc: "Running 2+ branches? We'll tailor pricing to your exact setup.",
+                featured: true,
+              },
+              {
+                icon: MessageCircle,
+                color: "text-violet-400", bg: "bg-violet-400/10", border: "border-violet-400/20",
+                title: "Talk to us directly",
+                desc: "No sales funnel. Chat with us on WhatsApp and get a quote in minutes.",
+              },
+            ].map(({ icon: Icon, color, bg, border, title, desc, featured }) => (
+              <div
+                key={title}
+                className={`relative rounded-2xl border p-7 flex flex-col gap-4 transition ${
+                  featured
+                    ? "bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border-blue-500/40 shadow-lg shadow-blue-900/20"
+                    : "bg-slate-900/60 border-slate-700/60 hover:border-slate-600 hover:bg-slate-900"
+                }`}
+              >
+                {featured && (
+                  <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-full px-2.5 py-1">Popular</span>
+                )}
+                <div className={`w-11 h-11 rounded-xl ${bg} border ${border} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                <div>
+                  <div className="text-white font-bold text-base mb-1">{title}</div>
+                  <div className="text-slate-400 text-sm leading-relaxed">{desc}</div>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* Right: highlights */}
-              <div className="bg-white/10 backdrop-blur-sm p-10 xl:p-14 flex flex-col justify-center gap-6">
-                {[
-                  { icon: Users, title: "Free forever plan", desc: "Start with 1 branch and up to 50 students — completely free, no card needed." },
-                  { icon: Building2, title: "Multi-branch schools", desc: "Running 2+ branches? We'll tailor pricing to your exact setup." },
-                  { icon: MessageCircle, title: "Talk to us directly", desc: "No sales funnel. Chat with us on WhatsApp and get a quote in minutes." },
-                ].map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="flex gap-4">
-                    <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold text-sm mb-0.5">{title}</div>
-                      <div className="text-blue-200 text-sm leading-relaxed">{desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {/* Checklist + CTAs */}
+          <div className="bg-slate-900/60 border border-slate-700/60 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                "Free plan to get started",
+                "Flexible pricing as you grow",
+                "No hidden fees, no lock-in",
+                "Custom quotes for chains & franchises",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2.5 text-sm text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+              <a
+                href={WA_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold text-sm transition shadow-lg shadow-emerald-900/30"
+              >
+                {WA_ICON}
+                Chat on WhatsApp
+              </a>
+              <Link
+                to="/pricing"
+                className="inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-6 py-3 rounded-xl font-semibold text-sm transition"
+              >
+                View plan details
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </div>
