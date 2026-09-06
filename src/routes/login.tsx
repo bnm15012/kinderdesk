@@ -135,10 +135,11 @@ function Login() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="flex-1 flex flex-col lg:flex-none lg:items-center lg:justify-center lg:bg-slate-50 relative overflow-hidden
-        max-lg:bg-[radial-gradient(ellipse_at_top_left,_#6366f1_0%,_#3b82f6_35%,_#0ea5e9_65%,_#06b6d4_100%)]">
+      <div className="flex-1 flex flex-col lg:flex-none lg:items-center lg:justify-center bg-slate-50 relative overflow-hidden
+       ">
 
-        {/* Mobile decorative blobs */}
+        {/* Mobile gradient + decorative blobs — hidden on desktop */}
+        <div className="lg:hidden absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_#6366f1_0%,_#3b82f6_35%,_#0ea5e9_65%,_#06b6d4_100%)] pointer-events-none" />
         <div className="lg:hidden absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-500/40 blur-3xl pointer-events-none" />
         <div className="lg:hidden absolute top-1/3 -left-16 w-56 h-56 rounded-full bg-cyan-400/30 blur-3xl pointer-events-none" />
         <div className="lg:hidden absolute -bottom-16 right-8 w-64 h-64 rounded-full bg-indigo-600/50 blur-3xl pointer-events-none" />
