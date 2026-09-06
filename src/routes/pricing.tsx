@@ -235,13 +235,13 @@ function PricingPage() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="bg-blue-600 py-16 text-center">
+      <section className="bg-slate-50 border-t border-slate-200 py-16 text-center">
         <div className="max-w-xl mx-auto px-6">
-          <div className="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <GraduationCap className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <GraduationCap className="w-6 h-6 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-extrabold text-white mb-3">Ready to get started?</h2>
-          <p className="text-blue-200 text-sm mb-8 leading-relaxed">
+          <h2 className="text-2xl font-extrabold text-slate-900 mb-3">Ready to get started?</h2>
+          <p className="text-slate-500 text-sm mb-8 leading-relaxed">
             Start free today — or chat with us for a custom quote. We'll get back to you in minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -249,14 +249,14 @@ function PricingPage() {
               href={WA_LINK}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-7 py-3.5 rounded-xl font-bold text-sm transition shadow-lg"
+              className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-7 py-3.5 rounded-xl font-bold text-sm transition shadow-sm"
             >
               {WA_ICON}
               Get a quote on WhatsApp
             </a>
             <Link
               to="/signup"
-              className="inline-flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-7 py-3.5 rounded-xl font-semibold text-sm transition"
+              className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-7 py-3.5 rounded-xl font-semibold text-sm transition"
             >
               Start free
               <ArrowRight className="w-4 h-4" />

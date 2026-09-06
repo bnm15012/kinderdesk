@@ -23,10 +23,10 @@ function ContactPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-blue-600 to-violet-700 text-white py-16 px-6">
+      <section className="bg-white border-b border-slate-100 py-16 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-4xl font-extrabold mb-3">Get in touch</h1>
-          <p className="text-blue-100 text-lg">
+          <h1 className="text-4xl font-extrabold text-slate-900 mb-3">Get in touch</h1>
+          <p className="text-slate-500 text-lg">
             Have questions? We'd love to hear from you. Reach us on WhatsApp, email, or fill in the form below.
           </p>
         </div>

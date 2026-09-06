@@ -538,22 +538,15 @@ function Home() {
       {/* ════════════════════════════════════════
           GET A QUOTE
           ════════════════════════════════════════ */}
-      <section className="bg-slate-950 py-24 relative overflow-hidden">
-        {/* subtle background glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl" />
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-6xl mx-auto px-6">
+      <section className="bg-slate-50 py-24">
+        <div className="max-w-6xl mx-auto px-6">
           {/* Header */}
           <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest text-blue-400 bg-blue-400/10 border border-blue-400/20 rounded-full px-4 py-1.5 mb-5">Pricing</span>
-            <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-4">
-              Pricing that fits<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">your school size</span>
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-4 py-1.5 mb-5">Pricing</span>
+            <h2 className="text-4xl xl:text-5xl font-extrabold text-slate-900 leading-tight mb-4">
+              Pricing that fits <span className="text-blue-600">your school size</span>
             </h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+            <p className="text-slate-500 text-lg max-w-2xl mx-auto leading-relaxed">
               Every school is different. Talk to us and we'll put together a plan that makes sense for you — no generic tiers, no surprises.
             </p>
           </div>
@@ -563,48 +556,48 @@ function Home() {
             {[
               {
                 icon: Users,
-                color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20",
+                color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100",
                 title: "Free forever plan",
                 desc: "Start with 1 branch and up to 50 students — completely free, no card needed.",
               },
               {
                 icon: Building2,
-                color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20",
+                color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100",
                 title: "Multi-branch schools",
                 desc: "Running 2+ branches? We'll tailor pricing to your exact setup.",
                 featured: true,
               },
               {
                 icon: MessageCircle,
-                color: "text-violet-400", bg: "bg-violet-400/10", border: "border-violet-400/20",
+                color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-100",
                 title: "Talk to us directly",
                 desc: "No sales funnel. Chat with us on WhatsApp and get a quote in minutes.",
               },
             ].map(({ icon: Icon, color, bg, border, title, desc, featured }) => (
               <div
                 key={title}
-                className={`relative rounded-2xl border p-7 flex flex-col gap-4 transition ${
+                className={`relative rounded-2xl border p-7 flex flex-col gap-4 transition bg-white ${
                   featured
-                    ? "bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border-blue-500/40 shadow-lg shadow-blue-900/20"
-                    : "bg-slate-900/60 border-slate-700/60 hover:border-slate-600 hover:bg-slate-900"
+                    ? "border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100"
+                    : "border-slate-200 hover:border-slate-300 hover:shadow-sm"
                 }`}
               >
                 {featured && (
-                  <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-full px-2.5 py-1">Popular</span>
+                  <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-1">Popular</span>
                 )}
                 <div className={`w-11 h-11 rounded-xl ${bg} border ${border} flex items-center justify-center`}>
                   <Icon className={`w-5 h-5 ${color}`} />
                 </div>
                 <div>
-                  <div className="text-white font-bold text-base mb-1">{title}</div>
-                  <div className="text-slate-400 text-sm leading-relaxed">{desc}</div>
+                  <div className="text-slate-900 font-bold text-base mb-1">{title}</div>
+                  <div className="text-slate-500 text-sm leading-relaxed">{desc}</div>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Checklist + CTAs */}
-          <div className="bg-slate-900/60 border border-slate-700/60 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="bg-white border border-slate-200 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8">
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 "Free plan to get started",
@@ -612,8 +605,8 @@ function Home() {
                 "No hidden fees, no lock-in",
                 "Custom quotes for chains & franchises",
               ].map((item) => (
-                <li key={item} className="flex items-center gap-2.5 text-sm text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <li key={item} className="flex items-center gap-2.5 text-sm text-slate-600">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   {item}
                 </li>
               ))}
@@ -623,14 +616,14 @@ function Home() {
                 href={WA_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold text-sm transition shadow-lg shadow-emerald-900/30"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm transition shadow-sm"
               >
                 {WA_ICON}
                 Chat on WhatsApp
               </a>
               <Link
                 to="/pricing"
-                className="inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-6 py-3 rounded-xl font-semibold text-sm transition"
+                className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold text-sm transition"
               >
                 View plan details
                 <ArrowRight className="w-4 h-4" />

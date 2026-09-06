@@ -85,7 +85,7 @@ function Login() {
             </div>
             <div>
               <div className="text-lg font-bold text-white leading-tight">KinderDesk</div>
-              <div className="text-[11px] text-blue-300 leading-tight">Preschool ERP</div>
+
             </div>
           </Link>
 

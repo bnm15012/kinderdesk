@@ -59,7 +59,7 @@ function InvitePage() {
             </div>
             <div>
               <div className="text-lg font-bold text-white">KinderDesk</div>
-              <div className="text-[11px] text-blue-300">Preschool ERP</div>
+
             </div>
           </Link>
 
