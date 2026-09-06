@@ -1460,6 +1460,138 @@ export const toggleSchoolStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ── Super Admin: get full detail for one school ───────────────────────────────
+export const getSuperAdminSchoolDetail = createServerFn({ method: "GET" })
+  .validator((input: unknown) => z.object({ schoolId: z.number() }).parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, schools, locations, subscriptions, subscriptionPayments, staff, students } = await import("@/lib/db/schema");
+
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!me || me.role !== "super_admin") throw new Error("Not authorized");
+
+    const [school] = await db.select().from(schools).where(eq(schools.id, data.schoolId)).limit(1);
+    if (!school) throw new Error("School not found");
+
+    const locs = await db.select().from(locations).where(eq(locations.schoolId, data.schoolId)).orderBy(asc(locations.name));
+
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.schoolId, data.schoolId)).orderBy(desc(subscriptions.startedAt)).limit(1);
+
+    const payments = sub
+      ? await db.select().from(subscriptionPayments).where(eq(subscriptionPayments.subscriptionId, sub.id)).orderBy(desc(subscriptionPayments.paidAt))
+      : [];
+
+    const [{ staffCount }] = await db.select({ staffCount: count() }).from(staff).where(eq(staff.schoolId, data.schoolId));
+    const [{ studentCount }] = await db.select({ studentCount: count() }).from(students).where(eq(students.schoolId, data.schoolId));
+
+    return {
+      school: { ...school, logoUrl: school.logoUrl ?? null },
+      locations: locs,
+      subscription: sub ?? null,
+      payments: payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+      stats: { staffCount: Number(staffCount), studentCount: Number(studentCount) },
+    };
+  });
+
+// ── Super Admin: update school subscription (plan, amount, status) ────────────
+const updateSchoolSubscriptionSchema = z.object({
+  schoolId: z.number(),
+  plan: z.string(),
+  amount: z.number(),
+  billingCycle: z.enum(["monthly", "yearly", "lifetime"]),
+  status: z.enum(["trialing", "active", "past_due", "canceled", "paused"]),
+  maxStudents: z.number().optional(),
+  maxStaff: z.number().optional(),
+  maxLocations: z.number().optional(),
+});
+
+export const updateSchoolSubscription = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateSchoolSubscriptionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, schools, subscriptions } = await import("@/lib/db/schema");
+
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!me || me.role !== "super_admin") throw new Error("Not authorized");
+
+    // Update or insert subscription
+    const [existing] = await db.select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.schoolId, data.schoolId)).limit(1);
+    if (existing) {
+      await db.update(subscriptions).set({
+        plan: data.plan,
+        amount: String(data.amount),
+        billingCycle: data.billingCycle,
+        status: data.status,
+      }).where(eq(subscriptions.id, existing.id));
+    } else {
+      await db.insert(subscriptions).values({
+        schoolId: data.schoolId,
+        plan: data.plan,
+        amount: String(data.amount),
+        billingCycle: data.billingCycle,
+        status: data.status,
+      });
+    }
+
+    // Update school plan + limits
+    await db.update(schools).set({
+      plan: data.plan,
+      ...(data.maxStudents  !== undefined && { maxStudents:  data.maxStudents  }),
+      ...(data.maxStaff     !== undefined && { maxStaff:     data.maxStaff     }),
+      ...(data.maxLocations !== undefined && { maxLocations: data.maxLocations }),
+    }).where(eq(schools.id, data.schoolId));
+
+    return { ok: true };
+  });
+
+// ── Super Admin: record a manual subscription payment ─────────────────────────
+const recordSubscriptionPaymentSchema = z.object({
+  schoolId: z.number(),
+  subscriptionId: z.number(),
+  amount: z.number(),
+  notes: z.string().optional(),
+  paidAt: z.string(), // ISO date string
+});
+
+export const recordSubscriptionPayment = createServerFn({ method: "POST" })
+  .validator((input: unknown) => recordSubscriptionPaymentSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, subscriptions, subscriptionPayments } = await import("@/lib/db/schema");
+
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (!me || me.role !== "super_admin") throw new Error("Not authorized");
+
+    // Record the payment
+    await db.insert(subscriptionPayments).values({
+      schoolId: data.schoolId,
+      subscriptionId: data.subscriptionId,
+      amount: String(data.amount),
+      currency: "INR",
+      status: "captured",
+      paidAt: new Date(data.paidAt),
+    });
+
+    // Advance the current period by one billing cycle
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, data.subscriptionId)).limit(1);
+    if (sub) {
+      const periodStart = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : new Date(data.paidAt);
+      const periodEnd   = new Date(periodStart);
+      if (sub.billingCycle === "yearly")   periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      else if (sub.billingCycle === "monthly") periodEnd.setMonth(periodEnd.getMonth() + 1);
+      await db.update(subscriptions).set({
+        status: "active",
+        currentPeriodStart: periodStart,
+        currentPeriodEnd:   periodEnd,
+      }).where(eq(subscriptions.id, data.subscriptionId));
+    }
+
+    return { ok: true };
+  });
+
 const viewAsSchoolAdminSchema = z.object({
   schoolId: z.number(),
 });

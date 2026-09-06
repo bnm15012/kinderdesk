@@ -45,6 +45,7 @@ import { Route as SuperAdminPaymentsRouteImport } from './routes/super-admin.pay
 import { Route as SuperAdminPlansRouteImport } from './routes/super-admin.plans'
 import { Route as SuperAdminSchoolsRouteImport } from './routes/super-admin.schools'
 import { Route as SuperAdminSubscriptionsRouteImport } from './routes/super-admin.subscriptions'
+import { Route as SuperAdminSchoolsSchoolIdRouteImport } from './routes/super-admin.schools.$schoolId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -226,6 +227,12 @@ const SuperAdminSubscriptionsRoute = SuperAdminSubscriptionsRouteImport.update({
   path: '/subscriptions',
   getParentRoute: () => SuperAdminRoute,
 } as any)
+const SuperAdminSchoolsSchoolIdRoute =
+  SuperAdminSchoolsSchoolIdRouteImport.update({
+    id: '/$schoolId',
+    path: '/$schoolId',
+    getParentRoute: () => SuperAdminSchoolsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -260,10 +267,11 @@ export interface FileRoutesByFullPath {
   '/super-admin/announcements': typeof SuperAdminAnnouncementsRoute
   '/super-admin/payments': typeof SuperAdminPaymentsRoute
   '/super-admin/plans': typeof SuperAdminPlansRoute
-  '/super-admin/schools': typeof SuperAdminSchoolsRoute
+  '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
+  '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -296,10 +304,11 @@ export interface FileRoutesByTo {
   '/super-admin/announcements': typeof SuperAdminAnnouncementsRoute
   '/super-admin/payments': typeof SuperAdminPaymentsRoute
   '/super-admin/plans': typeof SuperAdminPlansRoute
-  '/super-admin/schools': typeof SuperAdminSchoolsRoute
+  '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
   '/staff': typeof StaffIndexRoute
   '/students': typeof StudentsIndexRoute
+  '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -335,10 +344,11 @@ export interface FileRoutesById {
   '/super-admin/announcements': typeof SuperAdminAnnouncementsRoute
   '/super-admin/payments': typeof SuperAdminPaymentsRoute
   '/super-admin/plans': typeof SuperAdminPlansRoute
-  '/super-admin/schools': typeof SuperAdminSchoolsRoute
+  '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
+  '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -379,6 +389,7 @@ export interface FileRouteTypes {
     | '/super-admin/subscriptions'
     | '/staff/'
     | '/students/'
+    | '/super-admin/schools/$schoolId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -415,6 +426,7 @@ export interface FileRouteTypes {
     | '/super-admin/subscriptions'
     | '/staff'
     | '/students'
+    | '/super-admin/schools/$schoolId'
   id:
     | '__root__'
     | '/'
@@ -453,6 +465,7 @@ export interface FileRouteTypes {
     | '/super-admin/subscriptions'
     | '/staff/'
     | '/students/'
+    | '/super-admin/schools/$schoolId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -739,6 +752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperAdminSubscriptionsRouteImport
       parentRoute: typeof SuperAdminRoute
     }
+    '/super-admin/schools/$schoolId': {
+      id: '/super-admin/schools/$schoolId'
+      path: '/$schoolId'
+      fullPath: '/super-admin/schools/$schoolId'
+      preLoaderRoute: typeof SuperAdminSchoolsSchoolIdRouteImport
+      parentRoute: typeof SuperAdminSchoolsRoute
+    }
   }
 }
 
@@ -768,11 +788,22 @@ const StudentsRouteWithChildren = StudentsRoute._addFileChildren(
   StudentsRouteChildren,
 )
 
+interface SuperAdminSchoolsRouteChildren {
+  SuperAdminSchoolsSchoolIdRoute: typeof SuperAdminSchoolsSchoolIdRoute
+}
+
+const SuperAdminSchoolsRouteChildren: SuperAdminSchoolsRouteChildren = {
+  SuperAdminSchoolsSchoolIdRoute: SuperAdminSchoolsSchoolIdRoute,
+}
+
+const SuperAdminSchoolsRouteWithChildren =
+  SuperAdminSchoolsRoute._addFileChildren(SuperAdminSchoolsRouteChildren)
+
 interface SuperAdminRouteChildren {
   SuperAdminAnnouncementsRoute: typeof SuperAdminAnnouncementsRoute
   SuperAdminPaymentsRoute: typeof SuperAdminPaymentsRoute
   SuperAdminPlansRoute: typeof SuperAdminPlansRoute
-  SuperAdminSchoolsRoute: typeof SuperAdminSchoolsRoute
+  SuperAdminSchoolsRoute: typeof SuperAdminSchoolsRouteWithChildren
   SuperAdminSubscriptionsRoute: typeof SuperAdminSubscriptionsRoute
 }
 
@@ -780,7 +811,7 @@ const SuperAdminRouteChildren: SuperAdminRouteChildren = {
   SuperAdminAnnouncementsRoute: SuperAdminAnnouncementsRoute,
   SuperAdminPaymentsRoute: SuperAdminPaymentsRoute,
   SuperAdminPlansRoute: SuperAdminPlansRoute,
-  SuperAdminSchoolsRoute: SuperAdminSchoolsRoute,
+  SuperAdminSchoolsRoute: SuperAdminSchoolsRouteWithChildren,
   SuperAdminSubscriptionsRoute: SuperAdminSubscriptionsRoute,
 }
 

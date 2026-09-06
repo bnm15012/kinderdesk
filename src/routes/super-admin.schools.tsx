@@ -1,9 +1,9 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getSuperAdminDashboard, toggleSchoolStatus, viewAsSchoolAdmin } from "@/lib/auth";
 import {
-  Building2, CheckCircle2, Ban, ArrowRight, AlertCircle, Loader2, Search,
+  Building2, CheckCircle2, Ban, ArrowRight, AlertCircle, Loader2, Search, Settings,
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant";
 import { fmtDate } from "@/lib/utils";
@@ -229,6 +229,13 @@ function SuperAdminSchools() {
                     <td className="px-5 py-4 text-slate-500 text-xs">{fmtDate(school.createdAt)}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
+                        <Link
+                          to="/super-admin/schools/$schoolId"
+                          params={{ schoolId: String(school.id) }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition"
+                        >
+                          <Settings className="w-3.5 h-3.5" /> Manage
+                        </Link>
                         <button
                           onClick={() => handleView(school)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition"
