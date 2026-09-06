@@ -197,7 +197,13 @@ function InquiryDrawer({
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [error, setError] = useState("");
-  const [ef, setEf] = useState({ ...initial });
+  const toDateStr = (v: string | null | undefined) => {
+    if (!v) return "";
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  };
+  const [ef, setEf] = useState({ ...initial, childDob: toDateStr(initial.childDob) });
   const eSet = (k: string, v: string) => setEf((p) => ({ ...p, [k]: v }));
   const [inviteSending, setInviteSending] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -264,7 +270,7 @@ function InquiryDrawer({
             </div>
             <div className="flex items-center gap-2">
               {!editing && (
-                <button onClick={() => { setEf({ ...inquiry }); setEditing(true); }}
+                <button onClick={() => { setEf({ ...inquiry, childDob: toDateStr(inquiry.childDob) }); setEditing(true); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold rounded-lg transition">
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
