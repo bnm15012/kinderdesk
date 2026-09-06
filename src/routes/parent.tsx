@@ -419,26 +419,46 @@ function ParentPortal() {
                   </div>
                   {reportCardsList.length === 0 ? (
                     <p className="text-xs text-slate-400 py-4 text-center">No report cards uploaded yet</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {reportCardsList.map((rc: any) => (
-                        <div key={rc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
-                            <GraduationCap className="w-4 h-4 text-violet-600" />
+                  ) : (() => {
+                    // Group by academic year descending
+                    const byYear = new Map<string, any[]>();
+                    for (const rc of reportCardsList) {
+                      const yr = rc.academicYear ?? "Unknown";
+                      if (!byYear.has(yr)) byYear.set(yr, []);
+                      byYear.get(yr)!.push(rc);
+                    }
+                    const years = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
+                    return (
+                      <div className="space-y-4">
+                        {years.map((year) => (
+                          <div key={year}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-bold text-violet-700 bg-violet-100 px-2.5 py-0.5 rounded-full">{year}</span>
+                            </div>
+                            <div className="space-y-2 border-l-2 border-violet-100 ml-2 pl-1">
+                              {byYear.get(year)!.map((rc: any) => (
+                                <div key={rc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 ml-2">
+                                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                                    <GraduationCap className="w-4 h-4 text-violet-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-slate-800">{rc.term}</p>
+                                    {rc.className && <p className="text-xs text-slate-400">{rc.className}</p>}
+                                  </div>
+                                  {rc.publicUrl && (
+                                    <a href={rc.publicUrl} target="_blank" rel="noopener noreferrer"
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition shrink-0">
+                                      <ExternalLink className="w-3 h-3" /> Download
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800">{rc.term}</p>
-                          </div>
-                          {rc.publicUrl && (
-                            <a href={rc.publicUrl} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition">
-                              <ExternalLink className="w-3 h-3" /> Download
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

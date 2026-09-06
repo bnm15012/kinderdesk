@@ -4009,7 +4009,9 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
 // ── Upload report card ────────────────────────────────────────────────────────
 const uploadReportCardSchema = z.object({
   studentId: z.number(),
-  term: z.string().trim().min(1).max(100), // e.g. "Term 1 2025-26"
+  academicYear: z.string().trim().min(1).max(20), // e.g. "2025-26"
+  classId: z.number().optional(),
+  term: z.string().trim().min(1).max(100), // e.g. "Term 1", "Q2", "Annual"
   fileDataUrl: z.string(),
   fileName: z.string().max(255),
 });
@@ -4035,22 +4037,24 @@ export const uploadReportCard = createServerFn({ method: "POST" })
     const buffer = Buffer.from(dataUrlMatch[2], "base64");
     if (buffer.length > 10 * 1024 * 1024) throw new Error("File must be under 10MB");
 
-    const key = `schools/${user.schoolId}/students/${data.studentId}/report-cards/${Date.now()}.pdf`;
+    const key = `schools/${user.schoolId}/students/${data.studentId}/report-cards/${data.academicYear}-${Date.now()}.pdf`;
     const publicUrl = await uploadToR2orDisk(buffer, mimeType, key);
 
     const [r] = await db.insert(reportCards).values({
-      schoolId: user.schoolId,
-      locationId: user.locationId,
-      studentId: data.studentId,
-      term: data.term,
-      r2Key: key,
+      schoolId:     user.schoolId,
+      locationId:   user.locationId,
+      studentId:    data.studentId,
+      academicYear: data.academicYear,
+      classId:      data.classId ?? null,
+      term:         data.term,
+      r2Key:        key,
       publicUrl,
     });
 
-    return { ok: true, id: Number((r as any).insertId), publicUrl, term: data.term };
+    return { ok: true, id: Number((r as any).insertId), publicUrl, academicYear: data.academicYear, term: data.term };
   });
 
-// ── List report cards for a student ──────────────────────────────────────────
+// ── List report cards for a student (with class name join) ────────────────────
 const listReportCardsSchema = z.object({ studentId: z.number() });
 export const listReportCards = createServerFn({ method: "GET" })
   .validator((i: unknown) => listReportCardsSchema.parse(i))
@@ -4062,7 +4066,7 @@ export const listReportCards = createServerFn({ method: "GET" })
     if (!token) throw new Error("Not authenticated");
     const { payload } = await verifySessionToken(token);
     const { db } = await import("@/lib/db");
-    const { users, reportCards, parents } = await import("@/lib/db/schema");
+    const { users, reportCards, parents, classes } = await import("@/lib/db/schema");
     const [user] = await db.select({ role: users.role, schoolId: users.schoolId, email: users.email })
       .from(users).where(eq(users.id, Number(payload.userId))).limit(1);
     if (!user) throw new Error("Not authenticated");
@@ -4074,9 +4078,21 @@ export const listReportCards = createServerFn({ method: "GET" })
       if (!link) throw new Error("Not authorized");
     }
 
-    return db.select().from(reportCards)
+    const rows = await db
+      .select({
+        id:           reportCards.id,
+        academicYear: reportCards.academicYear,
+        term:         reportCards.term,
+        publicUrl:    reportCards.publicUrl,
+        uploadedAt:   reportCards.uploadedAt,
+        className:    classes.name,
+      })
+      .from(reportCards)
+      .leftJoin(classes, eq(reportCards.classId, classes.id))
       .where(and(eq(reportCards.studentId, data.studentId), eq(reportCards.schoolId, user.schoolId!)))
-      .orderBy(desc(reportCards.uploadedAt));
+      .orderBy(desc(reportCards.academicYear), asc(reportCards.term));
+
+    return rows;
   });
 
 // ── Delete report card ────────────────────────────────────────────────────────
