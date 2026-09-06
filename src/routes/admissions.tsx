@@ -4,9 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   X, Plus, Search, AlertCircle, ChevronRight, UserPlus,
   User, FileText,
-  Pencil, Save, XCircle, ArrowRight, CheckCircle2, Trash2,
+  Pencil, Save, XCircle, ArrowRight, CheckCircle2, Trash2, Mail, Loader2,
 } from "lucide-react";
-import { listInquiries, addInquiry, updateInquiry, archiveInquiry } from "@/lib/auth";
+import { listInquiries, addInquiry, updateInquiry, archiveInquiry, sendParentInvite } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -191,6 +191,7 @@ function InquiryDrawer({
   onUpdated: (updated: Inquiry) => void;
 }) {
   const updateFn = useServerFn(updateInquiry);
+  const sendInviteFn = useServerFn(sendParentInvite);
   const [inquiry, setInquiry] = useState<Inquiry>(initial);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -198,6 +199,8 @@ function InquiryDrawer({
   const [error, setError] = useState("");
   const [ef, setEf] = useState({ ...initial });
   const eSet = (k: string, v: string) => setEf((p) => ({ ...p, [k]: v }));
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   const save = async () => {
     setSaving(true); setError("");
@@ -370,6 +373,39 @@ function InquiryDrawer({
                   <InfoRow label="Name" value={inquiry.parentName} />
                   <InfoRow label="Email" value={inquiry.email} />
                   <InfoRow label="Phone" value={inquiry.phone} />
+                  {/* Parent portal invite — only show when enrolled and has email */}
+                  {inquiry.status === "enrolled" && inquiry.email && (
+                    <div className="pt-2 border-t border-slate-100">
+                      {inviteToken ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
+                          <div className="flex items-center gap-2 text-emerald-700 text-sm font-semibold">
+                            <CheckCircle2 className="w-4 h-4" /> Parent invite sent!
+                          </div>
+                          <p className="text-xs text-emerald-600">Share this link if email doesn't arrive:</p>
+                          <p className="text-xs font-mono text-emerald-800 break-all bg-emerald-100 rounded-lg p-2">
+                            {typeof window !== "undefined" ? window.location.origin : ""}/invite?token={inviteToken}
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            setInviteSending(true);
+                            try {
+                              const res = await sendInviteFn({ data: { inquiryId: inquiry.id } }) as any;
+                              setInviteToken(res.inviteToken);
+                            } catch (err: any) {
+                              setError(err?.message ?? "Failed to send invite");
+                            } finally { setInviteSending(false); }
+                          }}
+                          disabled={inviteSending}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition disabled:opacity-50"
+                        >
+                          {inviteSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          {inviteSending ? "Sending…" : "Send parent portal invite"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>

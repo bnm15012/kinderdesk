@@ -2620,6 +2620,52 @@ export const archiveStaff = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ── Send parent portal invite for an inquiry ─────────────────────────────────
+const sendParentInviteSchema = z.object({
+  inquiryId: z.number(),
+});
+
+export const sendParentInvite = createServerFn({ method: "POST" })
+  .validator((input: unknown) => sendParentInviteSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { inquiries, users } = await import("@/lib/db/schema");
+
+    const [inquiry] = await db.select().from(inquiries).where(eq(inquiries.id, data.inquiryId)).limit(1);
+    if (!inquiry) throw new Error("Inquiry not found");
+    if (!inquiry.email) throw new Error("No email on this inquiry");
+
+    const email = normalizeEmail(inquiry.email);
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+
+    let userId: number;
+    if (existing) {
+      userId = existing.id;
+      await db.update(users).set({ status: "invited", role: "parent" }).where(eq(users.id, userId));
+    } else {
+      const nameParts = inquiry.parentName.trim().split(" ");
+      const [uRes] = await db.insert(users).values({
+        schoolId: inquiry.schoolId,
+        locationId: inquiry.locationId,
+        email,
+        firstName: nameParts[0],
+        lastName: nameParts.slice(1).join(" ") || "",
+        role: "parent",
+        status: "invited",
+      });
+      userId = Number((uRes as any).insertId);
+    }
+
+    const inviteToken = await new jose.SignJWT({ userId, purpose: "invite" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("72h")
+      .sign(JWT_SECRET);
+
+    return { ok: true, inviteToken };
+  });
+
 // ── Resend / send invite for an existing staff member ────────────────────────
 const resendStaffInviteSchema = z.object({
   staffId: z.number(),
