@@ -111,7 +111,15 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function Sidebar({ role }: { role: string | null | undefined }) {
-  const nav = navForRole(role);
+  const { pathname } = useLocation();
+  // When super admin is impersonating a school (outside /super-admin pages),
+  // show the school_admin nav so they see exactly what the school admin sees
+  const effectiveRole =
+    role === "super_admin" && !pathname.startsWith("/super-admin")
+      ? "school_admin"
+      : role;
+  const nav = navForRole(effectiveRole);
+  const isImpersonating = role === "super_admin" && effectiveRole === "school_admin";
   return (
     <aside className="w-60 shrink-0 flex flex-col bg-slate-900 border-r border-slate-800">
       <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800">
@@ -121,10 +129,15 @@ function Sidebar({ role }: { role: string | null | undefined }) {
         <div>
           <div className="text-sm font-bold text-white leading-tight">KinderDesk</div>
           <div className="text-[10px] text-slate-400 leading-tight capitalize">
-            {role === "super_admin" ? "Platform Admin" : role === "parent" ? "Parent Portal" : role === "teacher" || role === "staff" ? "Teacher Portal" : "School ERP"}
+            {isImpersonating ? "Viewing as Admin" : role === "super_admin" ? "Platform Admin" : role === "parent" ? "Parent Portal" : role === "teacher" || role === "staff" ? "Teacher Portal" : "School ERP"}
           </div>
         </div>
       </div>
+      {isImpersonating && (
+        <div className="mx-3 mt-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2">
+          <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">Impersonating school</span>
+        </div>
+      )}
 
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">Menu</p>
@@ -141,6 +154,16 @@ function Sidebar({ role }: { role: string | null | undefined }) {
         ))}
       </nav>
 
+      {isImpersonating && (
+        <div className="px-3 pb-3">
+          <Link
+            to="/super-admin/schools"
+            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold transition"
+          >
+            ← Exit to Super Admin
+          </Link>
+        </div>
+      )}
       <div className="px-5 py-4 border-t border-slate-800">
         <p className="text-[11px] text-slate-600 text-center">KinderDesk v1.0</p>
       </div>
