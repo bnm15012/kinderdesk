@@ -77,7 +77,7 @@ function AddBranchModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Branch name *</label>
               <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. South Branch" className={inputCls} required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
                 <input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="98765 43210" className={inputCls} />
@@ -91,7 +91,7 @@ function AddBranchModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Address</label>
               <input value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Street address" className={inputCls} />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">City</label>
                 <input value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Mumbai" className={inputCls} />
@@ -168,7 +168,7 @@ function EditSchoolModal({ school, onClose, onSaved }: { school: School; onClose
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">School name *</label>
             <input value={f.name} onChange={(e) => set("name", e.target.value)} className={inputCls} required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Email</label>
               <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} className={inputCls} />
@@ -182,7 +182,7 @@ function EditSchoolModal({ school, onClose, onSaved }: { school: School; onClose
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Address</label>
             <input value={f.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">City</label>
               <input value={f.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
@@ -251,7 +251,7 @@ function EditBranchModal({ branch, onClose, onSaved }: { branch: Location; onClo
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Branch name *</label>
             <input value={f.name} onChange={(e) => set("name", e.target.value)} className={inputCls} required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
               <input value={f.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} />
@@ -265,7 +265,7 @@ function EditBranchModal({ branch, onClose, onSaved }: { branch: Location; onClo
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Address</label>
             <input value={f.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">City</label>
               <input value={f.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
@@ -462,6 +462,7 @@ function SchoolsPage() {
             <p className="text-sm text-slate-400">No branches yet. Add your first branch!</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -521,6 +522,7 @@ function SchoolsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

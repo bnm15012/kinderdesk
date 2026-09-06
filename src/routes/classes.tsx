@@ -51,8 +51,8 @@ function ClassForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="col-span-1 sm:col-span-2">
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">Class name *</label>
           <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Nursery A" className={inputCls} required />
         </div>

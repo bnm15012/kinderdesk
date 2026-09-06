@@ -196,7 +196,7 @@ function TeacherAttendancePage() {
           ) : (
             <>
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 <span>Student</span>
                 <span className="text-center">Present</span>
                 <span className="text-center">Absent</span>
@@ -207,23 +207,27 @@ function TeacherAttendancePage() {
                 {enrolled.map((s) => {
                   const current = attMap[s.id] ?? "present";
                   return (
-                    <div key={s.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 items-center px-6 py-3">
-                      <div className="flex items-center gap-3">
+                    <div key={s.id} className="flex items-center justify-between sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 sm:gap-4 px-6 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
                           {(s.firstName?.[0] ?? "?").toUpperCase()}
                         </div>
-                        <span className="text-sm font-semibold text-slate-800">{s.firstName} {s.lastName}</span>
+                        <span className="text-sm font-semibold text-slate-800 truncate">{s.firstName} {s.lastName}</span>
                       </div>
-                      {STATUSES.map(({ value, activeColor, color }) => (
-                        <div key={value} className="flex justify-center">
-                          <button
-                            onClick={() => setStatus(s.id, value)}
-                            className={`px-3 py-1.5 rounded-lg border text-xs transition ${current === value ? activeColor : `bg-white ${color}`}`}
-                          >
-                            {value === "present" ? "P" : value === "absent" ? "A" : value === "half_day" ? "H" : "L"}
-                          </button>
-                        </div>
-                      ))}
+                      {/* Mobile: horizontal pill row */}
+                      <div className="flex sm:contents gap-1">
+                        {STATUSES.map(({ value, activeColor, color }) => (
+                          <div key={value} className="sm:flex sm:justify-center">
+                            <button
+                              onClick={() => setStatus(s.id, value)}
+                              title={value === "present" ? "Present" : value === "absent" ? "Absent" : value === "half_day" ? "Half Day" : "Leave"}
+                              className={`w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg border text-xs font-bold transition flex items-center justify-center ${current === value ? activeColor : `bg-white ${color}`}`}
+                            >
+                              {value === "present" ? "P" : value === "absent" ? "A" : value === "half_day" ? "H" : "L"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   );
                 })}
@@ -266,7 +270,7 @@ function TeacherAttendancePage() {
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {/* Table header */}
-          <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-400 uppercase tracking-wider">
             <span>Class</span>
             <span>Timing</span>
             <span>Students</span>
@@ -277,7 +281,7 @@ function TeacherAttendancePage() {
               <button
                 key={cls.classId}
                 onClick={() => setSelected(cls)}
-                className="w-full grid grid-cols-[2fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 text-left hover:bg-slate-50 transition group"
+                className="w-full flex flex-col sm:grid sm:grid-cols-[2fr_1fr_1fr_auto] gap-2 sm:gap-4 items-start sm:items-center px-6 py-4 text-left hover:bg-slate-50 transition group"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">

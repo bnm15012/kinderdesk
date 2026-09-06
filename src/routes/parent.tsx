@@ -175,6 +175,7 @@ function ParentPortal() {
             {!childFees.length ? (
               <p className="px-6 py-10 text-sm text-slate-400 text-center">No invoices for this child yet.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -210,6 +211,7 @@ function ParentPortal() {
                   ))}
                 </tbody>
               </table>
+            </div>
             )}
           </div>
 

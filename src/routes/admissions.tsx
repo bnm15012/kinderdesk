@@ -351,8 +351,8 @@ function InquiryDrawer({
             </div>
             <div className="p-5 space-y-3">
               {editing ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Name</label>
                     <input value={ef.parentName} onChange={(e) => eSet("parentName", e.target.value)} className={inputCls} />
                   </div>
@@ -383,7 +383,7 @@ function InquiryDrawer({
             </div>
             <div className="p-5 space-y-3">
               {editing ? (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Child name</label>
                     <input value={ef.childName} onChange={(e) => eSet("childName", e.target.value)} className={inputCls} />
@@ -571,7 +571,7 @@ function Admissions() {
       </div>
 
       {/* Search + status filters */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -579,7 +579,7 @@ function Admissions() {
             placeholder="Search by parent, child or program…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition w-72"
+            className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition w-full sm:w-72"
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -608,7 +608,8 @@ function Admissions() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -693,6 +694,7 @@ function Admissions() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Add modal */}

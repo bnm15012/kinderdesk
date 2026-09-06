@@ -111,19 +111,18 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-function Sidebar({ role }: { role: string | null | undefined }) {
+function SidebarContent({ role, onNavClick }: { role: string | null | undefined; onNavClick?: () => void }) {
   const { pathname } = useLocation();
-  // When super admin is impersonating a school (outside /super-admin pages),
-  // show the school_admin nav so they see exactly what the school admin sees
   const effectiveRole =
     role === "super_admin" && !pathname.startsWith("/super-admin")
       ? "school_admin"
       : role;
   const nav = navForRole(effectiveRole);
   const isImpersonating = role === "super_admin" && effectiveRole === "school_admin";
+
   return (
-    <aside className="w-60 shrink-0 flex flex-col bg-slate-900 border-r border-slate-800">
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800">
+    <>
+      <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800 shrink-0">
         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
           <GraduationCap className="w-5 h-5 text-white" />
         </div>
@@ -135,48 +134,83 @@ function Sidebar({ role }: { role: string | null | undefined }) {
         </div>
       </div>
       {isImpersonating && (
-        <div className="mx-3 mt-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2">
+        <div className="mx-3 mt-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30">
           <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">Impersonating school</span>
         </div>
       )}
-
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
+      <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">Menu</p>
         {nav.map((item) => (
           <Link
             key={item.to}
             to={item.to}
+            onClick={onNavClick}
             activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin" }}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition [&.active]:bg-blue-600 [&.active]:text-white [&.active]:shadow-sm"
+            className="flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition [&.active]:bg-blue-600 [&.active]:text-white [&.active]:shadow-sm"
           >
-            <item.icon className="w-4 h-4 shrink-0" />
+            <item.icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
             <span className="font-medium">{item.label}</span>
           </Link>
         ))}
       </nav>
-
       {isImpersonating && (
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 shrink-0">
           <Link
             to="/super-admin/schools"
+            onClick={onNavClick}
             className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold transition"
           >
             ← Exit to Super Admin
           </Link>
         </div>
       )}
-      <div className="px-5 py-4 border-t border-slate-800">
+      <div className="px-5 py-4 border-t border-slate-800 shrink-0">
         <p className="text-[11px] text-slate-600 text-center">KinderDesk v1.0</p>
       </div>
+    </>
+  );
+}
+
+function Sidebar({ role }: { role: string | null | undefined }) {
+  return (
+    /* Desktop sidebar — always visible, hidden on mobile (bottom tab bar used instead) */
+    <aside className="hidden md:flex w-60 shrink-0 flex-col bg-slate-900 border-r border-slate-800">
+      <SidebarContent role={role} />
     </aside>
+  );
+}
+
+function BottomTabBar({ role }: { role: string | null | undefined }) {
+  const { pathname } = useLocation();
+  const effectiveRole =
+    role === "super_admin" && !pathname.startsWith("/super-admin")
+      ? "school_admin"
+      : role;
+  // Show max 5 tabs — take the first 5 nav items for the role
+  const nav = navForRole(effectiveRole).slice(0, 5);
+
+  return (
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+      <div className="flex items-stretch h-16">
+        {nav.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin" }}
+            className="flex-1 flex flex-col items-center justify-center gap-1 text-slate-400 transition [&.active]:text-blue-600"
+          >
+            <item.icon className="w-5 h-5 shrink-0" />
+            <span className="text-[10px] font-semibold leading-none truncate max-w-[56px] text-center">{item.label}</span>
+          </Link>
+        ))}
+      </div>
+    </nav>
   );
 }
 
 function TopBar({ role }: { role: string | null | undefined }) {
   const { tenant, setTenant } = useTenant();
   const { pathname } = useLocation();
-  // school_admin always gets the switcher;
-  // super_admin gets it only when viewing a school (i.e. outside /super-admin pages)
   const isSuperAdminViewingSchool =
     role === "super_admin" && !pathname.startsWith("/super-admin");
   const canSwitchTenant = role === "school_admin" || isSuperAdminViewingSchool;
@@ -187,14 +221,14 @@ function TopBar({ role }: { role: string | null | undefined }) {
     "School management portal";
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 gap-4 shadow-sm">
-      <div>
-        <h1 className="text-sm font-bold text-slate-800 leading-tight">KinderDesk</h1>
-        <p className="text-xs text-slate-400 leading-tight">{subtitle}</p>
+    <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between shrink-0 gap-3 shadow-sm">
+      <div className="min-w-0">
+        <h1 className="text-sm font-bold text-slate-800 leading-tight truncate">KinderDesk</h1>
+        <p className="text-xs text-slate-400 leading-tight truncate">{subtitle}</p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3 shrink-0">
         {canSwitchTenant && <SchoolLocationSwitcher current={tenant} onChange={setTenant} />}
-        {canSwitchTenant && <div className="h-7 w-px bg-slate-200" />}
+        {canSwitchTenant && <div className="hidden sm:block h-7 w-px bg-slate-200" />}
         <UserMenu />
       </div>
     </header>
@@ -264,8 +298,8 @@ function AppShell() {
   if (role === undefined) {
     return (
       <div className="min-h-screen flex">
-        {/* Blank sidebar — no nav rendered until role is known */}
-        <aside className="w-60 shrink-0 flex flex-col bg-slate-900 border-r border-slate-800">
+        {/* Blank sidebar skeleton — desktop only */}
+        <aside className="hidden md:flex w-60 shrink-0 flex-col bg-slate-900 border-r border-slate-800">
           <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
               <GraduationCap className="w-5 h-5 text-white" />
@@ -302,14 +336,16 @@ function AppShell() {
   return (
     <div className="min-h-screen flex">
       <Sidebar role={role} />
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-50">
+      <div className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
         {role && role !== "super_admin" && <AnnouncementBanner />}
-        <main className="flex-1 p-8 overflow-auto">
+        <main className="flex-1 p-4 md:p-8 overflow-auto pb-20 md:pb-8">
           <Outlet />
         </main>
       </div>
+      {/* Mobile bottom tab bar */}
+      <BottomTabBar role={role} />
     </div>
   );
 }

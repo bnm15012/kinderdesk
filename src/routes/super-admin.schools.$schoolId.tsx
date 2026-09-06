@@ -278,7 +278,7 @@ function SchoolDetailPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Students",  value: stats.studentCount, icon: Users,     color: "text-blue-600",   bg: "bg-blue-50"   },
           { label: "Staff",     value: stats.staffCount,   icon: Briefcase, color: "text-violet-600", bg: "bg-violet-50" },
@@ -297,9 +297,9 @@ function SchoolDetailPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left col: subscription + school info */}
-        <div className="col-span-2 space-y-5">
+        <div className="col-span-1 lg:col-span-2 space-y-5">
           {/* Subscription card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -315,7 +315,7 @@ function SchoolDetailPage() {
               </button>
             </div>
             {subscription ? (
-              <div className="px-6 py-5 grid grid-cols-3 gap-5">
+              <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div>
                   <p className="text-xs text-slate-400 mb-1">Plan</p>
                   <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${PLAN_BADGE[subscription.plan] ?? "bg-slate-100 text-slate-600"}`}>
@@ -375,6 +375,7 @@ function SchoolDetailPage() {
                 <p className="text-sm text-slate-400">No payments recorded yet</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider text-left">
@@ -405,6 +406,7 @@ function SchoolDetailPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

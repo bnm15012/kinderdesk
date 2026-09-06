@@ -135,18 +135,18 @@ function Login() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="flex-1 flex items-center justify-center bg-slate-50 px-6 py-12 relative">
-        {/* Subtle top-right blob */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50 translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 lg:bg-none lg:bg-slate-50 px-6 py-12 relative">
+        {/* Desktop blobs */}
+        <div className="hidden lg:block absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="hidden lg:block absolute bottom-0 left-0 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50 translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
         <div className="relative w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="lg:hidden inline-flex items-center gap-2.5 mb-10">
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-slate-900">KinderDesk</span>
+            <span className="text-lg font-bold text-white">KinderDesk</span>
           </Link>
 
           {/* Form card */}

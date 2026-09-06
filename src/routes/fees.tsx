@@ -555,14 +555,14 @@ function Fees() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Fee Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">Invoices, structures &amp; payment tracking</p>
         </div>
         {tab === "invoices" && (
-          <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
-            <Plus className="w-4 h-4" /> Create Invoice
+          <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm shrink-0">
+            <Plus className="w-4 h-4" /> <span>Create Invoice</span>
           </button>
         )}
       </div>
@@ -596,11 +596,11 @@ function Fees() {
           )}
 
           {/* Search + filter */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input type="text" placeholder="Search by student or status…" value={search} onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition w-64" />
+                className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition w-full sm:w-64" />
             </div>
             <div className="flex gap-1.5 flex-wrap">
               <button onClick={() => setFilterStatus("all")} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition ${filterStatus === "all" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}>
@@ -618,7 +618,8 @@ function Fees() {
           {error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 text-sm"><AlertCircle className="w-5 h-5 shrink-0" />{error}</div>}
 
           {/* Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -698,6 +699,7 @@ function Fees() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       )}

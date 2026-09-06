@@ -79,7 +79,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel }: 
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(f); }} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name *</label>
           <input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Neha" className={inputCls} required />
@@ -346,19 +346,19 @@ function Staff() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Staff & Teachers</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {loading ? "Loading…" : `${rows.filter(r => r.status === "active").length} active staff member${rows.filter(r => r.status === "active").length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => openInvite()} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-sm font-semibold rounded-xl transition shadow-sm">
-            <Mail className="w-4 h-4" /> Invite
+            <Mail className="w-4 h-4" /> <span className="hidden sm:inline">Invite</span>
           </button>
           <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
-            <Plus className="w-4 h-4" /> Add Staff
+            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Staff</span>
           </button>
         </div>
       </div>
@@ -371,7 +371,8 @@ function Staff() {
 
       {error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 text-sm"><AlertCircle className="w-5 h-5 shrink-0" />{error}</div>}
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -451,6 +452,7 @@ function Staff() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {addOpen && <AddStaffModal onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); load(); toast("Staff member added", "success"); }} schoolId={tenant.schoolId} locationId={tenant.locationId} />}

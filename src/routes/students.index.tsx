@@ -368,7 +368,7 @@ function Students() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Students</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -377,10 +377,10 @@ function Students() {
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Add Student
+          <span>Add Student</span>
         </button>
       </div>
 
@@ -404,7 +404,8 @@ function Students() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -497,6 +498,7 @@ function Students() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Add modal */}

@@ -161,7 +161,7 @@ function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; sc
 
       {/* Stats bar */}
       {students.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Present",  value: present,  cls: "bg-emerald-50 border-emerald-200 text-emerald-700" },
             { label: "Absent",   value: absent,   cls: "bg-red-50 border-red-200 text-red-600" },
