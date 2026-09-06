@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getSuperAdminDashboard, toggleSchoolStatus, viewAsSchoolAdmin } from "@/lib/auth";
@@ -9,8 +9,17 @@ import { useTenant } from "@/lib/tenant";
 import { fmtDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/super-admin/schools")({
-  component: SuperAdminSchools,
+  component: SchoolsRoot,
 });
+
+function SchoolsRoot() {
+  const { pathname } = useLocation();
+  // If we're on a child route (e.g. /super-admin/schools/2), render the child
+  if (pathname !== "/super-admin/schools" && pathname !== "/super-admin/schools/") {
+    return <Outlet />;
+  }
+  return <SuperAdminSchools />;
+}
 
 type School = {
   id: number; name: string; email: string | null; city: string | null; state: string | null;
