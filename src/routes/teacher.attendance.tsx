@@ -195,7 +195,22 @@ function TeacherAttendancePage() {
             </div>
           ) : (
             <>
-              {/* Table header */}
+              {/* Legend — mobile only */}
+              <div className="sm:hidden flex items-center gap-3 px-6 py-2.5 border-b border-slate-100 bg-slate-50/60">
+                <span className="text-[11px] text-slate-400 font-medium">Key:</span>
+                {[
+                  { key: "P", label: "Present",  color: "text-emerald-600" },
+                  { key: "A", label: "Absent",   color: "text-red-500" },
+                  { key: "H", label: "Half Day", color: "text-amber-600" },
+                  { key: "L", label: "Leave",    color: "text-slate-500" },
+                ].map(({ key, label, color }) => (
+                  <span key={key} className={`text-[11px] font-semibold ${color}`}>
+                    {key} <span className="font-normal text-slate-400">= {label}</span>
+                  </span>
+                ))}
+              </div>
+
+              {/* Table header — desktop */}
               <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 <span>Student</span>
                 <span className="text-center">Present</span>
