@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { z } from "zod";
-import { eq, and, count, desc, asc, inArray, gte, or, sql, gt } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, gte, or, sql, gt, ne } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -1221,6 +1221,7 @@ export const getSuperAdminDashboard = createServerFn({ method: "GET" }).handler(
     })
     .from(schools)
     .leftJoin(subscriptions, eq(subscriptions.schoolId, schools.id))
+    .where(ne(schools.slug, "kinderdesk-platform"))
     .orderBy(desc(schools.createdAt));
 
   // Deduplicate (left join can produce multiple rows if a school has multiple subs)
