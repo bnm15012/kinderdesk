@@ -3022,11 +3022,26 @@ const markStudentAttendanceSchema = z.object({
 export const markStudentAttendance = createServerFn({ method: "POST" })
   .validator((i: unknown) => markStudentAttendanceSchema.parse(i))
   .handler(async ({ data }) => {
-    await requireAuth(data.schoolId, data.locationId);
+    const session = await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { studentAttendance } = await import("@/lib/db/schema");
+    const { studentAttendance, attendanceSessions } = await import("@/lib/db/schema");
 
-    // Delete existing records for this class+date then bulk insert (upsert pattern)
+    // 1. Upsert attendance session — marks that attendance WAS taken for this class+date
+    await db.delete(attendanceSessions).where(
+      and(
+        eq(attendanceSessions.classId, data.classId),
+        eq(attendanceSessions.date, data.date as any),
+      )
+    );
+    await db.insert(attendanceSessions).values({
+      schoolId:   data.schoolId,
+      locationId: data.locationId,
+      classId:    data.classId,
+      date:       data.date as any,
+      markedBy:   data.markedBy ?? null,
+    });
+
+    // 2. Delete existing individual records for this class+date
     await db.delete(studentAttendance).where(
       and(
         eq(studentAttendance.classId, data.classId),
@@ -3034,20 +3049,24 @@ export const markStudentAttendance = createServerFn({ method: "POST" })
       )
     );
 
-    await db.insert(studentAttendance).values(
-      data.records.map((r) => ({
-        schoolId:   data.schoolId,
-        locationId: data.locationId,
-        classId:    data.classId,
-        studentId:  r.studentId,
-        date:       data.date as any,
-        status:     r.status,
-        markedBy:   data.markedBy ?? null,
-        notes:      r.notes ?? null,
-      }))
-    );
+    // 3. Only insert non-present records (present = default, inferred from session existence)
+    const nonPresent = data.records.filter((r) => r.status !== "present");
+    if (nonPresent.length > 0) {
+      await db.insert(studentAttendance).values(
+        nonPresent.map((r) => ({
+          schoolId:   data.schoolId,
+          locationId: data.locationId,
+          classId:    data.classId,
+          studentId:  r.studentId,
+          date:       data.date as any,
+          status:     r.status,
+          markedBy:   data.markedBy ?? null,
+          notes:      r.notes ?? null,
+        }))
+      );
+    }
 
-    return { ok: true, count: data.records.length };
+    return { ok: true, saved: nonPresent.length };
   });
 
 // ── Get attendance for a class on a specific date ────────────────────────────
@@ -3063,15 +3082,28 @@ export const getStudentAttendanceForDate = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { studentAttendance, students } = await import("@/lib/db/schema");
+    const { studentAttendance, attendanceSessions, students } = await import("@/lib/db/schema");
 
+    // Check if attendance was taken at all for this class+date
+    const [session] = await db
+      .select({ id: attendanceSessions.id })
+      .from(attendanceSessions)
+      .where(
+        and(
+          eq(attendanceSessions.classId, data.classId),
+          eq(attendanceSessions.date, data.date as any),
+        )
+      )
+      .limit(1);
+
+    // Fetch individual non-present records
     const rows = await db
       .select({
-        studentId:   studentAttendance.studentId,
-        status:      studentAttendance.status,
-        notes:       studentAttendance.notes,
-        firstName:   students.firstName,
-        lastName:    students.lastName,
+        studentId: studentAttendance.studentId,
+        status:    studentAttendance.status,
+        notes:     studentAttendance.notes,
+        firstName: students.firstName,
+        lastName:  students.lastName,
       })
       .from(studentAttendance)
       .innerJoin(students, eq(studentAttendance.studentId, students.id))
@@ -3082,7 +3114,9 @@ export const getStudentAttendanceForDate = createServerFn({ method: "GET" })
         )
       );
 
-    return rows;
+    // sessionTaken = true means attendance was marked; absent students have records,
+    // everyone else is present. sessionTaken = false means never marked.
+    return { sessionTaken: !!session, records: rows };
   });
 
 // ── Get attendance history (filterable by class, student, date range) ─────────

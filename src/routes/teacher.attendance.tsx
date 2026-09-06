@@ -80,12 +80,15 @@ function TeacherAttendancePage() {
     if (!selected || students.length === 0 || !schoolId) return;
     setAttLoading(true); setSaved(false); setSaveError("");
     getAttFn({ data: { schoolId, locationId, classId: selected.classId, date } })
-      .then((rows: any[]) => {
+      .then((res: any) => {
+        const { sessionTaken, records } = res;
         const map: Record<number, AttStatus> = {};
+        // Default all enrolled to present (sessionTaken or not — teacher sees present by default)
         students.filter((s) => s.status === "enrolled").forEach((s) => { map[s.id] = "present"; });
-        rows.forEach((r: any) => { map[r.studentId] = r.status; });
+        // Override with actual saved records (only non-present are stored)
+        records.forEach((r: any) => { map[r.studentId] = r.status; });
         setAttMap(map);
-        if (rows.length > 0) setSaved(true);
+        if (sessionTaken) setSaved(true);
       })
       .catch(() => {})
       .finally(() => setAttLoading(false));

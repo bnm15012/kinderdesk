@@ -63,11 +63,12 @@ function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; sc
     try {
       const [allStudents, existing] = await Promise.all([
         getStudentsFn({ data: { schoolId, locationId } }) as Promise<any[]>,
-        getAttendanceFn({ data: { schoolId, locationId, classId: selectedClass.id, date } }) as Promise<any[]>,
+        getAttendanceFn({ data: { schoolId, locationId, classId: selectedClass.id, date } }),
       ]);
       const classStudents = (allStudents as any[]).filter((s: any) => s.currentClassId === selectedClass.id && s.status === "enrolled");
-      const existingMap = new Map((existing as any[]).map((e: any) => [e.studentId, e.status as AttendanceStatus]));
-      setAlreadyMarked(existing.length > 0);
+      const { sessionTaken, records } = existing as any;
+      const existingMap = new Map((records as any[]).map((e: any) => [e.studentId, e.status as AttendanceStatus]));
+      setAlreadyMarked(sessionTaken);
       setStudents(classStudents.map((s: any) => ({
         id: s.id, firstName: s.firstName, lastName: s.lastName,
         status: existingMap.get(s.id) ?? "present",

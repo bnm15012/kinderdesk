@@ -262,6 +262,20 @@ export const studentAttendance = mysqlTable("student_attendance", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ── Attendance Sessions ───────────────────────────────────────────────────────
+// One row per class+date where attendance was actually taken.
+// If this row exists but a student has no record → they are Present.
+// If this row doesn't exist → attendance was never taken (show "Not marked").
+export const attendanceSessions = mysqlTable("attendance_sessions", {
+  id:         int("id").primaryKey().autoincrement(),
+  schoolId:   int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId:    int("class_id").notNull().references(() => classes.id),
+  date:       date("date").notNull(),
+  markedBy:   int("marked_by").references(() => staff.id),
+  createdAt:  timestamp("created_at").defaultNow(),
+});
+
 export const staffClassAssignments = mysqlTable("staff_class_assignments", {
   id: int("id").primaryKey().autoincrement(),
   schoolId: int("school_id").notNull().references(() => schools.id),
