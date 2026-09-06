@@ -137,17 +137,24 @@ function ForgotPassword() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 lg:bg-none lg:bg-slate-50 px-6 py-12 relative">
+      <div className="flex-1 flex items-center justify-center lg:bg-slate-50 bg-[radial-gradient(ellipse_at_top_left,_#6366f1_0%,_#3b82f6_35%,_#0ea5e9_65%,_#06b6d4_100%)] px-6 py-12 relative">
+        {/* Mobile decorative blobs */}
+        <div className="lg:hidden absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-500/40 blur-3xl pointer-events-none" />
+        <div className="lg:hidden absolute top-1/3 -left-16 w-56 h-56 rounded-full bg-cyan-400/30 blur-3xl pointer-events-none" />
+        <div className="lg:hidden absolute -bottom-16 right-8 w-64 h-64 rounded-full bg-indigo-600/50 blur-3xl pointer-events-none" />
+        <div className="lg:hidden absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{ backgroundImage: "repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)" }} />
+        {/* Desktop blobs */}
         <div className="hidden lg:block absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="hidden lg:block absolute bottom-0 left-0 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50 translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
         <div className="relative w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="lg:hidden inline-flex items-center gap-2.5 mb-10">
-            <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-1 ring-white/30">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-white">KinderDesk</span>
+            <span className="text-lg font-bold text-white drop-shadow">KinderDesk</span>
           </Link>
 
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 xl:p-10">
