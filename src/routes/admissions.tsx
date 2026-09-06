@@ -453,10 +453,19 @@ function InquiryDrawer({
                           <div className="flex items-center gap-2 text-emerald-700 text-sm font-semibold">
                             <CheckCircle2 className="w-4 h-4" /> Parent invite sent!
                           </div>
-                          <p className="text-xs text-emerald-600">Share this link if email doesn't arrive:</p>
-                          <p className="text-xs font-mono text-emerald-800 break-all bg-emerald-100 rounded-lg p-2">
-                            {typeof window !== "undefined" ? window.location.origin : ""}/invite?token={inviteToken}
-                          </p>
+                          <p className="text-xs text-emerald-600">Email sent. If it doesn't arrive, share the link manually:</p>
+                          <div className="flex items-center gap-2 bg-emerald-100 rounded-lg px-3 py-2">
+                            <span className="text-xs text-emerald-700 flex-1">Invite link (click to copy)</span>
+                            <button
+                              onClick={() => {
+                                const url = `${window.location.origin}/invite?token=${inviteToken}`;
+                                navigator.clipboard.writeText(url);
+                              }}
+                              className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition"
+                            >
+                              Copy link
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <button

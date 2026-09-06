@@ -102,6 +102,24 @@ export async function sendStaffInviteEmail(email: string, inviteUrl: string, sch
   });
 }
 
+export async function sendParentInviteEmail(email: string, inviteUrl: string, schoolName: string, childName: string) {
+  const transport = getTransport();
+  await transport.sendMail({
+    from: FROM,
+    to: email,
+    subject: `Your parent portal is ready — ${schoolName}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#0f172a">Welcome to ${schoolName}'s parent portal!</h2>
+        <p>Your child <strong>${childName}</strong> has been enrolled at ${schoolName}.</p>
+        <p>Click the button below to set your password and access the parent portal — where you can view fees, attendance, activities and report cards.</p>
+        <a href="${inviteUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">Set up parent account</a>
+        <p style="color:#64748b;font-size:13px">Link expires in 7 days. If you weren't expecting this, you can ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendInvoiceEmail(opts: {
   to: string;
   parentName: string;

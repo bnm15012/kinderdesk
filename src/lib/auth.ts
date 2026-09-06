@@ -2817,7 +2817,7 @@ export const sendParentInvite = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireSession();
     const { db } = await import("@/lib/db");
-    const { inquiries, users } = await import("@/lib/db/schema");
+    const { inquiries, users, schools } = await import("@/lib/db/schema");
 
     const [inquiry] = await db.select().from(inquiries).where(eq(inquiries.id, data.inquiryId)).limit(1);
     if (!inquiry) throw new Error("Inquiry not found");
@@ -2847,8 +2847,20 @@ export const sendParentInvite = createServerFn({ method: "POST" })
     const inviteToken = await new jose.SignJWT({ userId, purpose: "invite" })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("72h")
+      .setExpirationTime("7d")
       .sign(JWT_SECRET);
+
+    // Send invite email
+    const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
+    const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
+    const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, inquiry.schoolId)).limit(1);
+    const schoolName = schoolRow?.name ?? "Your School";
+    try {
+      const { sendParentInviteEmail } = await import("@/lib/email");
+      await sendParentInviteEmail(email, inviteUrl, schoolName, inquiry.childName ?? "your child");
+    } catch (emailErr) {
+      console.error("Failed to send parent invite email:", emailErr);
+    }
 
     return { ok: true, inviteToken };
   });
