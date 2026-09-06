@@ -238,7 +238,7 @@ function CurriculumPage() {
                   <h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">{act.title}</h3>
                   <button
                     onClick={() => handleDelete(act.id)}
-                    className="shrink-0 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition"
+                    className="shrink-0 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

@@ -695,7 +695,7 @@ function StudentDetailPage() {
                             </a>
                           )}
                           <button onClick={() => setConfirmDocDel(doc)}
-                            className="p-1.5 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 hover:border-red-200 transition" title="Delete">
+                            className="p-1.5 rounded-lg bg-slate-50 hover:bg-red-50 text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 transition" title="Delete">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>

@@ -26,6 +26,8 @@ export const schools = mysqlTable("schools", {
   country: varchar("country", { length: 100 }).default("India"),
   currency: varchar("currency", { length: 10 }).default("INR"),
   plan: varchar("plan", { length: 50 }).default("free"),
+  razorpayKeyId: varchar("razorpay_key_id", { length: 255 }),
+  razorpayKeySecret: varchar("razorpay_key_secret", { length: 255 }),
   maxLocations: int("max_locations").default(1),
   maxStudents:  int("max_students").default(50),
   maxStaff:     int("max_staff").default(3),
@@ -205,8 +207,11 @@ export const invoices = mysqlTable("invoices", {
   dueDate: date("due_date"),
   status: mysqlEnum("status", ["draft", "sent", "paid", "overdue", "cancelled", "refunded"]).default("draft"),
   paidAt: datetime("paid_at"),
+  paidMethod: mysqlEnum("paid_method", ["cash", "razorpay", "bank_transfer", "cheque", "other"]),
+  paidNotes: text("paid_notes"),
   razorpayOrderId: varchar("razorpay_order_id", { length: 255 }),
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 255 }),
+  generatedMonth: varchar("generated_month", { length: 7 }), // "YYYY-MM" for dedup of auto-generated invoices
   createdAt: timestamp("created_at").defaultNow(),
 });
 

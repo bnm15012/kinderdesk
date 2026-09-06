@@ -476,7 +476,7 @@ function Students() {
                       <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate({ to: "/students/$studentId", params: { studentId: String(s.id) } }); }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                          className="p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition"
                           title="View"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -484,7 +484,7 @@ function Students() {
                         <button
                           onClick={(e) => handleDelete(s, e)}
                           disabled={deletingId === s.id}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                          className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-40"
                           title="Archive student"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
