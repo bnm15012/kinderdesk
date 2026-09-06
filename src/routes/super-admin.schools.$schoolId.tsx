@@ -412,11 +412,12 @@ function SchoolDetailPage() {
         {/* Right col: school info + branches */}
         <div className="space-y-5">
           {/* School info */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
               <div className="w-1 h-5 bg-violet-500 rounded-full" />
               <span className="text-sm font-bold text-slate-800">School info</span>
             </div>
+            <div className="px-5 py-4 space-y-3">
             {[
               { label: "Email",   value: school.email },
               { label: "Phone",   value: school.phone },
@@ -430,6 +431,7 @@ function SchoolDetailPage() {
                 <span className="text-slate-700 text-xs font-medium text-right max-w-[60%]">{value}</span>
               </div>
             ) : null)}
+            </div>
           </div>
 
           {/* Branches */}
