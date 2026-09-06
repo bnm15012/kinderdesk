@@ -165,14 +165,15 @@ function CurriculumPage() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-slate-900">Curriculum Activities</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Upload photos of classroom activities visible to parents</p>
+          <p className="text-sm text-slate-500 mt-0.5 hidden sm:block">Upload photos of classroom activities visible to parents</p>
+          <p className="text-sm text-slate-500 mt-0.5 sm:hidden">Upload classroom activity photos</p>
         </div>
         <button
           onClick={() => setShowUpload(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-sm transition"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-sm transition shrink-0 whitespace-nowrap"
         >
           <Plus className="w-4 h-4" /> Add Activity
         </button>
