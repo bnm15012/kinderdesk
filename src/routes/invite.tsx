@@ -88,7 +88,7 @@ function InvitePage() {
       </div>
 
       {/* Right form panel */}
-      <div className="flex-1 flex flex-col lg:flex-none lg:items-center lg:justify-center bg-slate-50 relative overflow-hidden">
+      <div className="flex-1 flex items-center justify-center bg-slate-50 px-6 py-12 relative overflow-hidden">
         {/* Mobile gradient + decorative blobs — hidden on desktop */}
         <div className="lg:hidden absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_#6366f1_0%,_#3b82f6_35%,_#0ea5e9_65%,_#06b6d4_100%)] pointer-events-none" />
         <div className="lg:hidden absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-500/40 blur-3xl pointer-events-none" />
@@ -98,18 +98,14 @@ function InvitePage() {
           style={{ backgroundImage: "repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)" }} />
         {/* Desktop blob */}
         <div className="hidden lg:block absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        {/* Mobile top bar — logo pinned top-left */}
-        <div className="lg:hidden relative z-10 px-6 pt-10 pb-6">
-          <Link to="/" className="inline-flex items-center gap-2.5">
+        <div className="relative w-full max-w-md">
+          {/* Mobile logo */}
+          <Link to="/" className="lg:hidden inline-flex items-center gap-2.5 mb-8">
             <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-1 ring-white/30">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold text-white drop-shadow">KinderDesk</span>
           </Link>
-        </div>
-
-        <div className="flex-1 lg:flex-none flex items-center justify-center px-6 pb-12 lg:py-12 w-full">
-        <div className="relative w-full max-w-md">
 
           {!token ? (
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 text-center">
@@ -196,7 +192,7 @@ function InvitePage() {
             </div>
           )}
         </div>
-        </div>{/* end form area */}
+
       </div>
     </div>
   );
