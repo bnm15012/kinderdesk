@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getTeacherDashboard, getClassStudents, markStaffAttendance, getStudentAttendanceForDate, markStudentAttendance } from "@/lib/auth";
@@ -306,126 +306,123 @@ function TeacherDashboard() {
     </div>
   );
 
+  const totalStudents = data?.myClasses.reduce((a, c) => a + c.studentCount, 0) ?? 0;
+
   return (
     <div className="space-y-7">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Good {greeting()}, {data?.user.firstName ?? "Teacher"}!</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{fmtDateLong()}</p>
-        </div>
-        {attMarked ? (
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Attendance marked today
+      <div>
+        <h1 className="text-2xl font-extrabold text-slate-900">Good {greeting()}, {data?.user.firstName ?? "Teacher"}!</h1>
+        <p className="text-sm text-slate-500 mt-0.5">{fmtDateLong()}</p>
+      </div>
+
+      {/* Top stat cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 text-blue-600" />
           </div>
-        ) : staffId ? (
-          <button
-            onClick={() => setShowAttModal(true)}
-            className="flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-amber-100 transition"
-          >
-            <Clock className="w-3.5 h-3.5" /> Mark attendance
-          </button>
+          <div>
+            <p className="text-2xl font-extrabold text-slate-900">{data?.myClasses.length ?? 0}</p>
+            <p className="text-xs text-slate-500">My classes</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5 text-violet-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-extrabold text-slate-900">{totalStudents}</p>
+            <p className="text-xs text-slate-500">Total students</p>
+          </div>
+        </div>
+        <div className={`rounded-2xl border shadow-sm p-5 flex items-center gap-4 ${attMarked ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${attMarked ? "bg-emerald-100" : "bg-amber-100"}`}>
+            <CalendarCheck className={`w-5 h-5 ${attMarked ? "text-emerald-600" : "text-amber-600"}`} />
+          </div>
+          <div>
+            <p className={`text-sm font-bold ${attMarked ? "text-emerald-700" : "text-amber-700"}`}>
+              {attMarked ? "Attendance done" : "Attendance pending"}
+            </p>
+            <p className={`text-xs ${attMarked ? "text-emerald-600" : "text-amber-600"}`}>Today</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Today's schedule */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+          <div className="w-1 h-5 bg-blue-600 rounded-full" />
+          <span className="text-sm font-bold text-slate-800">Today's Classes</span>
+        </div>
+        {!data?.myClasses.length ? (
+          <div className="py-10 text-center">
+            <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+            <p className="text-sm text-slate-400">No classes assigned yet.</p>
+          </div>
         ) : (
-          <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 text-slate-500 text-xs font-semibold px-3 py-1.5 rounded-full">
-            <Clock className="w-3.5 h-3.5" /> Attendance pending
+          <div className="divide-y divide-slate-100">
+            {data.myClasses.map((cls) => (
+              <div key={cls.classId} className="flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{cls.className}</p>
+                    <p className="text-xs text-slate-400">{cls.ageGroup}{cls.roomName ? ` · ${cls.roomName}` : ""}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 text-right">
+                  {(cls.startTime || cls.endTime) && (
+                    <div>
+                      <p className="text-xs text-slate-400">Timing</p>
+                      <p className="text-sm font-semibold text-slate-700">{cls.startTime ?? "—"} – {cls.endTime ?? "—"}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-slate-400">Students</p>
+                    <p className="text-lg font-extrabold text-slate-900">{cls.studentCount}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Stat chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {[
-          { label: "My classes",    value: data?.myClasses.length ?? 0,                         icon: BookOpen,    bg: "bg-blue-50",   text: "text-blue-700",   stripe: "from-blue-500 to-blue-600" },
-          { label: "Total students",value: data?.myClasses.reduce((a,c) => a + c.studentCount, 0) ?? 0, icon: Users, bg: "bg-violet-50", text: "text-violet-700", stripe: "from-violet-500 to-violet-600" },
-          { label: "Today",         value: fmtDateShort(new Date()), icon: GraduationCap, bg: "bg-emerald-50", text: "text-emerald-700", stripe: "from-emerald-500 to-emerald-600" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className={`h-1.5 bg-gradient-to-r ${s.stripe}`} />
-            <div className="p-5">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${s.bg}`}>
-                <s.icon className={`w-5 h-5 ${s.text}`} />
-              </div>
-              <div className="text-2xl font-extrabold text-slate-900 leading-none mb-1">{s.value}</div>
-              <div className="text-xs text-slate-500 font-medium">{s.label}</div>
-            </div>
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-4">
+        <Link
+          to="/teacher/attendance"
+          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-300 hover:shadow-sm transition flex items-center gap-4 group"
+        >
+          <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+            <CalendarCheck className="w-5 h-5 text-blue-600" />
           </div>
-        ))}
+          <div>
+            <p className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition">Mark Attendance</p>
+            <p className="text-xs text-slate-400">Record today's student attendance</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 ml-auto transition" />
+        </Link>
+        <Link
+          to="/curriculum"
+          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-violet-300 hover:shadow-sm transition flex items-center gap-4 group"
+        >
+          <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 text-violet-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-900 group-hover:text-violet-700 transition">Upload Activity</p>
+            <p className="text-xs text-slate-400">Share today's classroom activities</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-violet-500 ml-auto transition" />
+        </Link>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        {(["classes","students"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setActiveTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${activeTab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-          >
-            {t === "classes" ? "My Classes" : `Students${selectedClass ? ` — ${selectedClass.className}` : ""}`}
-          </button>
-        ))}
-      </div>
-
-      {/* Classes tab */}
-      {activeTab === "classes" && (
-        <div className="space-y-3">
-          {!data?.myClasses.length ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-              <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-7 h-7 text-slate-400" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-700 mb-1">No classes assigned yet</h3>
-              <p className="text-sm text-slate-400">Your school admin will assign you to a class. Check back soon.</p>
-            </div>
-          ) : (
-            data.myClasses.map((cls) => (
-              <button
-                key={cls.classId}
-                onClick={() => selectClass(cls)}
-                className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition p-5 text-left group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                      <BookOpen className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 transition">{cls.className}</h3>
-                      <p className="text-sm text-slate-500">{cls.ageGroup}{cls.roomName ? ` · ${cls.roomName}` : ""}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {(cls.startTime || cls.endTime) && (
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs text-slate-400 font-medium">Timing</p>
-                        <p className="text-sm font-semibold text-slate-700">{cls.startTime ?? "—"} – {cls.endTime ?? "—"}</p>
-                      </div>
-                    )}
-                    <div className="text-right">
-                      <p className="text-xs text-slate-400 font-medium">Students</p>
-                      <p className="text-xl font-extrabold text-slate-900">{cls.studentCount}</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition" />
-                  </div>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Students + Attendance tab */}
-      {activeTab === "students" && (
-        <StudentAttendancePanel
-          selectedClass={selectedClass}
-          students={students}
-          studentsLoading={studentsLoading}
-          schoolId={data?.schoolId ?? 0}
-          locationId={data?.locationId ?? 0}
-        />
-      )}
-
-      {/* Attendance modal */}
+      {/* Attendance modal (for own attendance) */}
       {showAttModal && staffId && data && (
         <AttendanceModal
           staffId={staffId}
