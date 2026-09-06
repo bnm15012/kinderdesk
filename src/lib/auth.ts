@@ -2668,7 +2668,7 @@ export const addStaffMember = createServerFn({ method: "POST" })
         .sign(JWT_SECRET);
 
       // Send invite email
-      const appUrl = process.env.APP_URL ?? "https://kinderdesk.vercel.app";
+      const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
       const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
       const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, data.schoolId)).limit(1);
       const schoolName = schoolRow?.name ?? "Your School";
@@ -2784,7 +2784,7 @@ export const resendStaffInvite = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireSession();
     const { db } = await import("@/lib/db");
-    const { staff, users } = await import("@/lib/db/schema");
+    const { staff, users, schools } = await import("@/lib/db/schema");
 
     const [member] = await db.select().from(staff).where(eq(staff.id, data.staffId)).limit(1);
     if (!member) throw new Error("Staff not found");
@@ -2794,7 +2794,6 @@ export const resendStaffInvite = createServerFn({ method: "POST" })
     let userId: number;
 
     if (member.userId) {
-      // Already linked — just re-issue token and update role
       userId = member.userId;
       await db.update(users).set({ status: "invited", role: data.appRole }).where(eq(users.id, userId));
     } else {
@@ -2816,8 +2815,20 @@ export const resendStaffInvite = createServerFn({ method: "POST" })
     const inviteToken = await new jose.SignJWT({ userId, purpose: "invite" })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("24h")
+      .setExpirationTime("7d")
       .sign(JWT_SECRET);
+
+    // Send invite email
+    const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
+    const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
+    const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, member.schoolId)).limit(1);
+    const schoolName = schoolRow?.name ?? "Your School";
+    try {
+      const { sendStaffInviteEmail } = await import("@/lib/email");
+      await sendStaffInviteEmail(email, inviteUrl, schoolName);
+    } catch (emailErr) {
+      console.error("Failed to send staff invite email:", emailErr);
+    }
 
     return { ok: true, inviteToken };
   });
