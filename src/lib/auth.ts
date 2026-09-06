@@ -2357,6 +2357,96 @@ export const updateInquiry = createServerFn({ method: "POST" })
   });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ENROLL FROM ADMISSION (one-shot: update inquiry + create student)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const enrollFromAdmissionSchema = z.object({
+  inquiryId: z.number(),
+  schoolId: z.number(),
+  locationId: z.number(),
+  classId: z.number().optional(),
+  startDate: z.string().optional(),
+  // Child details (prefilled from inquiry but editable)
+  firstName: z.string().trim().min(1).max(255),
+  lastName: z.string().trim().max(255).default(""),
+  childDob: z.string().optional(),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+  // Parent details
+  parentName: z.string().trim().min(1).max(255),
+  parentEmail: z.string().trim().max(255).optional(),
+  parentPhone: z.string().trim().max(50).optional(),
+});
+
+export const enrollFromAdmission = createServerFn({ method: "POST" })
+  .validator((input: unknown) => enrollFromAdmissionSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { inquiries, students, parents, classEnrollments } = await import("@/lib/db/schema");
+
+    await checkPlanLimit(data.schoolId, "students");
+
+    // Class capacity guard
+    if (data.classId) {
+      const { classes } = await import("@/lib/db/schema");
+      const [cls] = await db.select({ capacity: classes.capacity }).from(classes).where(eq(classes.id, data.classId)).limit(1);
+      if (cls) {
+        const [{ cnt }] = await db.select({ cnt: count() }).from(classEnrollments)
+          .where(and(eq(classEnrollments.classId, data.classId), eq(classEnrollments.status, "active")));
+        if (Number(cnt) >= cls.capacity) throw new Error(`Class is at full capacity (${cls.capacity} students)`);
+      }
+    }
+
+    // Split name
+    const nameParts = data.firstName.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = data.lastName || nameParts.slice(1).join(" ") || "";
+
+    // Create student
+    const [studentRes] = await db.insert(students).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      firstName,
+      lastName,
+      dateOfBirth: data.childDob ? new Date(data.childDob) : null,
+      gender: data.gender ?? null,
+      currentClassId: data.classId ?? null,
+      status: "enrolled",
+    });
+    const studentId = Number((studentRes as any).insertId);
+
+    // Create parent record
+    await db.insert(parents).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      studentId,
+      name: data.parentName,
+      email: data.parentEmail || null,
+      phone: data.parentPhone || null,
+      relation: "guardian",
+      isPrimary: 1,
+      isEmergency: 0,
+    });
+
+    // Enroll in class
+    if (data.classId) {
+      await db.insert(classEnrollments).values({
+        schoolId: data.schoolId,
+        locationId: data.locationId,
+        studentId,
+        classId: data.classId,
+        enrolledAt: data.startDate ? new Date(data.startDate) : new Date(),
+        status: "active",
+      });
+    }
+
+    // Mark inquiry as enrolled
+    await db.update(inquiries).set({ status: "enrolled" }).where(eq(inquiries.id, data.inquiryId));
+
+    return { ok: true, studentId };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CLASSES CRUD
 // ─────────────────────────────────────────────────────────────────────────────
 

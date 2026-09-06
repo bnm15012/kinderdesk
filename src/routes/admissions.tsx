@@ -6,7 +6,7 @@ import {
   User, FileText,
   Pencil, Save, XCircle, ArrowRight, CheckCircle2, Trash2, Mail, Loader2,
 } from "lucide-react";
-import { listInquiries, addInquiry, updateInquiry, archiveInquiry, sendParentInvite } from "@/lib/auth";
+import { listInquiries, addInquiry, updateInquiry, archiveInquiry, sendParentInvite, enrollFromAdmission, listClassesForSchool } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -185,13 +185,19 @@ function InquiryDrawer({
   inquiry: initial,
   onClose,
   onUpdated,
+  schoolId,
+  locationId,
 }: {
   inquiry: Inquiry;
   onClose: () => void;
   onUpdated: (updated: Inquiry) => void;
+  schoolId: number;
+  locationId: number;
 }) {
   const updateFn = useServerFn(updateInquiry);
   const sendInviteFn = useServerFn(sendParentInvite);
+  const enrollFn = useServerFn(enrollFromAdmission);
+  const listClassesFn = useServerFn(listClassesForSchool);
   const [inquiry, setInquiry] = useState<Inquiry>(initial);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -207,6 +213,62 @@ function InquiryDrawer({
   const eSet = (k: string, v: string) => setEf((p) => ({ ...p, [k]: v }));
   const [inviteSending, setInviteSending] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+
+  // Enroll modal state
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [classes, setClasses] = useState<{ id: number; name: string; ageGroup: string }[]>([]);
+  const [enrollForm, setEnrollForm] = useState({
+    firstName: inquiry.childName?.split(" ")[0] ?? "",
+    lastName: inquiry.childName?.split(" ").slice(1).join(" ") ?? "",
+    childDob: toDateStr(inquiry.childDob),
+    gender: "" as "" | "male" | "female" | "other" | "prefer_not_to_say",
+    classId: "",
+    startDate: new Date().toISOString().slice(0, 10),
+    parentName: inquiry.parentName,
+    parentEmail: inquiry.email ?? "",
+    parentPhone: inquiry.phone ?? "",
+  });
+  const [enrollSaving, setEnrollSaving] = useState(false);
+  const [enrollError, setEnrollError] = useState("");
+  const eFormSet = (k: string, v: string) => setEnrollForm((p) => ({ ...p, [k]: v }));
+
+  const openEnrollModal = () => {
+    listClassesFn({ data: { schoolId, locationId } })
+      .then((cls) => setClasses((cls as any[]).map((c) => ({ id: c.id, name: c.name, ageGroup: c.ageGroup }))))
+      .catch(() => {});
+    setEnrollOpen(true);
+  };
+
+  const doEnroll = async () => {
+    setEnrollSaving(true); setEnrollError("");
+    try {
+      await enrollFn({
+        data: {
+          inquiryId: inquiry.id,
+          schoolId,
+          locationId,
+          firstName: enrollForm.firstName,
+          lastName: enrollForm.lastName,
+          childDob: enrollForm.childDob || undefined,
+          gender: (enrollForm.gender || undefined) as any,
+          classId: enrollForm.classId ? parseInt(enrollForm.classId) : undefined,
+          startDate: enrollForm.startDate || undefined,
+          parentName: enrollForm.parentName,
+          parentEmail: enrollForm.parentEmail || undefined,
+          parentPhone: enrollForm.parentPhone || undefined,
+        },
+      });
+      const updated = { ...inquiry, status: "enrolled" } as Inquiry;
+      setInquiry(updated);
+      setEf((p) => ({ ...p, status: "enrolled" }));
+      onUpdated(updated);
+      setEnrollOpen(false);
+    } catch (err: any) {
+      setEnrollError(err?.message ?? "Failed to enroll");
+    } finally {
+      setEnrollSaving(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true); setError("");
@@ -237,6 +299,10 @@ function InquiryDrawer({
   };
 
   const moveStatus = async (newStatus: StatusKey) => {
+    if (newStatus === "enrolled") {
+      openEnrollModal();
+      return;
+    }
     setStatusSaving(true);
     try {
       await updateFn({ data: { inquiryId: inquiry.id, status: newStatus } });
@@ -518,6 +584,107 @@ function InquiryDrawer({
           </div>
         </div>
       </div>
+
+      {/* Enroll Confirmation Modal */}
+      {enrollOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setEnrollOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Enroll Student</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Confirm details and assign to a class</p>
+              </div>
+              <button onClick={() => setEnrollOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Child details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name *</label>
+                  <input value={enrollForm.firstName} onChange={(e) => eFormSet("firstName", e.target.value)}
+                    className={inputCls} required />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Last name</label>
+                  <input value={enrollForm.lastName} onChange={(e) => eFormSet("lastName", e.target.value)}
+                    className={inputCls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Date of birth</label>
+                  <input type="date" value={enrollForm.childDob} onChange={(e) => eFormSet("childDob", e.target.value)}
+                    className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Gender</label>
+                  <select value={enrollForm.gender} onChange={(e) => eFormSet("gender", e.target.value)}
+                    className={`${inputCls} bg-white`}>
+                    <option value="">Select…</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+              {/* Class assignment */}
+              <div className="border-t border-slate-100 pt-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Assign to class</label>
+                <select value={enrollForm.classId} onChange={(e) => eFormSet("classId", e.target.value)}
+                  className={`${inputCls} bg-white`}>
+                  <option value="">No class yet</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} {c.ageGroup ? `(${c.ageGroup})` : ""}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Start date</label>
+                <input type="date" value={enrollForm.startDate} onChange={(e) => eFormSet("startDate", e.target.value)}
+                  className={inputCls} />
+              </div>
+              {/* Parent details */}
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Parent / Guardian</p>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Name *</label>
+                  <input value={enrollForm.parentName} onChange={(e) => eFormSet("parentName", e.target.value)}
+                    className={inputCls} required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Email</label>
+                    <input type="email" value={enrollForm.parentEmail} onChange={(e) => eFormSet("parentEmail", e.target.value)}
+                      className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Phone</label>
+                    <input value={enrollForm.parentPhone} onChange={(e) => eFormSet("parentPhone", e.target.value)}
+                      className={inputCls} />
+                  </div>
+                </div>
+              </div>
+              {enrollError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {enrollError}
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-1">
+                <button onClick={() => setEnrollOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition">
+                  Cancel
+                </button>
+                <button onClick={doEnroll} disabled={enrollSaving || !enrollForm.firstName || !enrollForm.parentName}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-bold transition flex items-center gap-2">
+                  {enrollSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Enrolling…</> : <><CheckCircle2 className="w-4 h-4" /> Confirm Enrolment</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -754,10 +921,12 @@ function Admissions() {
         <InquiryDrawer
           inquiry={selected}
           onClose={() => setSelected(null)}
+          schoolId={tenant.schoolId}
+          locationId={tenant.locationId}
           onUpdated={(updated) => {
             setInquiries((prev) => prev.map((i) => i.id === updated.id ? updated : i));
             setSelected(updated);
-            toast("Inquiry updated", "success");
+            toast(updated.status === "enrolled" ? `${updated.childName} enrolled successfully!` : "Inquiry updated", "success");
           }}
         />
       )}
