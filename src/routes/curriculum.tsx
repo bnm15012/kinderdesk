@@ -219,72 +219,110 @@ function CurriculumPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-10">
           {(() => {
-            // Group activities by activityDate
-            const groups = new Map<string, Activity[]>();
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+            // Group: year -> month -> date -> activities
+            const byYear = new Map<string, Map<string, Map<string, Activity[]>>>();
             for (const act of filtered) {
               const dateKey = (act.activityDate as string).slice(0, 10);
-              if (!groups.has(dateKey)) groups.set(dateKey, []);
-              groups.get(dateKey)!.push(act);
+              const [y, m] = dateKey.split("-");
+              const yearKey = y;
+              const monthKey = `${y}-${m}`;
+              if (!byYear.has(yearKey)) byYear.set(yearKey, new Map());
+              const byMonth = byYear.get(yearKey)!;
+              if (!byMonth.has(monthKey)) byMonth.set(monthKey, new Map());
+              const byDate = byMonth.get(monthKey)!;
+              if (!byDate.has(dateKey)) byDate.set(dateKey, []);
+              byDate.get(dateKey)!.push(act);
             }
-            const sortedDates = [...groups.keys()].sort((a, b) => b.localeCompare(a));
-            const today = new Date().toISOString().slice(0, 10);
-            const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
-            return sortedDates.map((dateKey) => {
-              const dayActs = groups.get(dateKey)!;
-              const label =
-                dateKey === today ? "Today"
-                : dateKey === yesterday ? "Yesterday"
-                : new Date(dateKey).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+            const sortedYears = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
+
+            return sortedYears.map((yearKey) => {
+              const byMonth = byYear.get(yearKey)!;
+              const sortedMonths = [...byMonth.keys()].sort((a, b) => b.localeCompare(a));
 
               return (
-                <div key={dateKey}>
-                  {/* Date header */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm font-bold text-slate-800">{label}</span>
-                      <span className="text-xs text-slate-400 font-medium">· {dayActs.length} {dayActs.length === 1 ? "activity" : "activities"}</span>
-                    </div>
-                    <div className="flex-1 h-px bg-slate-200" />
+                <div key={yearKey}>
+                  {/* Year header */}
+                  <div className="flex items-center gap-3 mb-6">
+                    <span className="text-lg font-extrabold text-slate-900">{yearKey}</span>
+                    <div className="flex-1 h-0.5 bg-slate-200 rounded-full" />
                   </div>
 
-                  {/* Cards for this date */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {dayActs.map((act) => (
-                      <div key={act.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group">
-                        {act.photoUrl ? (
-                          <div className="relative aspect-video cursor-pointer overflow-hidden bg-slate-100" onClick={() => setLightbox(act.photoUrl!)}>
-                            <img src={act.photoUrl} alt={act.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <div className="space-y-8">
+                    {sortedMonths.map((monthKey) => {
+                      const byDate = byMonth.get(monthKey)!;
+                      const sortedDates = [...byDate.keys()].sort((a, b) => b.localeCompare(a));
+                      const monthLabel = new Date(`${monthKey}-01`).toLocaleDateString("en-IN", { month: "long" });
+                      const totalInMonth = sortedDates.reduce((s, d) => s + byDate.get(d)!.length, 0);
+
+                      return (
+                        <div key={monthKey} className="pl-2 border-l-4 border-blue-100">
+                          {/* Month header */}
+                          <div className="flex items-center gap-2 mb-5">
+                            <span className="text-base font-bold text-blue-700">{monthLabel}</span>
+                            <span className="text-xs text-slate-400">· {totalInMonth} {totalInMonth === 1 ? "activity" : "activities"}</span>
                           </div>
-                        ) : (
-                          <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-                            <Image className="w-10 h-10 text-blue-200" />
-                          </div>
-                        )}
-                        <div className="p-3">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">{act.title}</h3>
-                            {isAdmin && (
-                              <button
-                                onClick={() => handleDelete(act.id)}
-                                className="shrink-0 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          {act.description && <p className="text-xs text-slate-500 line-clamp-2 mb-2">{act.description}</p>}
-                          <div className="flex items-center gap-1 mt-1">
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                              <BookOpen className="w-3 h-3" /> {act.className}
-                            </span>
+
+                          <div className="space-y-6">
+                            {sortedDates.map((dateKey) => {
+                              const dayActs = byDate.get(dateKey)!;
+                              const dayLabel =
+                                dateKey === todayStr ? "Today"
+                                : dateKey === yesterdayStr ? "Yesterday"
+                                : new Date(dateKey).toLocaleDateString("en-IN", { weekday: "short", day: "numeric" });
+
+                              return (
+                                <div key={dateKey}>
+                                  {/* Date header */}
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                    <span className="text-sm font-semibold text-slate-700">{dayLabel}</span>
+                                    <span className="text-xs text-slate-400">· {dayActs.length} {dayActs.length === 1 ? "photo" : "photos"}</span>
+                                    <div className="flex-1 h-px bg-slate-100" />
+                                  </div>
+
+                                  {/* Photo cards */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                                    {dayActs.map((act) => (
+                                      <div key={act.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group">
+                                        {act.photoUrl ? (
+                                          <div className="relative aspect-square cursor-pointer overflow-hidden bg-slate-100" onClick={() => setLightbox(act.photoUrl!)}>
+                                            <img src={act.photoUrl} alt={act.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                          </div>
+                                        ) : (
+                                          <div className="aspect-square bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                                            <Image className="w-8 h-8 text-blue-200" />
+                                          </div>
+                                        )}
+                                        <div className="p-2.5">
+                                          <div className="flex items-start justify-between gap-1">
+                                            <h3 className="font-semibold text-slate-900 text-xs leading-snug line-clamp-2 flex-1">{act.title}</h3>
+                                            {isAdmin && (
+                                              <button onClick={() => handleDelete(act.id)} className="shrink-0 p-1 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition">
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            )}
+                                          </div>
+                                          {act.description && <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{act.description}</p>}
+                                          <span className="inline-flex items-center gap-1 text-xs text-slate-400 mt-1">
+                                            <BookOpen className="w-3 h-3" /> {act.className}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
