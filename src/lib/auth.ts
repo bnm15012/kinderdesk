@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { z } from "zod";
-import { eq, and, count, desc, asc, inArray, gte, or, sql, gt, ne } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, notInArray, gte, or, sql, gt, ne } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -919,11 +919,20 @@ export const getTeacherDashboard = createServerFn({ method: "GET" }).handler(asy
 
     myClasses = await Promise.all(
       assignments.map(async (a) => {
+        // Count from class_enrollments (preferred) OR fall back to students.current_class_id
         const [{ cnt }] = await db
           .select({ cnt: count() })
           .from(classEnrollments)
           .where(and(eq(classEnrollments.classId, a.classId), eq(classEnrollments.status, "active")));
-        return { ...a, studentCount: Number(cnt) };
+        let studentCount = Number(cnt);
+        if (studentCount === 0) {
+          const [{ cnt: cnt2 }] = await db
+            .select({ cnt: count() })
+            .from(students)
+            .where(and(eq(students.currentClassId, a.classId), eq(students.status, "enrolled")));
+          studentCount = Number(cnt2);
+        }
+        return { ...a, studentCount };
       })
     );
   }
@@ -995,7 +1004,8 @@ export const getClassStudents = createServerFn({ method: "GET" })
       .limit(1);
     if (!allowed) throw new Error("Not authorized");
 
-    return db
+    // Get students via class_enrollments
+    const enrolled = await db
       .select({
         id: students.id,
         firstName: students.firstName,
@@ -1007,6 +1017,26 @@ export const getClassStudents = createServerFn({ method: "GET" })
       .from(classEnrollments)
       .innerJoin(students, eq(classEnrollments.studentId, students.id))
       .where(and(eq(classEnrollments.classId, data.classId), eq(classEnrollments.status, "active")));
+
+    // Also get students assigned via current_class_id but missing a class_enrollments row
+    const enrolledIds = enrolled.map((s) => s.id);
+    const byCurrentClass = await db
+      .select({
+        id: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        dateOfBirth: students.dateOfBirth,
+        gender: students.gender,
+        status: students.status,
+      })
+      .from(students)
+      .where(and(
+        eq(students.currentClassId, data.classId),
+        eq(students.status, "enrolled"),
+        enrolledIds.length ? notInArray(students.id, enrolledIds) : sql`1=1`,
+      ));
+
+    return [...enrolled, ...byCurrentClass];
   });
 
 // ─────────────────────────────────────────────────────────────────────────────
