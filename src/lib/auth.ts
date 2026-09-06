@@ -1965,6 +1965,25 @@ export const addStudent = createServerFn({ method: "POST" })
       });
     }
 
+    // Always create a class_enrollments row when class is assigned
+    if (data.currentClassId) {
+      const { classEnrollments } = await import("@/lib/db/schema");
+      const [existing] = await db.select({ id: classEnrollments.id })
+        .from(classEnrollments)
+        .where(and(eq(classEnrollments.studentId, studentId), eq(classEnrollments.classId, data.currentClassId)))
+        .limit(1);
+      if (!existing) {
+        await db.insert(classEnrollments).values({
+          schoolId: data.schoolId,
+          locationId: data.locationId,
+          studentId,
+          classId: data.currentClassId,
+          enrolledAt: new Date(),
+          status: "active",
+        });
+      }
+    }
+
     return { ok: true, studentId };
   });
 
@@ -2009,6 +2028,10 @@ export const updateStudent = createServerFn({ method: "POST" })
       }
     }
 
+    // Get old class before updating
+    const [oldStudent] = await db.select({ schoolId: students.schoolId, locationId: students.locationId, currentClassId: students.currentClassId })
+      .from(students).where(eq(students.id, data.studentId)).limit(1);
+
     await db.update(students).set({
       firstName: data.firstName,
       lastName: data.lastName ?? "",
@@ -2018,6 +2041,33 @@ export const updateStudent = createServerFn({ method: "POST" })
       currentClassId: data.currentClassId ?? null,
       status: data.status ?? undefined,
     }).where(eq(students.id, data.studentId));
+
+    // Sync class_enrollments when class changes
+    if (data.currentClassId && oldStudent) {
+      const { classEnrollments } = await import("@/lib/db/schema");
+      // Deactivate old enrollment if class changed
+      if (oldStudent.currentClassId && oldStudent.currentClassId !== data.currentClassId) {
+        await db.update(classEnrollments).set({ status: "inactive" })
+          .where(and(eq(classEnrollments.studentId, data.studentId), eq(classEnrollments.classId, oldStudent.currentClassId)));
+      }
+      // Upsert new enrollment
+      const [existing] = await db.select({ id: classEnrollments.id })
+        .from(classEnrollments)
+        .where(and(eq(classEnrollments.studentId, data.studentId), eq(classEnrollments.classId, data.currentClassId)))
+        .limit(1);
+      if (existing) {
+        await db.update(classEnrollments).set({ status: "active" }).where(eq(classEnrollments.id, existing.id));
+      } else {
+        await db.insert(classEnrollments).values({
+          schoolId: oldStudent.schoolId,
+          locationId: oldStudent.locationId,
+          studentId: data.studentId,
+          classId: data.currentClassId,
+          enrolledAt: new Date(),
+          status: "active",
+        });
+      }
+    }
 
     if (data.parentId && data.parentName) {
       await db.update(parents).set({
