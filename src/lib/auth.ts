@@ -3884,6 +3884,207 @@ export const deleteDocument = createServerFn({ method: "POST" })
   });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STUDENT ACADEMIC PROFILE
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Attendance summary: monthly breakdown for a student ───────────────────────
+const getStudentAttendanceSummarySchema = z.object({ studentId: z.number() });
+export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getStudentAttendanceSummarySchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const { db } = await import("@/lib/db");
+    const { users, studentAttendance, attendanceSessions, students } = await import("@/lib/db/schema");
+
+    const [user] = await db.select({ role: users.role, schoolId: users.schoolId, email: users.email })
+      .from(users).where(eq(users.id, Number(payload.userId))).limit(1);
+    if (!user) throw new Error("Not authenticated");
+
+    // For parent: verify this student belongs to them
+    if (user.role === "parent") {
+      const { parents } = await import("@/lib/db/schema");
+      const [link] = await db.select({ id: parents.id }).from(parents)
+        .where(and(eq(parents.studentId, data.studentId), eq(parents.email, user.email ?? ""))).limit(1);
+      if (!link) throw new Error("Not authorized");
+    }
+
+    // Get student's class and school
+    const [student] = await db.select({ schoolId: students.schoolId, currentClassId: students.currentClassId })
+      .from(students).where(eq(students.id, data.studentId)).limit(1);
+    if (!student) throw new Error("Student not found");
+
+    // Get all attendance records for this student
+    const records = await db.select({
+      date: studentAttendance.date,
+      status: studentAttendance.status,
+    })
+      .from(studentAttendance)
+      .where(eq(studentAttendance.studentId, data.studentId))
+      .orderBy(asc(studentAttendance.date));
+
+    // Count sessions taken for the student's class (to compute "school days")
+    const sessions = student.currentClassId
+      ? await db.select({ date: attendanceSessions.date })
+          .from(attendanceSessions)
+          .where(and(
+            eq(attendanceSessions.schoolId, student.schoolId),
+            eq(attendanceSessions.classId, student.currentClassId),
+          ))
+      : [];
+
+    // Group by month
+    type MonthSummary = {
+      monthKey: string; // "2026-09"
+      label: string;    // "September 2026"
+      schoolDays: number;
+      present: number;
+      absent: number;
+      halfDay: number;
+      leave: number;
+      pct: number;
+    };
+
+    const monthMap = new Map<string, MonthSummary>();
+
+    // Seed from sessions (school days)
+    for (const s of sessions) {
+      const dateStr = (s.date as string).slice(0, 10);
+      const monthKey = dateStr.slice(0, 7);
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          monthKey,
+          label: new Date(`${monthKey}-01`).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+          schoolDays: 0, present: 0, absent: 0, halfDay: 0, leave: 0, pct: 0,
+        });
+      }
+      monthMap.get(monthKey)!.schoolDays++;
+    }
+
+    // Fill in student's attendance
+    for (const r of records) {
+      const dateStr = (r.date as string).slice(0, 10);
+      const monthKey = dateStr.slice(0, 7);
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          monthKey,
+          label: new Date(`${monthKey}-01`).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+          schoolDays: 0, present: 0, absent: 0, halfDay: 0, leave: 0, pct: 0,
+        });
+      }
+      const m = monthMap.get(monthKey)!;
+      if (r.status === "present") m.present++;
+      else if (r.status === "absent") m.absent++;
+      else if (r.status === "half_day") m.halfDay++;
+      else if (r.status === "leave") m.leave++;
+    }
+
+    // Compute attendance %
+    const result: MonthSummary[] = [];
+    for (const m of monthMap.values()) {
+      const effectiveDays = m.schoolDays || (m.present + m.absent + m.halfDay + m.leave);
+      m.pct = effectiveDays > 0 ? Math.round(((m.present + m.halfDay * 0.5) / effectiveDays) * 100) : 0;
+      result.push(m);
+    }
+
+    return result.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+  });
+
+// ── Upload report card ────────────────────────────────────────────────────────
+const uploadReportCardSchema = z.object({
+  studentId: z.number(),
+  term: z.string().trim().min(1).max(100), // e.g. "Term 1 2025-26"
+  fileDataUrl: z.string(),
+  fileName: z.string().max(255),
+});
+
+export const uploadReportCard = createServerFn({ method: "POST" })
+  .validator((i: unknown) => uploadReportCardSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const { db } = await import("@/lib/db");
+    const { users, reportCards } = await import("@/lib/db/schema");
+    const [user] = await db.select().from(users).where(eq(users.id, Number(payload.userId))).limit(1);
+    if (!user?.schoolId || !user?.locationId) throw new Error("Not authorized");
+
+    const dataUrlMatch = data.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!dataUrlMatch) throw new Error("Invalid file data");
+    const mimeType = dataUrlMatch[1];
+    if (mimeType !== "application/pdf") throw new Error("Only PDF files are accepted");
+    const buffer = Buffer.from(dataUrlMatch[2], "base64");
+    if (buffer.length > 10 * 1024 * 1024) throw new Error("File must be under 10MB");
+
+    const key = `schools/${user.schoolId}/students/${data.studentId}/report-cards/${Date.now()}.pdf`;
+    const publicUrl = await uploadToR2orDisk(buffer, mimeType, key);
+
+    const [r] = await db.insert(reportCards).values({
+      schoolId: user.schoolId,
+      locationId: user.locationId,
+      studentId: data.studentId,
+      term: data.term,
+      r2Key: key,
+      publicUrl,
+    });
+
+    return { ok: true, id: Number((r as any).insertId), publicUrl, term: data.term };
+  });
+
+// ── List report cards for a student ──────────────────────────────────────────
+const listReportCardsSchema = z.object({ studentId: z.number() });
+export const listReportCards = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listReportCardsSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const { db } = await import("@/lib/db");
+    const { users, reportCards, parents } = await import("@/lib/db/schema");
+    const [user] = await db.select({ role: users.role, schoolId: users.schoolId, email: users.email })
+      .from(users).where(eq(users.id, Number(payload.userId))).limit(1);
+    if (!user) throw new Error("Not authenticated");
+
+    // Parent: verify ownership
+    if (user.role === "parent") {
+      const [link] = await db.select({ id: parents.id }).from(parents)
+        .where(and(eq(parents.studentId, data.studentId), eq(parents.email, user.email ?? ""))).limit(1);
+      if (!link) throw new Error("Not authorized");
+    }
+
+    return db.select().from(reportCards)
+      .where(and(eq(reportCards.studentId, data.studentId), eq(reportCards.schoolId, user.schoolId!)))
+      .orderBy(desc(reportCards.uploadedAt));
+  });
+
+// ── Delete report card ────────────────────────────────────────────────────────
+const deleteReportCardSchema = z.object({ id: z.number() });
+export const deleteReportCard = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteReportCardSchema.parse(i))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    await verifySessionToken(token);
+    const { db } = await import("@/lib/db");
+    const { reportCards } = await import("@/lib/db/schema");
+    await db.delete(reportCards).where(eq(reportCards.id, data.id));
+    return { ok: true };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
 // STAFF PAYROLL
 // ─────────────────────────────────────────────────────────────────────────────
 

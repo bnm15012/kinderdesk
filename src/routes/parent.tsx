@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getParentPortal, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment } from "@/lib/auth";
-import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2 } from "lucide-react";
+import { getParentPortal, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards } from "@/lib/auth";
+import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/parent")({
   component: ParentPortal,
@@ -54,10 +54,13 @@ function loadRazorpayScript(): Promise<boolean> {
 }
 
 function ParentPortal() {
-  const getPortalFn      = useServerFn(getParentPortal);
-  const getActivitiesFn  = useServerFn(getCurriculumActivities);
-  const createOrderFn    = useServerFn(createRazorpayOrder);
-  const verifyFn         = useServerFn(verifyRazorpayPayment);
+  const getPortalFn         = useServerFn(getParentPortal);
+  const getActivitiesFn     = useServerFn(getCurriculumActivities);
+  const createOrderFn       = useServerFn(createRazorpayOrder);
+  const verifyFn            = useServerFn(verifyRazorpayPayment);
+  const getAttendanceFn     = useServerFn(getStudentAttendanceSummary);
+  const listReportCardsFn   = useServerFn(listReportCards);
+
   const [data, setData]         = useState<PortalData | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -66,6 +69,11 @@ function ParentPortal() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<number | null>(null);
   const [payError, setPayError] = useState<string>("");
+
+  // Academic profile state
+  const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
+  const [reportCardsList, setReportCardsList] = useState<any[]>([]);
+  const [academicLoading, setAcademicLoading] = useState(false);
 
   const handlePayNow = async (fee: Fee) => {
     setPayingId(fee.id); setPayError("");
@@ -122,6 +130,18 @@ function ParentPortal() {
       .catch((e) => setError(e?.message ?? "Failed to load portal"))
       .finally(() => setLoading(false));
   }, []);
+
+  // Load academic data whenever active child changes
+  useEffect(() => {
+    if (!data?.children[activeChild]?.id) return;
+    const childId = data.children[activeChild].id;
+    setAcademicLoading(true);
+    setAttendanceSummary([]); setReportCardsList([]);
+    Promise.all([
+      getAttendanceFn({ data: { studentId: childId } }).then((d) => setAttendanceSummary(d as any[])).catch(() => {}),
+      listReportCardsFn({ data: { studentId: childId } }).then((d) => setReportCardsList(d as any[])).catch(() => {}),
+    ]).finally(() => setAcademicLoading(false));
+  }, [activeChild, data?.children.length]);
 
   if (loading) return (
     <div className="space-y-4">
@@ -346,6 +366,83 @@ function ParentPortal() {
               <p className="text-sm text-slate-400">No invoices for this child yet.</p>
             </div>
           )}
+
+          {/* Academic Profile */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+              <div className="w-1 h-5 bg-blue-600 rounded-full" />
+              <BarChart2 className="w-4 h-4 text-blue-600" />
+              <h2 className="text-sm font-bold text-slate-800">Academic Profile</h2>
+            </div>
+            {academicLoading ? (
+              <div className="p-6 space-y-3">{[1,2].map(i=><div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse"/>)}</div>
+            ) : (
+              <div className="p-6 space-y-6">
+                {/* Attendance Summary */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart2 className="w-4 h-4 text-blue-500" />
+                    <h3 className="text-sm font-bold text-slate-700">Attendance</h3>
+                  </div>
+                  {attendanceSummary.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-4 text-center">No attendance data yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {attendanceSummary.slice(0, 6).map((m: any) => {
+                        const pct = m.pct as number;
+                        const barColor = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
+                        const badgeColor = pct >= 75 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700";
+                        return (
+                          <div key={m.monthKey}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-slate-700">{m.label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400">{m.present}P · {m.absent}A</span>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{pct}%</span>
+                              </div>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full">
+                              <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Report Cards */}
+                <div className="border-t border-slate-100 pt-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <GraduationCap className="w-4 h-4 text-violet-500" />
+                    <h3 className="text-sm font-bold text-slate-700">Report Cards</h3>
+                  </div>
+                  {reportCardsList.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-4 text-center">No report cards uploaded yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {reportCardsList.map((rc: any) => (
+                        <div key={rc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                            <GraduationCap className="w-4 h-4 text-violet-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800">{rc.term}</p>
+                          </div>
+                          {rc.publicUrl && (
+                            <a href={rc.publicUrl} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition">
+                              <ExternalLink className="w-3 h-3" /> Download
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Curriculum Activity Feed */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

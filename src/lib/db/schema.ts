@@ -320,6 +320,18 @@ export const classEnrollments = mysqlTable("class_enrollments", {
   status: mysqlEnum("status", ["active", "promoted", "withdrawn"]).default("active"),
 });
 
+// ── Report Cards ──────────────────────────────────────────────────────────────
+export const reportCards = mysqlTable("report_cards", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  studentId: int("student_id").notNull().references(() => students.id),
+  term: varchar("term", { length: 100 }).notNull(), // e.g. "Term 1 2025-26"
+  r2Key: varchar("r2_key", { length: 500 }),
+  publicUrl: varchar("public_url", { length: 500 }),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
 // ── Documents (birth certificate, immunization, photos) ─────────────────────
 export const documents = mysqlTable("documents", {
   id: int("id").primaryKey().autoincrement(),

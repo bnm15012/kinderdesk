@@ -1,14 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft, Baby, User, Shield, Heart, BookOpen, FileText,
   Upload, ExternalLink, Loader2, AlertCircle, Pencil, Save, XCircle, Trash2, Plus,
+  BarChart2, GraduationCap, CheckCircle2, X,
 } from "lucide-react";
 import {
   getStudent, updateStudent, listClassesForSchool,
   updateEmergencyContact, addEmergencyContact,
   uploadDocument, listDocuments, deleteDocument,
+  getStudentAttendanceSummary, uploadReportCard, listReportCards, deleteReportCard,
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
@@ -108,6 +110,10 @@ function StudentDetailPage() {
   const deleteDocFn = useServerFn(deleteDocument);
   const updateEcFn = useServerFn(updateEmergencyContact);
   const addEcFn = useServerFn(addEmergencyContact);
+  const getAttendanceSummaryFn = useServerFn(getStudentAttendanceSummary);
+  const uploadReportCardFn = useServerFn(uploadReportCard);
+  const listReportCardsFn = useServerFn(listReportCards);
+  const deleteReportCardFn = useServerFn(deleteReportCard);
 
   const [detail, setDetail] = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,7 +121,7 @@ function StudentDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "parents" | "medical" | "history" | "documents">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "parents" | "medical" | "history" | "documents" | "attendance" | "reportcards">("overview");
   const [classes, setClasses] = useState<ClassOption[]>([]);
 
   // Documents state
@@ -125,6 +131,20 @@ function StudentDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [confirmDocDel, setConfirmDocDel] = useState<DocRow | null>(null);
   const [deletingDoc, setDeletingDoc] = useState(false);
+
+  // Attendance summary state
+  const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+  // Report cards state
+  type ReportCard = { id: number; term: string; publicUrl: string | null; uploadedAt: any };
+  const [reportCardsList, setReportCardsList] = useState<ReportCard[]>([]);
+  const [rcLoading, setRcLoading] = useState(false);
+  const [rcUploading, setRcUploading] = useState(false);
+  const [rcError, setRcError] = useState("");
+  const [rcTerm, setRcTerm] = useState("");
+  const [rcShowForm, setRcShowForm] = useState(false);
+  const rcFileRef = useRef<HTMLInputElement>(null);
 
   // Edit form state
   const [ef, setEf] = useState<any>({});
@@ -152,6 +172,20 @@ function StudentDetailPage() {
   // Load docs when switching to documents tab
   useEffect(() => {
     if (activeTab === "documents" && studentId) loadDocs(studentId);
+    if (activeTab === "attendance" && studentId) {
+      setAttendanceLoading(true);
+      getAttendanceSummaryFn({ data: { studentId } })
+        .then((d) => setAttendanceSummary(d as any[]))
+        .catch(() => {})
+        .finally(() => setAttendanceLoading(false));
+    }
+    if (activeTab === "reportcards" && studentId) {
+      setRcLoading(true);
+      listReportCardsFn({ data: { studentId } })
+        .then((d) => setReportCardsList(d as any[]))
+        .catch(() => {})
+        .finally(() => setRcLoading(false));
+    }
   }, [activeTab]);
 
   const load = () => {
@@ -301,18 +335,26 @@ function StudentDetailPage() {
           )}
 
           {/* Tab bar */}
-          <div className="flex gap-1 -mb-px">
-            {(["overview", "parents", "medical", "history", "documents"] as const).map((t) => (
+          <div className="flex gap-1 -mb-px flex-wrap">
+            {([
+              { key: "overview", label: "Overview" },
+              { key: "parents", label: "Parents" },
+              { key: "medical", label: "Medical" },
+              { key: "history", label: "Class history" },
+              { key: "attendance", label: "Attendance" },
+              { key: "reportcards", label: "Report Cards" },
+              { key: "documents", label: "Documents" },
+            ] as const).map(({ key, label }) => (
               <button
-                key={t}
-                onClick={() => setActiveTab(t)}
-                className={`px-4 py-2.5 text-sm font-semibold rounded-t-xl transition capitalize ${
-                  activeTab === t
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`px-4 py-2.5 text-sm font-semibold rounded-t-xl transition ${
+                  activeTab === key
                     ? "bg-slate-50 text-blue-700"
                     : "text-white/70 hover:text-white hover:bg-white/10"
                 }`}
               >
-                {t === "history" ? "Class history" : t}
+                {label}
               </button>
             ))}
           </div>
@@ -722,6 +764,153 @@ function StudentDetailPage() {
                   }}
                   onCancel={() => setConfirmDocDel(null)}
                 />
+              </Section>
+            )}
+
+            {/* Attendance tab */}
+            {activeTab === "attendance" && (
+              <Section icon={BarChart2} title="Attendance summary" color="bg-blue-50 text-blue-700">
+                {attendanceLoading ? (
+                  <div className="space-y-3">{[1,2,3].map(i=><div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse"/>)}</div>
+                ) : attendanceSummary.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BarChart2 className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+                    <p className="text-sm text-slate-400">No attendance data yet</p>
+                    <p className="text-xs text-slate-300 mt-0.5">Attendance will appear here once it's marked for this student</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {attendanceSummary.map((m: any) => {
+                      const pct = m.pct as number;
+                      const color = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
+                      const textColor = pct >= 75 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-red-700";
+                      const bgColor = pct >= 75 ? "bg-emerald-50" : pct >= 50 ? "bg-amber-50" : "bg-red-50";
+                      return (
+                        <div key={m.monthKey} className="bg-white rounded-xl border border-slate-200 p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-bold text-slate-800">{m.label}</span>
+                            <span className={`text-sm font-bold px-2.5 py-0.5 rounded-full ${bgColor} ${textColor}`}>{pct}%</span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="w-full h-2 bg-slate-100 rounded-full mb-3">
+                            <div className={`h-2 rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+                          </div>
+                          {/* Stats row */}
+                          <div className="grid grid-cols-4 gap-2 text-center">
+                            {[
+                              { label: "Present", val: m.present, cls: "text-emerald-700 bg-emerald-50" },
+                              { label: "Absent", val: m.absent, cls: "text-red-700 bg-red-50" },
+                              { label: "Half day", val: m.halfDay, cls: "text-amber-700 bg-amber-50" },
+                              { label: "Leave", val: m.leave, cls: "text-slate-600 bg-slate-100" },
+                            ].map(({ label, val, cls }) => (
+                              <div key={label} className={`rounded-lg py-1.5 ${cls}`}>
+                                <p className="text-base font-bold">{val}</p>
+                                <p className="text-xs opacity-75">{label}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {m.schoolDays > 0 && (
+                            <p className="text-xs text-slate-400 mt-2 text-right">{m.schoolDays} school days</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Section>
+            )}
+
+            {/* Report Cards tab */}
+            {activeTab === "reportcards" && (
+              <Section icon={GraduationCap} title="Report Cards" color="bg-violet-50 text-violet-700">
+                {/* Upload form toggle */}
+                {!rcShowForm ? (
+                  <button onClick={() => setRcShowForm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition mb-4">
+                    <Plus className="w-4 h-4" /> Upload Report Card
+                  </button>
+                ) : (
+                  <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-violet-800">Upload Report Card</p>
+                      <button onClick={() => { setRcShowForm(false); setRcTerm(""); setRcError(""); }} className="p-1 rounded-lg hover:bg-violet-100 text-violet-500"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Term / Period *</label>
+                      <input value={rcTerm} onChange={(e) => setRcTerm(e.target.value)}
+                        placeholder="e.g. Term 1 2025-26, Q1 2026"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">PDF File *</label>
+                      <input ref={rcFileRef} type="file" accept="application/pdf"
+                        className="w-full text-sm text-slate-600 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-violet-100 file:text-violet-700 file:font-semibold file:text-xs cursor-pointer" />
+                    </div>
+                    {rcError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{rcError}</p>}
+                    <button
+                      disabled={rcUploading || !rcTerm}
+                      onClick={async () => {
+                        const file = rcFileRef.current?.files?.[0];
+                        if (!file) { setRcError("Please select a PDF file"); return; }
+                        setRcError(""); setRcUploading(true);
+                        try {
+                          const reader = new FileReader();
+                          const dataUrl = await new Promise<string>((res, rej) => {
+                            reader.onload = () => res(reader.result as string);
+                            reader.onerror = rej;
+                            reader.readAsDataURL(file);
+                          });
+                          const result = await uploadReportCardFn({ data: { studentId, term: rcTerm, fileDataUrl: dataUrl, fileName: file.name } }) as any;
+                          setReportCardsList((prev) => [{ id: result.id, term: result.term, publicUrl: result.publicUrl, uploadedAt: new Date() }, ...prev]);
+                          setRcShowForm(false); setRcTerm("");
+                          if (rcFileRef.current) rcFileRef.current.value = "";
+                          toast("Report card uploaded", "success");
+                        } catch (err: any) { setRcError(err?.message ?? "Upload failed"); }
+                        finally { setRcUploading(false); }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-400 text-white text-sm font-semibold rounded-xl transition">
+                      {rcUploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</> : <><Upload className="w-4 h-4" /> Upload</>}
+                    </button>
+                  </div>
+                )}
+
+                {rcLoading ? (
+                  <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse"/>)}</div>
+                ) : reportCardsList.length === 0 ? (
+                  <div className="text-center py-8">
+                    <GraduationCap className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+                    <p className="text-sm text-slate-400">No report cards uploaded yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {reportCardsList.map((rc) => (
+                      <div key={rc.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 hover:border-violet-200 transition">
+                        <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-5 h-5 text-violet-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800">{rc.term}</p>
+                          <p className="text-xs text-slate-400">{fmtDate(rc.uploadedAt ? String(rc.uploadedAt) : null)}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {rc.publicUrl && (
+                            <a href={rc.publicUrl} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 text-xs font-semibold transition">
+                              <ExternalLink className="w-3.5 h-3.5" /> View
+                            </a>
+                          )}
+                          <button onClick={async () => {
+                            if (!confirm(`Delete report card for ${rc.term}?`)) return;
+                            await deleteReportCardFn({ data: { id: rc.id } });
+                            setReportCardsList((prev) => prev.filter((r) => r.id !== rc.id));
+                          }} className="p-1.5 rounded-lg bg-slate-50 hover:bg-red-50 text-red-500 hover:text-red-700 border border-red-200 transition">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Section>
             )}
             </div>
