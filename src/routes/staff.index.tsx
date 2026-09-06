@@ -256,6 +256,13 @@ function AddStaffModal({ onClose, onSaved, schoolId, locationId }: {
 
 function InviteSuccessDialog({ token, onClose }: { token: string; onClose: () => void }) {
   const inviteUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/invite?token=${token}`;
+  const [copied, setCopied] = useState(false);
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
@@ -264,9 +271,15 @@ function InviteSuccessDialog({ token, onClose }: { token: string; onClose: () =>
           <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
         <h3 className="text-lg font-bold text-slate-900 mb-2">Invite sent!</h3>
-        <p className="text-sm text-slate-500 mb-4">The invite link has been sent to their email. You can also share it manually:</p>
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left mb-5">
-          <p className="text-xs font-mono text-slate-700 break-all leading-relaxed">{inviteUrl}</p>
+        <p className="text-sm text-slate-500 mb-4">An invite email has been sent. You can also share the link manually:</p>
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-5">
+          <span className="text-xs text-slate-400 font-mono truncate flex-1">Invite link (click to copy)</span>
+          <button
+            onClick={copyLink}
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${copied ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
+          >
+            {copied ? "Copied!" : "Copy link"}
+          </button>
         </div>
         <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition">Done</button>
       </div>

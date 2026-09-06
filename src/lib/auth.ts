@@ -2627,7 +2627,7 @@ export const addStaffMember = createServerFn({ method: "POST" })
     await checkPlanLimit(data.schoolId, "staff");
 
     const { db } = await import("@/lib/db");
-    const { staff, users } = await import("@/lib/db/schema");
+    const { staff, users, schools } = await import("@/lib/db/schema");
 
     // Create staff record first
     const [res] = await db.insert(staff).values({
@@ -2664,8 +2664,21 @@ export const addStaffMember = createServerFn({ method: "POST" })
       inviteToken = await new jose.SignJWT({ userId, purpose: "invite" })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("24h")
+        .setExpirationTime("7d")
         .sign(JWT_SECRET);
+
+      // Send invite email
+      const appUrl = process.env.APP_URL ?? "https://kinderdesk.vercel.app";
+      const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
+      const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, data.schoolId)).limit(1);
+      const schoolName = schoolRow?.name ?? "Your School";
+      try {
+        const { sendStaffInviteEmail } = await import("@/lib/email");
+        await sendStaffInviteEmail(email, inviteUrl, schoolName);
+      } catch (emailErr) {
+        console.error("Failed to send staff invite email:", emailErr);
+        // Non-fatal — token is still returned so staff can copy link manually
+      }
     }
 
     return { ok: true, staffId, inviteToken };
