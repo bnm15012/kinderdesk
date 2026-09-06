@@ -137,31 +137,33 @@ function TeacherAttendancePage() {
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: back + class name */}
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => { setSelected(null); setStudents([]); setAttMap({}); }}
-              className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition"
+              className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition"
             >
               <ArrowLeft className="w-4 h-4 text-slate-600" />
             </button>
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">{selected.className}</h1>
-              <p className="text-sm text-slate-500">{selected.ageGroup}{selected.roomName ? ` · ${selected.roomName}` : ""}</p>
+            <div className="min-w-0">
+              <h1 className="text-xl font-extrabold text-slate-900 truncate">{selected.className}</h1>
+              <p className="text-xs text-slate-500 truncate">{selected.ageGroup}{selected.roomName ? ` · ${selected.roomName}` : ""}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          {/* Right: date picker + save */}
+          <div className="flex items-center gap-2 shrink-0">
             <input
               type="date"
               value={date}
               max={todayStr}
               onChange={(e) => { setDate(e.target.value); setSaved(false); }}
-              className="border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-slate-200 rounded-xl px-2 py-2 text-sm text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
             />
             <button
               onClick={saveAttendance}
               disabled={saving || attLoading || enrolled.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold transition"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold transition whitespace-nowrap"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? "Saving…" : saved ? "Saved ✓" : "Save"}
