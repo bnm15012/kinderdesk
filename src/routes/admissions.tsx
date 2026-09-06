@@ -108,7 +108,7 @@ function AddInquiryModal({
 
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Parent / Guardian</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Parent name *</label>
                 <input value={f.parentName} onChange={(e) => set("parentName", e.target.value)} placeholder="Ravi Kumar" className={inputCls} required />
@@ -126,7 +126,7 @@ function AddInquiryModal({
 
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Child</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Child name *</label>
                 <input value={f.childName} onChange={(e) => set("childName", e.target.value)} placeholder="Aarav Kumar" className={inputCls} required />

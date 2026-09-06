@@ -172,7 +172,7 @@ function AddStudentModal({
           {/* Basic info */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Student details</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name *</label>
                 <input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Aarav" className={inputCls} required />
@@ -215,7 +215,7 @@ function AddStudentModal({
           {/* Parent */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Parent / Guardian</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Name *</label>
                 <input value={f.parentName} onChange={(e) => set("parentName", e.target.value)} placeholder="Ravi Kumar" className={inputCls} required />
@@ -243,7 +243,7 @@ function AddStudentModal({
           {/* Emergency contact */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Emergency contact</p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Name</label>
                 <input value={f.emergencyName} onChange={(e) => set("emergencyName", e.target.value)} placeholder="Sunita Kumar" className={inputCls} />
@@ -262,7 +262,7 @@ function AddStudentModal({
           {/* Medical */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Medical information</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Allergies</label>
                 <input value={f.allergies} onChange={(e) => set("allergies", e.target.value)} placeholder="e.g. Peanuts, None" className={inputCls} />
@@ -275,7 +275,7 @@ function AddStudentModal({
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Medications</label>
                 <input value={f.medications} onChange={(e) => set("medications", e.target.value)} placeholder="e.g. Inhaler" className={inputCls} />
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Additional notes</label>
                 <textarea value={f.medicalNotes} onChange={(e) => set("medicalNotes", e.target.value)} rows={2} placeholder="Any other relevant medical info…" className={`${inputCls} resize-none`} />
               </div>

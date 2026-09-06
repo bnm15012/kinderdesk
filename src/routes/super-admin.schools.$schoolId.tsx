@@ -99,7 +99,7 @@ function EditSubscriptionModal({
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-4 h-4" /></button>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Plan</label>
               <select value={f.plan} onChange={(e) => set("plan", e.target.value)} className={`${inputCls} bg-white`}>
@@ -135,7 +135,7 @@ function EditSubscriptionModal({
           {/* Plan limits override */}
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Custom limits (leave blank to keep current)</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Max students</label>
                 <input type="number" value={f.maxStudents} onChange={(e) => set("maxStudents", e.target.value)} placeholder="e.g. 200" className={inputCls} min="0" />

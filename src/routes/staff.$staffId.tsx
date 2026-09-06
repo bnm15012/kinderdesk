@@ -85,7 +85,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel }: 
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(f); }} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name *</label>
           <input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Neha" className={inputCls} required />
@@ -215,7 +215,7 @@ function InviteModal({ initial, locationId, onClose }: {
           ) : (
             <form onSubmit={submit} className="space-y-4 text-sm">
               <p className="text-sm text-slate-500">The invitee will receive a link to set their password and access KinderDesk with the role you assign.</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name</label>
                   <input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Neha" className={inputCls} required />
@@ -415,12 +415,12 @@ function StaffDetailPage() {
       <div className="space-y-5">
         <div className="h-6 w-32 bg-slate-200 rounded-lg animate-pulse" />
         <div className="h-40 bg-slate-200 rounded-2xl animate-pulse" />
-        <div className="grid grid-cols-5 gap-6">
-          <div className="col-span-3 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 space-y-4">
             <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
             <div className="h-40 bg-slate-100 rounded-2xl animate-pulse" />
           </div>
-          <div className="col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4">
             <div className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
             <div className="h-32 bg-slate-100 rounded-2xl animate-pulse" />
           </div>
@@ -508,10 +508,10 @@ function StaffDetailPage() {
       </div>
 
       {/* Two-column grid */}
-      <div className="grid grid-cols-5 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
 
         {/* LEFT column (~60%) */}
-        <div className="col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-5">
 
           {/* Edit details card */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -588,7 +588,7 @@ function StaffDetailPage() {
         </div>
 
         {/* RIGHT column (~40%) */}
-        <div className="col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5">
 
           {/* Payroll card */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -619,7 +619,7 @@ function StaffDetailPage() {
                 {addingPayroll ? (
                   <div className="bg-slate-50 rounded-xl p-4 space-y-3">
                     <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">New payslip</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Month</label>
                         <input type="month" value={payrollForm.month} onChange={(e) => setPF("month", e.target.value)}

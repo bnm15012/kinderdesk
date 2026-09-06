@@ -52,7 +52,7 @@ function Profile() {
 
       <div className="bg-white border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">User details</h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-slate-500">Name</p>
             <p className="font-medium">

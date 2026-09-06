@@ -330,10 +330,10 @@ function StudentDetailPage() {
             <AlertCircle className="w-5 h-5 shrink-0" /> {error}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
             {/* ── Main content (2/3) ── */}
-            <div className="col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-4">
             {saveError && (
               <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" /> {saveError}
@@ -344,7 +344,7 @@ function StudentDetailPage() {
             {activeTab === "overview" && (
               <Section icon={Baby} title="Student information" color="bg-blue-50 text-blue-700">
                 {editing ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">First name</label>
                       <input value={ef.firstName} onChange={(e) => eSet("firstName", e.target.value)} className={inputCls} />
@@ -414,7 +414,7 @@ function StudentDetailPage() {
                 {/* Primary parent edit */}
                 <Section icon={User} title="Parent / Guardian" color="bg-violet-50 text-violet-700">
                   {editing ? (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Name</label>
                         <input value={ef.parentName} onChange={(e) => eSet("parentName", e.target.value)} className={inputCls} />
@@ -463,7 +463,7 @@ function StudentDetailPage() {
                       <div key={ec.id}>
                         {ecEditing === ec.id ? (
                           <div className="space-y-2">
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               <div>
                                 <label className="block text-[10px] font-semibold text-slate-500 mb-1">Name</label>
                                 <input value={ecForm.name} onChange={(e) => setEcForm(p => ({...p, name: e.target.value}))} className={inputCls} />
@@ -509,7 +509,7 @@ function StudentDetailPage() {
                     {ecEditing === "new" ? (
                       <div className="border-t border-slate-100 pt-4 space-y-2">
                         <p className="text-xs font-semibold text-slate-500">New emergency contact</p>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div>
                             <label className="block text-[10px] font-semibold text-slate-500 mb-1">Name *</label>
                             <input value={ecForm.name} onChange={(e) => setEcForm(p => ({...p, name: e.target.value}))} className={inputCls} />
@@ -556,7 +556,7 @@ function StudentDetailPage() {
             {activeTab === "medical" && (
               <Section icon={Heart} title="Medical information" color="bg-rose-50 text-rose-700">
                 {editing ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Allergies</label>
                       <input value={ef.allergies} onChange={(e) => eSet("allergies", e.target.value)} placeholder="e.g. Peanuts" className={inputCls} />

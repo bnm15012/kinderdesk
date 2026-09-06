@@ -310,7 +310,7 @@ function FeeStructureModal({ initial, onClose, onSaved, schoolId, locationId, cl
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">Name *</label>
             <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Monthly Tuition Fee" className={inputCls} required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Amount (₹) *</label>
               <input type="number" min="0" step="0.01" value={f.amount} onChange={(e) => set("amount", e.target.value)} placeholder="4500" className={inputCls} required />
@@ -581,7 +581,7 @@ function Fees() {
         <>
           {/* Summary cards */}
           {!loading && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 { label: "Collected", amount: totalPaid, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
                 { label: "Pending", amount: totalPending, color: "text-amber-700 bg-amber-50 border-amber-200" },

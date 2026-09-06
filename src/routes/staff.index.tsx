@@ -246,7 +246,7 @@ function InviteModal({ initial, locationId, onClose }: {
           ) : (
             <form onSubmit={submit} className="space-y-4 text-sm">
               <p className="text-sm text-slate-500">The invitee will receive a link to set their password and access KinderDesk with the role you assign.</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name</label>
                   <input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Neha" className={inputCls} required />
