@@ -168,10 +168,12 @@ function ForgotPassword() {
                   Back to sign in
                 </Link>
                 <div className="mb-7">
-                  <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-5 shadow-md shadow-blue-200">
-                    <Mail className="w-7 h-7 text-white" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
+                      <Mail className="w-7 h-7 text-white" />
+                    </div>
+                    <h1 className="text-2xl font-extrabold text-slate-900">Forgot your password?</h1>
                   </div>
-                  <h1 className="text-2xl font-extrabold text-slate-900 mb-2">Forgot your password?</h1>
                   <p className="text-slate-500 text-sm">Enter your work email and we'll send a 6-digit OTP.</p>
                 </div>
                 <form onSubmit={handleSendOtp} className="space-y-4">

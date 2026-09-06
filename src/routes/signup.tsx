@@ -208,10 +208,12 @@ function Signup() {
 
             {step < 2 && (
               <div className="mb-7">
-                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-5 shadow-md shadow-blue-200">
-                  <GraduationCap className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
+                    <GraduationCap className="w-6 h-6 text-white" />
+                  </div>
+                  <h1 className="text-2xl font-extrabold text-slate-900">Create your account</h1>
                 </div>
-                <h1 className="text-2xl font-extrabold text-slate-900 mb-1.5">Create your account</h1>
                 <p className="text-slate-500 text-sm">
                   Already have an account?{" "}
                   <Link to="/login" className="text-blue-600 font-semibold hover:underline">Sign in</Link>
