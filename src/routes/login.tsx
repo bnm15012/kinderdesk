@@ -158,7 +158,6 @@ function Login() {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold text-white drop-shadow">KinderDesk</span>
-            <span className="text-white/70 font-medium text-base">· Sign in</span>
           </Link>
         </div>
 
@@ -170,10 +169,12 @@ function Login() {
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 xl:p-10">
             {/* Header */}
             <div className="mb-8">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-5 shadow-md shadow-blue-200">
-                <GraduationCap className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
+                  <GraduationCap className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-2xl font-extrabold text-slate-900">Sign in</h1>
               </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 mb-1.5">Sign in</h1>
               <p className="text-slate-500 text-sm">
                 Don't have an account?{" "}
                 <Link to="/signup" className="text-blue-600 font-semibold hover:underline">
