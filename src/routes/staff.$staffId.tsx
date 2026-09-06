@@ -4,12 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft, Mail, Phone, Calendar, BookOpen, X, Plus, AlertCircle,
   CheckCircle2, DollarSign, ShieldCheck, Upload, ExternalLink, Loader2,
-  ChevronDown, ChevronUp, Trash2,
+  ChevronDown, ChevronUp, Trash2, Clock, UserX,
 } from "lucide-react";
 import {
   listStaff, updateStaffMember, archiveStaff, assignStaffToClass,
   removeStaffFromClass, listClassesForSchool, listPayrollRecords,
-  addPayrollRecord, markPayrollPaid, uploadBgVerificationDoc, sendInvite,
+  addPayrollRecord, markPayrollPaid, uploadBgVerificationDoc, resendStaffInvite,
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
@@ -26,6 +26,9 @@ type StaffRow = {
   role: string; joinDate: string | null; salary: string | null;
   status: string; backgroundCheckStatus: string; backgroundCheckDocUrl: string | null;
   classes: string[];
+  userId: number | null;
+  loginStatus: "active" | "invited" | "none";
+  loginRole: string | null;
 };
 
 type PayrollRow = {
@@ -159,100 +162,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel }: 
   );
 }
 
-// ── InviteModal ────────────────────────────────────────────────────────────
 
-function InviteModal({ initial, locationId, onClose }: {
-  initial?: { firstName: string; lastName: string; email: string | null };
-  locationId: number; onClose: () => void;
-}) {
-  const sendInviteFn = useServerFn(sendInvite);
-  const [f, setF] = useState({
-    firstName: initial?.firstName ?? "", lastName: initial?.lastName ?? "",
-    email: initial?.email ?? "",
-    role: "teacher" as "teacher" | "staff" | "accountant" | "location_admin" | "parent",
-  });
-  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
-  const [token, setToken] = useState("");
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(""); setLoading(true);
-    try {
-      const res = await sendInviteFn({ data: { email: f.email, firstName: f.firstName, lastName: f.lastName, staffRole: f.role, locationId } }) as any;
-      setToken(res.inviteToken); setDone(true);
-    } catch (err: any) { setError(err?.message ?? "Failed"); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="text-lg font-bold text-slate-900">Invite Staff / Teacher</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-6">
-          {done ? (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Invite created!</h3>
-              <p className="text-sm text-slate-500 mb-4">In production this would be emailed. Share this link for testing:</p>
-              {token && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left mb-4">
-                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-2">Dev — Invite link</p>
-                  <p className="text-xs font-mono text-amber-800 break-all leading-relaxed">
-                    {typeof window !== "undefined" ? window.location.origin : ""}/invite?token={token}
-                  </p>
-                </div>
-              )}
-              <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition">Done</button>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="space-y-4 text-sm">
-              <p className="text-sm text-slate-500">The invitee will receive a link to set their password and access KinderDesk with the role you assign.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name</label>
-                  <input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Neha" className={inputCls} required />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Last name</label>
-                  <input value={f.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Gupta" className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Email address *</label>
-                <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="neha@school.com" className={inputCls} required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Role to assign</label>
-                <select value={f.role} onChange={(e) => set("role", e.target.value as any)} className={`${inputCls} bg-white`}>
-                  <option value="teacher">Teacher</option>
-                  <option value="staff">Staff</option>
-                  <option value="accountant">Accountant</option>
-                  <option value="location_admin">Location Admin</option>
-                  <option value="parent">Parent</option>
-                </select>
-              </div>
-              {error && <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"><AlertCircle className="w-4 h-4 shrink-0" />{error}</div>}
-              <div className="flex justify-end gap-3 pt-1">
-                <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-medium transition">Cancel</button>
-                <button type="submit" disabled={loading} className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-bold transition">
-                  {loading ? "Sending…" : "Send invite"}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
@@ -315,8 +225,13 @@ function StaffDetailPage() {
   const [bgUploading, setBgUploading] = useState(false);
   const [bgError, setBgError] = useState("");
 
-  // Invite modal state
+  // Invite state
+  const resendInviteFn = useServerFn(resendStaffInvite);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteAppRole, setInviteAppRole] = useState<"teacher" | "staff" | "accountant" | "location_admin">("teacher");
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState("");
 
   // ── Load staff member & classes ──────────────────────────────────────────
 
@@ -467,12 +382,15 @@ function StaffDetailPage() {
               <p className="text-blue-100 text-sm capitalize mt-0.5">{member.role}</p>
             </div>
           </div>
-          <button
-            onClick={() => setInviteOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold rounded-xl transition"
-          >
-            <Mail className="w-4 h-4" /> Invite
-          </button>
+          {member.loginStatus !== "active" && (
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold rounded-xl transition"
+            >
+              <Mail className="w-4 h-4" />
+              {member.loginStatus === "invited" ? "Resend Invite" : "Send Invite"}
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${ROLE_BADGE[member.role] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>{member.role}</span>
@@ -480,6 +398,22 @@ function StaffDetailPage() {
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full border capitalize ${BG_BADGE[member.backgroundCheckStatus] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
             BG: {member.backgroundCheckStatus.replace("_", " ")}
           </span>
+          {/* Login status badge */}
+          {member.loginStatus === "active" && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-100 border border-emerald-400/30">
+              <ShieldCheck className="w-3 h-3" /> Login active
+            </span>
+          )}
+          {member.loginStatus === "invited" && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-100 border border-amber-400/30">
+              <Clock className="w-3 h-3" /> Invite pending
+            </span>
+          )}
+          {member.loginStatus === "none" && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-white/60 border border-white/20">
+              <UserX className="w-3 h-3" /> No login
+            </span>
+          )}
         </div>
       </div>
 
@@ -827,11 +761,72 @@ function StaffDetailPage() {
 
       {/* Invite modal */}
       {inviteOpen && (
-        <InviteModal
-          initial={{ firstName: member.firstName, lastName: member.lastName, email: member.email }}
-          locationId={tenant.locationId}
-          onClose={() => setInviteOpen(false)}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setInviteOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">
+                {member.loginStatus === "invited" ? "Resend Login Invite" : "Send Login Invite"}
+              </h2>
+              <button onClick={() => setInviteOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition"><X className="w-5 h-5" /></button>
+            </div>
+            {inviteToken ? (
+              <div className="text-center py-2 space-y-4">
+                <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900">Invite sent!</p>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left">
+                  <p className="text-xs font-mono text-slate-700 break-all leading-relaxed">
+                    {typeof window !== "undefined" ? window.location.origin : ""}/invite?token={inviteToken}
+                  </p>
+                </div>
+                <button onClick={() => { setInviteOpen(false); setInviteToken(null); }} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition">Done</button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500">
+                  Sending invite to <span className="font-semibold text-slate-700">{member.email ?? "no email set"}</span>
+                </p>
+                {!member.email && (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-4 py-3 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0" /> Add an email to this staff member first.
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">App access role</label>
+                  <select value={inviteAppRole} onChange={(e) => setInviteAppRole(e.target.value as any)} className={`${inputCls} bg-white`}>
+                    <option value="teacher">Teacher — dashboard + attendance only</option>
+                    <option value="staff">Staff — same as Teacher</option>
+                    <option value="accountant">Accountant — fees only</option>
+                    <option value="location_admin">Location Admin — full branch access</option>
+                  </select>
+                </div>
+                {inviteError && <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"><AlertCircle className="w-4 h-4 shrink-0" />{inviteError}</div>}
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setInviteOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-medium transition">Cancel</button>
+                  <button
+                    onClick={async () => {
+                      if (!member.email) return;
+                      setInviteSending(true); setInviteError("");
+                      try {
+                        const res = await resendInviteFn({ data: { staffId: member.id, appRole: inviteAppRole } }) as any;
+                        setInviteToken(res.inviteToken);
+                        setMember((m) => m ? { ...m, loginStatus: "invited", loginRole: inviteAppRole } : m);
+                      } catch (err: any) { setInviteError(err?.message ?? "Failed"); }
+                      finally { setInviteSending(false); }
+                    }}
+                    disabled={inviteSending || !member.email}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-bold transition"
+                  >
+                    {inviteSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    {inviteSending ? "Sending…" : "Send Invite"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

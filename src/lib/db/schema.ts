@@ -226,6 +226,7 @@ export const staff = mysqlTable("staff", {
   id: int("id").primaryKey().autoincrement(),
   schoolId: int("school_id").notNull().references(() => schools.id),
   locationId: int("location_id").notNull().references(() => locations.id),
+  userId: int("user_id").references(() => users.id, { onDelete: "set null" }),
   firstName: varchar("first_name", { length: 255 }).notNull(),
   lastName: varchar("last_name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }),

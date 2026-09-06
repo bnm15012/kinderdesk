@@ -2470,7 +2470,7 @@ export const listStaff = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { staff, staffClassAssignments, classes } = await import("@/lib/db/schema");
+    const { staff, staffClassAssignments, classes, users } = await import("@/lib/db/schema");
 
     const rows = await db
       .select({
@@ -2485,8 +2485,12 @@ export const listStaff = createServerFn({ method: "GET" })
         status: staff.status,
         backgroundCheckStatus: staff.backgroundCheckStatus,
         backgroundCheckDocUrl: staff.backgroundCheckDocUrl,
+        userId: staff.userId,
+        loginStatus: users.status,
+        loginRole: users.role,
       })
       .from(staff)
+      .leftJoin(users, eq(staff.userId, users.id))
       .where(and(eq(staff.schoolId, data.schoolId), eq(staff.locationId, data.locationId)))
       .orderBy(asc(staff.firstName));
 
@@ -2500,6 +2504,8 @@ export const listStaff = createServerFn({ method: "GET" })
         ...s,
         joinDate: s.joinDate instanceof Date ? s.joinDate.toISOString().slice(0, 10) : (s.joinDate ?? null),
         classes: assignments.map((a) => a.className),
+        loginStatus: s.userId ? (s.loginStatus ?? "invited") : "none",
+        loginRole: s.loginRole ?? null,
       };
     }));
   });
@@ -2514,6 +2520,8 @@ const addStaffSchema = z.object({
   role: z.enum(["teacher", "assistant", "admin", "principal", "support"]).default("teacher"),
   joinDate: z.string().optional(),
   salary: z.string().optional(),
+  sendInvite: z.boolean().optional().default(false),
+  appRole: z.enum(["teacher", "staff", "accountant", "location_admin"]).optional().default("teacher"),
 });
 
 export const addStaffMember = createServerFn({ method: "POST" })
@@ -2525,7 +2533,9 @@ export const addStaffMember = createServerFn({ method: "POST" })
     await checkPlanLimit(data.schoolId, "staff");
 
     const { db } = await import("@/lib/db");
-    const { staff } = await import("@/lib/db/schema");
+    const { staff, users } = await import("@/lib/db/schema");
+
+    // Create staff record first
     const [res] = await db.insert(staff).values({
       schoolId: data.schoolId, locationId: data.locationId,
       firstName: data.firstName, lastName: data.lastName,
@@ -2535,7 +2545,36 @@ export const addStaffMember = createServerFn({ method: "POST" })
       salary: data.salary || null,
       status: "active", backgroundCheckStatus: "pending",
     });
-    return { ok: true, staffId: Number((res as any).insertId) };
+    const staffId = Number((res as any).insertId);
+
+    // Optionally create invite + link userId
+    let inviteToken: string | null = null;
+    if (data.sendInvite && data.email) {
+      const email = normalizeEmail(data.email);
+      const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      let userId: number;
+      if (existing) {
+        userId = existing.id;
+        await db.update(users).set({ status: "invited", role: data.appRole }).where(eq(users.id, userId));
+      } else {
+        const [uRes] = await db.insert(users).values({
+          schoolId: data.schoolId, locationId: data.locationId,
+          email, firstName: data.firstName, lastName: data.lastName,
+          role: data.appRole, status: "invited",
+        });
+        userId = Number((uRes as any).insertId);
+      }
+      // Link user to staff record
+      await db.update(staff).set({ userId }).where(eq(staff.id, staffId));
+
+      inviteToken = await new jose.SignJWT({ userId, purpose: "invite" })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("24h")
+        .sign(JWT_SECRET);
+    }
+
+    return { ok: true, staffId, inviteToken };
   });
 
 const updateStaffSchema = z.object({
@@ -2579,6 +2618,55 @@ export const archiveStaff = createServerFn({ method: "POST" })
     const { staff } = await import("@/lib/db/schema");
     await db.update(staff).set({ status: "terminated" }).where(eq(staff.id, data.staffId));
     return { ok: true };
+  });
+
+// ── Resend / send invite for an existing staff member ────────────────────────
+const resendStaffInviteSchema = z.object({
+  staffId: z.number(),
+  appRole: z.enum(["teacher", "staff", "accountant", "location_admin"]).default("teacher"),
+});
+
+export const resendStaffInvite = createServerFn({ method: "POST" })
+  .validator((input: unknown) => resendStaffInviteSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { staff, users } = await import("@/lib/db/schema");
+
+    const [member] = await db.select().from(staff).where(eq(staff.id, data.staffId)).limit(1);
+    if (!member) throw new Error("Staff not found");
+    if (!member.email) throw new Error("Staff has no email address");
+
+    const email = normalizeEmail(member.email);
+    let userId: number;
+
+    if (member.userId) {
+      // Already linked — just re-issue token and update role
+      userId = member.userId;
+      await db.update(users).set({ status: "invited", role: data.appRole }).where(eq(users.id, userId));
+    } else {
+      const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (existing) {
+        userId = existing.id;
+        await db.update(users).set({ status: "invited", role: data.appRole }).where(eq(users.id, userId));
+      } else {
+        const [uRes] = await db.insert(users).values({
+          schoolId: member.schoolId, locationId: member.locationId,
+          email, firstName: member.firstName, lastName: member.lastName,
+          role: data.appRole, status: "invited",
+        });
+        userId = Number((uRes as any).insertId);
+      }
+      await db.update(staff).set({ userId }).where(eq(staff.id, data.staffId));
+    }
+
+    const inviteToken = await new jose.SignJWT({ userId, purpose: "invite" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("24h")
+      .sign(JWT_SECRET);
+
+    return { ok: true, inviteToken };
   });
 
 // ─────────────────────────────────────────────────────────────────────────────
