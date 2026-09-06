@@ -45,6 +45,7 @@ import { Route as SuperAdminPaymentsRouteImport } from './routes/super-admin.pay
 import { Route as SuperAdminPlansRouteImport } from './routes/super-admin.plans'
 import { Route as SuperAdminSchoolsRouteImport } from './routes/super-admin.schools'
 import { Route as SuperAdminSubscriptionsRouteImport } from './routes/super-admin.subscriptions'
+import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherAttendanceRouteImport } from './routes/teacher.attendance'
 import { Route as SuperAdminSchoolsSchoolIdRouteImport } from './routes/super-admin.schools.$schoolId'
 
@@ -228,6 +229,11 @@ const SuperAdminSubscriptionsRoute = SuperAdminSubscriptionsRouteImport.update({
   path: '/subscriptions',
   getParentRoute: () => SuperAdminRoute,
 } as any)
+const TeacherIndexRoute = TeacherIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TeacherRoute,
+} as any)
 const TeacherAttendanceRoute = TeacherAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
+  '/teacher/': typeof TeacherIndexRoute
   '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
 }
 export interface FileRoutesByTo {
@@ -304,7 +311,6 @@ export interface FileRoutesByTo {
   '/schools': typeof SchoolsRoute
   '/signup': typeof SignupRoute
   '/super-admin': typeof SuperAdminRouteWithChildren
-  '/teacher': typeof TeacherRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
@@ -316,6 +322,7 @@ export interface FileRoutesByTo {
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff': typeof StaffIndexRoute
   '/students': typeof StudentsIndexRoute
+  '/teacher': typeof TeacherIndexRoute
   '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
 }
 export interface FileRoutesById {
@@ -357,6 +364,7 @@ export interface FileRoutesById {
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
+  '/teacher/': typeof TeacherIndexRoute
   '/super-admin/schools/$schoolId': typeof SuperAdminSchoolsSchoolIdRoute
 }
 export interface FileRouteTypes {
@@ -399,6 +407,7 @@ export interface FileRouteTypes {
     | '/teacher/attendance'
     | '/staff/'
     | '/students/'
+    | '/teacher/'
     | '/super-admin/schools/$schoolId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -425,7 +434,6 @@ export interface FileRouteTypes {
     | '/schools'
     | '/signup'
     | '/super-admin'
-    | '/teacher'
     | '/terms-of-service'
     | '/staff/$staffId'
     | '/students/$studentId'
@@ -437,6 +445,7 @@ export interface FileRouteTypes {
     | '/teacher/attendance'
     | '/staff'
     | '/students'
+    | '/teacher'
     | '/super-admin/schools/$schoolId'
   id:
     | '__root__'
@@ -477,6 +486,7 @@ export interface FileRouteTypes {
     | '/teacher/attendance'
     | '/staff/'
     | '/students/'
+    | '/teacher/'
     | '/super-admin/schools/$schoolId'
   fileRoutesById: FileRoutesById
 }
@@ -764,6 +774,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperAdminSubscriptionsRouteImport
       parentRoute: typeof SuperAdminRoute
     }
+    '/teacher/': {
+      id: '/teacher/'
+      path: '/'
+      fullPath: '/teacher/'
+      preLoaderRoute: typeof TeacherIndexRouteImport
+      parentRoute: typeof TeacherRoute
+    }
     '/teacher/attendance': {
       id: '/teacher/attendance'
       path: '/attendance'
@@ -840,10 +857,12 @@ const SuperAdminRouteWithChildren = SuperAdminRoute._addFileChildren(
 
 interface TeacherRouteChildren {
   TeacherAttendanceRoute: typeof TeacherAttendanceRoute
+  TeacherIndexRoute: typeof TeacherIndexRoute
 }
 
 const TeacherRouteChildren: TeacherRouteChildren = {
   TeacherAttendanceRoute: TeacherAttendanceRoute,
+  TeacherIndexRoute: TeacherIndexRoute,
 }
 
 const TeacherRouteWithChildren =
