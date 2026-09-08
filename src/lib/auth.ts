@@ -128,83 +128,82 @@ export const signup = createServerFn({ method: "POST" })
     if (existing) throw new Error("This email is already registered. Try signing in instead.");
 
     const skipConfirmation = process.env.SKIP_EMAIL_CONFIRMATION === "true";
-
-    const [schoolResult] = await db.insert(schools).values({
-      name: data.schoolName,
-      email: data.schoolEmail,
-      phone: data.schoolPhone,
-      address: data.schoolAddress,
-      city: data.schoolCity,
-      state: data.schoolState,
-      pincode: data.schoolPincode,
-      country: data.schoolCountry,
-      status: "active",
-      plan: "free",
-      maxLocations: 1,
-    });
-    const schoolId = Number((schoolResult as any).insertId);
-
-    const [locationResult] = await db.insert(locations).values({
-      schoolId,
-      name: "Main Branch",
-      address: data.schoolAddress,
-      city: data.schoolCity,
-      state: data.schoolState,
-      pincode: data.schoolPincode,
-      phone: data.schoolPhone,
-      status: "active",
-    });
-    const locationId = Number((locationResult as any).insertId);
-
-    const [freePlan] = await db.select({ id: plans.id, name: plans.name }).from(plans).where(eq(plans.id, 1)).limit(1);
-
-    await db.insert(subscriptions).values({
-      schoolId,
-      plan: freePlan?.name.toLowerCase() ?? "free",
-      planId: freePlan?.id ?? 1,
-      amount: "0",
-      currency: "INR",
-      billingCycle: "monthly",
-      status: "active",
-    });
-
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-
-    const [userResult] = await db.insert(users).values({
-      schoolId,
-      locationId,
-      email,
-      passwordHash,
-      firstName: data.fullName,
-      lastName: "",
-      role: "school_admin",
-      status: "active",
-      emailConfirmed: skipConfirmation ? 1 : 0,
-    });
-    const userId = Number((userResult as any).insertId);
-
-    if (skipConfirmation) {
-      // Dev: auto-login immediately
-      const token = await createSessionToken({ userId, schoolId, locationId, role: "school_admin", email });
-      return { confirmed: true, token };
-    }
-
-    // Production: send confirmation email
-    const now = new Date();
-    const confirmToken = randomHex(32);
-    await db.insert(otps).values({
-      email,
-      code: confirmToken,
-      type: "email_confirm",
-      expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-      used: 0,
-    });
-
     const appUrl = process.env.VITE_APP_URL ?? "http://localhost:3000";
     const { sendConfirmationEmail } = await import("@/lib/email");
-    await sendConfirmationEmail(email, confirmToken, appUrl);
 
-    return { confirmed: false, token: null };
+    return await db.transaction(async (tx) => {
+      const [schoolResult] = await tx.insert(schools).values({
+        name: data.schoolName,
+        email: data.schoolEmail,
+        phone: data.schoolPhone,
+        address: data.schoolAddress,
+        city: data.schoolCity,
+        state: data.schoolState,
+        pincode: data.schoolPincode,
+        country: data.schoolCountry,
+        status: "active",
+        plan: "free",
+        maxLocations: 1,
+      });
+      const schoolId = Number((schoolResult as any).insertId);
+
+      const [locationResult] = await tx.insert(locations).values({
+        schoolId,
+        name: "Main Branch",
+        address: data.schoolAddress,
+        city: data.schoolCity,
+        state: data.schoolState,
+        pincode: data.schoolPincode,
+        phone: data.schoolPhone,
+        status: "active",
+      });
+      const locationId = Number((locationResult as any).insertId);
+
+      const [freePlan] = await tx.select({ id: plans.id, name: plans.name }).from(plans).where(eq(plans.id, 1)).limit(1);
+
+      await tx.insert(subscriptions).values({
+        schoolId,
+        plan: freePlan?.name.toLowerCase() ?? "free",
+        planId: freePlan?.id ?? 1,
+        amount: "0",
+        currency: "INR",
+        billingCycle: "monthly",
+        status: "active",
+      });
+
+      const [userResult] = await tx.insert(users).values({
+        schoolId,
+        locationId,
+        email,
+        passwordHash,
+        firstName: data.fullName,
+        lastName: "",
+        role: "school_admin",
+        status: "active",
+        emailConfirmed: skipConfirmation ? 1 : 0,
+      });
+      const userId = Number((userResult as any).insertId);
+
+      if (skipConfirmation) {
+        const token = await createSessionToken({ userId, schoolId, locationId, role: "school_admin", email });
+        return { confirmed: true, token };
+      }
+
+      const now = new Date();
+      const confirmToken = randomHex(32);
+      await tx.insert(otps).values({
+        email,
+        code: confirmToken,
+        type: "email_confirm",
+        expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+        used: 0,
+      });
+
+      await sendConfirmationEmail(email, confirmToken, appUrl);
+
+      return { confirmed: false, token: null };
+    });
   });
 
 const loginSchema = z.object({
