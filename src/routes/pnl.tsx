@@ -134,14 +134,14 @@ function PnLPage() {
             <div ref={reportRef} className="print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] bg-slate-50 shadow-lg rounded-none p-8 mx-auto text-sm" style={{ minHeight: "297mm" }}>
               {/* Header */}
               <div className="flex items-start justify-between bg-white border border-slate-200 rounded-2xl p-5 mb-6">
-                <div>
+                <div className="flex flex-col items-start">
+                  <div className="w-20 h-20 border border-slate-200 bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-500 font-semibold mb-3">LOGO</div>
                   <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
-                  <p className="text-sm text-slate-500">{tenant.locationName}</p>
-                  <p className="text-sm font-semibold text-slate-800 mt-3">Profit & Loss Report</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-1">Profit & Loss Report</p>
                   <p className="text-xs text-slate-500">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
                 </div>
                 <div className="text-right">
-                  <div className="w-20 h-20 border border-slate-200 bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-500 font-semibold mb-2 ml-auto">LOGO</div>
+                  <p className="text-sm font-semibold text-slate-800">{tenant.locationName}</p>
                   <p className="text-xs text-slate-500">Generated on: {generatedOn}</p>
                 </div>
               </div>
