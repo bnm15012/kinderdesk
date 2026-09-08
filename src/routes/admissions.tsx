@@ -610,7 +610,7 @@ function InquiryDrawer({
             </div>
             <div className="p-6 space-y-4">
               {/* Child details */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">First name *</label>
                   <input value={enrollForm.firstName} onChange={(e) => eFormSet("firstName", e.target.value)}
@@ -622,7 +622,7 @@ function InquiryDrawer({
                     className={inputCls} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">Date of birth</label>
                   <input type="date" value={enrollForm.childDob} onChange={(e) => eFormSet("childDob", e.target.value)}
@@ -664,7 +664,7 @@ function InquiryDrawer({
                   <input value={enrollForm.parentName} onChange={(e) => eFormSet("parentName", e.target.value)}
                     className={inputCls} required />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">Email</label>
                     <input type="email" value={enrollForm.parentEmail} onChange={(e) => eFormSet("parentEmail", e.target.value)}

@@ -189,7 +189,7 @@ function Home() {
                 {/* Mock dashboard content */}
                 <div className="p-7 space-y-5">
                   {/* Stat cards row */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
                       { label: "Students", value: "142", color: "bg-blue-500/20 text-blue-200" },
                       { label: "Fee collected", value: "₹2.1L", color: "bg-emerald-500/20 text-emerald-200" },

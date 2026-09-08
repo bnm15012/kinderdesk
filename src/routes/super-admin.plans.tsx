@@ -10,7 +10,6 @@ export const Route = createFileRoute("/super-admin/plans")({
 
 type Plan = {
   id: number;
-  slug: string;
   name: string;
   price: string;
   period: string;
@@ -109,7 +108,6 @@ function PlansAdmin() {
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">{plan.name}</h2>
-                <p className="text-xs text-slate-400 font-mono">{plan.slug}</p>
               </div>
               {plan.featured && (
                 <span className="text-xs font-bold bg-blue-600 text-white px-2 py-1 rounded-full">Featured</span>

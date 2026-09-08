@@ -189,7 +189,7 @@ function ExamsPage() {
               <h3 className="text-sm font-bold text-slate-800 mb-3">Subjects for {selectedExam.term}</h3>
               {esForm && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3 space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <select value={esForm.subjectId} onChange={(e) => setEsForm({ ...esForm, subjectId: Number(e.target.value) })} className={inputCls + " bg-white"}>
                       <option value={0}>— subject —</option>
                       {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}

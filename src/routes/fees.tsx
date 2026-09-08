@@ -410,7 +410,8 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px] text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <th className="px-5 py-3.5 w-16">S.No</th>
@@ -452,6 +453,7 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
               ))}
             </tbody>
           </table>
+          </div>
 
           <Pagination
             currentPage={currentPage}

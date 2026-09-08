@@ -59,7 +59,7 @@ const SUB_STATUS_BADGE: Record<string, string> = {
 // ── Revenue Cards ──────────────────────────────────────────────────────────
 function RevenueSection({ rev, loading }: { rev: Revenue | null; loading: boolean }) {
   if (loading) return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[1,2,3,4].map(i => <div key={i} className="bg-white rounded-2xl border border-slate-200 h-28 animate-pulse" />)}
     </div>
   );
@@ -72,7 +72,7 @@ function RevenueSection({ rev, loading }: { rev: Revenue | null; loading: boolea
   return (
     <div className="space-y-4">
       {/* Revenue metric cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             label: "MRR",

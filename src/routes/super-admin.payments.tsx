@@ -138,7 +138,7 @@ function PaymentsAdmin() {
           <div className="w-72 h-4 bg-slate-200 rounded animate-pulse" />
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
@@ -184,7 +184,7 @@ function PaymentsAdmin() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Object.entries(stats).map(([key, value]) => {
           const meta = STAT_META[key];
           const Icon = meta.icon;

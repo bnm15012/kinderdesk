@@ -5,7 +5,7 @@ import { plans } from "@/lib/db/schema";
 
 const seedPlans = [
   {
-    slug: "free",
+    id: 1,
     name: "Free",
     price: "₹0",
     period: "forever",
@@ -18,7 +18,7 @@ const seedPlans = [
     ctaHref: "/signup",
   },
   {
-    slug: "growth",
+    id: 2,
     name: "Growth",
     price: "₹1,499",
     period: "per month",
@@ -31,7 +31,7 @@ const seedPlans = [
     ctaHref: "/signup",
   },
   {
-    slug: "enterprise",
+    id: 3,
     name: "Enterprise",
     price: "Custom",
     period: "contact us",
@@ -50,14 +50,14 @@ async function main() {
     const [existing] = await db
       .select({ id: plans.id })
       .from(plans)
-      .where(eq(plans.slug, p.slug))
+      .where(eq(plans.id, p.id))
       .limit(1);
     if (existing) {
-      console.log(`Plan ${p.slug} already exists — skipping`);
+      console.log(`Plan ${p.name} already exists — skipping`);
       continue;
     }
     const [r] = await db.insert(plans).values(p);
-    console.log(`Created plan ${p.slug} (id ${Number((r as any).insertId)})`);
+    console.log(`Created plan ${p.name} (id ${Number((r as any).insertId)})`);
   }
   await pool.end();
 }

@@ -798,7 +798,7 @@ function StudentDetailPage() {
                             <div className={`h-2 rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
                           </div>
                           {/* Stats row */}
-                          <div className="grid grid-cols-4 gap-2 text-center">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                             {[
                               { label: "Present", val: m.present, cls: "text-emerald-700 bg-emerald-50" },
                               { label: "Absent", val: m.absent, cls: "text-red-700 bg-red-50" },
@@ -838,7 +838,7 @@ function StudentDetailPage() {
                       <button onClick={() => { setRcShowForm(false); setRcYear(""); setRcTerm(""); setRcClassId(""); setRcError(""); }}
                         className="p-1 rounded-lg hover:bg-violet-100 text-violet-500"><X className="w-4 h-4" /></button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-600 mb-1">Academic Year *</label>
                         <input value={rcYear} onChange={(e) => setRcYear(e.target.value)}

@@ -17,7 +17,6 @@ import { relations } from "drizzle-orm";
 export const schools = mysqlTable("schools", {
   id: int("id").primaryKey().autoincrement(),
   name: varchar("name", { length: 255 }).notNull(),
-  slug: varchar("slug", { length: 100 }).notNull(),
   logoUrl: varchar("logo_url", { length: 500 }),
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 50 }),
@@ -560,7 +559,6 @@ export const subscriptionPayments = mysqlTable("subscription_payments", {
 // ── KinderDesk SaaS Plan Catalog ─────────────────────────────────────────────
 export const plans = mysqlTable("plans", {
   id: int("id").primaryKey().autoincrement(),
-  slug: varchar("slug", { length: 50 }).notNull().unique(),
   name: varchar("name", { length: 100 }).notNull(),
   price: varchar("price", { length: 50 }).notNull().default("₹0"),
   period: varchar("period", { length: 50 }).notNull().default("forever"),

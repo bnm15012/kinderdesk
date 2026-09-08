@@ -28,7 +28,7 @@ type School = {
 };
 type Location = { id: number; name: string; city: string | null; status: string | null; capacity: number | null };
 type Subscription = {
-  id: number; plan: string; amount: string | number; billingCycle: string | null;
+  id: number; plan: string; planId: number; amount: string | number; billingCycle: string | null;
   status: string | null; currentPeriodStart: any; currentPeriodEnd: any; startedAt: any;
 };
 type Payment = {
@@ -60,7 +60,7 @@ function EditSubscriptionModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [f, setF] = useState({
-    plan:         sub?.plan ?? "growth",
+    planId:       sub?.planId ?? 2,
     amount:       String(Number(sub?.amount ?? 1999)),
     billingCycle: (sub?.billingCycle ?? "monthly") as "monthly" | "yearly" | "lifetime",
     status:       (sub?.status ?? "active") as "trialing"|"active"|"past_due"|"canceled"|"paused",
@@ -68,7 +68,7 @@ function EditSubscriptionModal({
     maxStaff:     "",
     maxLocations: "",
   });
-  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +77,7 @@ function EditSubscriptionModal({
       await updateFn({
         data: {
           schoolId,
-          plan: f.plan,
+          planId: f.planId,
           amount: Number(f.amount),
           billingCycle: f.billingCycle,
           status: f.status,
@@ -102,10 +102,10 @@ function EditSubscriptionModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Plan</label>
-              <select value={f.plan} onChange={(e) => set("plan", e.target.value)} className={`${inputCls} bg-white`}>
-                <option value="free">Free</option>
-                <option value="growth">Growth</option>
-                <option value="enterprise">Enterprise</option>
+              <select value={f.planId} onChange={(e) => set("planId", Number(e.target.value))} className={`${inputCls} bg-white`}>
+                <option value={1}>Free</option>
+                <option value={2}>Growth</option>
+                <option value={3}>Enterprise</option>
               </select>
             </div>
             <div>
@@ -278,7 +278,7 @@ function SchoolDetailPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Students",  value: stats.studentCount, icon: Users,     color: "text-blue-600",   bg: "bg-blue-50"   },
           { label: "Staff",     value: stats.staffCount,   icon: Briefcase, color: "text-violet-600", bg: "bg-violet-50" },

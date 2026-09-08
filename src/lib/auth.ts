@@ -88,14 +88,6 @@ function normalizeEmail(email: string) {
   return email.toLowerCase().trim();
 }
 
-function generateSlug(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 async function createSessionToken(payload: jose.JWTPayload) {
   return await new jose.SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
@@ -130,8 +122,6 @@ export const signup = createServerFn({ method: "POST" })
     const { schools, locations, users, subscriptions, plans, otps } = await import("@/lib/db/schema");
 
     const email = normalizeEmail(data.email);
-    const now = new Date();
-    const slug = `${generateSlug(data.schoolName)}-${now.getTime().toString(36)}`;
 
     // Check duplicate email
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
@@ -141,7 +131,6 @@ export const signup = createServerFn({ method: "POST" })
 
     const [schoolResult] = await db.insert(schools).values({
       name: data.schoolName,
-      slug,
       email: data.schoolEmail,
       phone: data.schoolPhone,
       address: data.schoolAddress,
@@ -167,17 +156,16 @@ export const signup = createServerFn({ method: "POST" })
     });
     const locationId = Number((locationResult as any).insertId);
 
-    const [freePlan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.slug, "free")).limit(1);
+    const [freePlan] = await db.select({ id: plans.id, name: plans.name }).from(plans).where(eq(plans.id, 1)).limit(1);
 
     await db.insert(subscriptions).values({
       schoolId,
-      plan: "free",
+      plan: freePlan?.name.toLowerCase() ?? "free",
       planId: freePlan?.id ?? 1,
       amount: "0",
       currency: "INR",
       billingCycle: "monthly",
       status: "active",
-      startedAt: now,
     });
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
@@ -1226,7 +1214,6 @@ export const getPlans = createServerFn({ method: "GET" }).handler(async () => {
   const rows = await db
     .select({
       id: plans.id,
-      slug: plans.slug,
       name: plans.name,
       price: plans.price,
       period: plans.period,
@@ -1348,7 +1335,6 @@ export const getSuperAdminDashboard = createServerFn({ method: "GET" }).handler(
     })
     .from(schools)
     .leftJoin(subscriptions, eq(subscriptions.schoolId, schools.id))
-    .where(ne(schools.slug, "kinderdesk-platform"))
     .orderBy(desc(schools.createdAt));
 
   // Deduplicate (left join can produce multiple rows if a school has multiple subs)
@@ -1625,7 +1611,7 @@ export const getSuperAdminSchoolDetail = createServerFn({ method: "GET" })
 // ── Super Admin: update school subscription (plan, amount, status) ────────────
 const updateSchoolSubscriptionSchema = z.object({
   schoolId: z.number(),
-  plan: z.string(),
+  planId: z.number(),
   amount: z.number(),
   billingCycle: z.enum(["monthly", "yearly", "lifetime"]),
   status: z.enum(["trialing", "active", "past_due", "canceled", "paused"]),
@@ -1646,11 +1632,12 @@ export const updateSchoolSubscription = createServerFn({ method: "POST" })
 
     // Update or insert subscription
     const [existing] = await db.select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.schoolId, data.schoolId)).limit(1);
-    const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.slug, data.plan)).limit(1);
+    const [plan] = await db.select({ id: plans.id, name: plans.name }).from(plans).where(eq(plans.id, data.planId)).limit(1);
+    const planName = plan?.name.toLowerCase() ?? "free";
     if (existing) {
       await db.update(subscriptions).set({
-        plan: data.plan,
-        planId: plan?.id ?? 1,
+        plan: planName,
+        planId: data.planId,
         amount: String(data.amount),
         billingCycle: data.billingCycle,
         status: data.status,
@@ -1658,8 +1645,8 @@ export const updateSchoolSubscription = createServerFn({ method: "POST" })
     } else {
       await db.insert(subscriptions).values({
         schoolId: data.schoolId,
-        plan: data.plan,
-        planId: plan?.id ?? 1,
+        plan: planName,
+        planId: data.planId,
         amount: String(data.amount),
         billingCycle: data.billingCycle,
         status: data.status,
@@ -1668,7 +1655,7 @@ export const updateSchoolSubscription = createServerFn({ method: "POST" })
 
     // Update school plan + limits
     await db.update(schools).set({
-      plan: data.plan,
+      plan: planName,
       ...(data.maxStudents  !== undefined && { maxStudents:  data.maxStudents  }),
       ...(data.maxStaff     !== undefined && { maxStaff:     data.maxStaff     }),
       ...(data.maxLocations !== undefined && { maxLocations: data.maxLocations }),
