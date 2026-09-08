@@ -70,6 +70,13 @@ function ExpensesPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row flex-wrap items-end sm:items-end gap-4">
+        <div className="w-full sm:flex-1 sm:min-w-[260px]">
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Search</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " bg-white pl-9 h-10 w-full"} placeholder="Search by category, description, amount, date" />
+          </div>
+        </div>
         <div className="flex items-end gap-2">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
@@ -80,13 +87,6 @@ function ExpensesPage() {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white h-10"} />
           </div>
           <button onClick={load} className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
-        </div>
-        <div className="w-full sm:flex-1 sm:min-w-[260px]">
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Search</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " bg-white pl-9 h-10 w-full"} placeholder="Search by category, description, amount, date" />
-          </div>
         </div>
       </div>
 
