@@ -76,7 +76,7 @@ function AcademicsPage() {
   const [annForm, setAnnForm] = useState<{ id?: number; title: string; message: string; target: string } | null>(null);
 
   // Grading / board
-  const [schoolBoard, setSchoolBoard] = useState<string>("generic");
+  const [schoolBoard, setSchoolBoardValue] = useState<string>("generic");
   type Scale = { id: number; board: string; name: string; minPercentage: string | number; maxPercentage: string | number; gradePoint: string | number | null };
   const [gradingScalesList, setGradingScalesList] = useState<Scale[]>([]);
   const [scaleForm, setScaleForm] = useState<{ id?: number; name: string; minPercentage: string; maxPercentage: string; gradePoint: string } | null>(null);
@@ -92,7 +92,7 @@ function AcademicsPage() {
     if (activeTab === "subjects") listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
     if (activeTab === "announcements") listAnnouncementsFn({ data: {} }).then((d) => setAnnouncements(d as Announcement[]));
     if (activeTab === "grading") {
-      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoard(d));
+      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoardValue(d));
       listGradingScalesFn({ data: { board: schoolBoard } }).then((d: any) => setGradingScalesList(d));
     }
   }, [activeTab, tenant, schoolBoard]);
@@ -357,7 +357,7 @@ function AcademicsPage() {
           <div className="mb-6">
             <h2 className="text-base font-bold text-slate-800 mb-3">School Board</h2>
             <div className="flex items-center gap-3">
-              <select value={schoolBoard} onChange={(e) => setSchoolBoard(e.target.value)} className={inputCls + " w-48 bg-white"}>
+              <select value={schoolBoard} onChange={(e) => setSchoolBoardValue(e.target.value)} className={inputCls + " w-48 bg-white"}>
                 <option value="preschool">Preschool (no exams/marks)</option>
                 <option value="generic">Generic</option>
                 <option value="CBSE">CBSE</option>
