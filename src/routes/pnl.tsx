@@ -154,14 +154,14 @@ function PnLPage() {
               </div>
             </div>
           </div>
-          <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2">
+          <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
             <FileText className="w-4 h-4" /> Generate Report
           </button>
           <div className="grid grid-cols-1 gap-3">
-            <button onClick={downloadPdf} className="flex items-center justify-center gap-1.5 h-10 px-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition">
+            <button onClick={downloadPdf} className="flex items-center justify-center gap-1.5 h-10 px-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition cursor-pointer">
               <Download className="w-4 h-4" /> Download
             </button>
-            <button onClick={printPdf} className="flex items-center justify-center gap-1.5 h-10 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl transition">
+            <button onClick={printPdf} className="flex items-center justify-center gap-1.5 h-10 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl transition cursor-pointer">
               <Printer className="w-4 h-4" /> Print
             </button>
           </div>
