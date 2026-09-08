@@ -5256,7 +5256,7 @@ export const getPnl = createServerFn({ method: "GET" })
   .validator((i: unknown) => getPnlSchema.parse(i))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { expenses, invoices, payments, students, feeStructures } = await import("@/lib/db/schema");
+    const { expenses, invoices, payments, students, feeStructures, locations } = await import("@/lib/db/schema");
     const user = await requireAuth(data.schoolId, data.locationId);
     if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
 
