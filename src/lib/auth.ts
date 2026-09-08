@@ -5314,6 +5314,17 @@ export const getPnl = createServerFn({ method: "GET" })
       ))
       .orderBy(desc(payments.paidAt));
 
+    const [location] = await db.select({
+      name: locations.name,
+      address: locations.address,
+      city: locations.city,
+      state: locations.state,
+      pincode: locations.pincode,
+    })
+      .from(locations)
+      .where(eq(locations.id, data.locationId))
+      .limit(1);
+
     const income = parseFloat((incomeRow.total as any) ?? "0");
     const expenseTotal = parseFloat((expenseRow.total as any) ?? "0");
     const net = income - expenseTotal;
@@ -5324,6 +5335,7 @@ export const getPnl = createServerFn({ method: "GET" })
       income,
       expenses: expenseTotal,
       net,
+      location: location ?? { name: "", address: null, city: null, state: null, pincode: null },
       incomeList,
       expenseList,
     };

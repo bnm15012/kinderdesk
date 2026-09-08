@@ -13,6 +13,7 @@ export const Route = createFileRoute("/pnl")({
 
 type Income = { id: number; studentName: string; method: string; feeName: string | null; amount: string; paidAt: string | null };
 type Expense = { id: number; category: string; description: string | null; amount: string; expenseDate: string | null };
+type Location = { name: string; address: string | null; city: string | null; state: string | null; pincode: string | null };
 
 type PnL = {
   from: string;
@@ -20,6 +21,7 @@ type PnL = {
   income: number;
   expenses: number;
   net: number;
+  location: Location;
   incomeList: Income[];
   expenseList: Expense[];
 };
@@ -152,8 +154,14 @@ function PnLPage() {
                   <p className="text-xs text-slate-500 mt-1">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-800">{tenant.locationName}</p>
-                  <p className="text-xs text-slate-500">Generated on: {generatedOn}</p>
+                  <p className="text-sm font-semibold text-slate-800">{pnl?.location?.name ?? tenant.locationName}</p>
+                  {pnl?.location?.address && <p className="text-xs text-slate-500">{pnl.location.address}</p>}
+                  {(pnl?.location?.city || pnl?.location?.state) && (
+                    <p className="text-xs text-slate-500">
+                      {[pnl.location.city, pnl.location.state, pnl.location.pincode].filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">Generated on: {generatedOn}</p>
                 </div>
               </div>
 
