@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getParentPortal, updateChildPersonal, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
+import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
 import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Clipboard, Megaphone } from "lucide-react";
 
 export const Route = createFileRoute("/parent")({
@@ -17,10 +17,18 @@ type Fee = {
   dueDate: string | null; status: string; razorpayOrderId: string | null;
   paidAt: string | null; paidMethod: string | null;
 };
+type ParentContact = {
+  id: number; studentId: number; relation: string; phone: string | null; address: string | null;
+};
+type EmergencyContact = {
+  id: number; studentId: number; name: string; relation: string; phone: string;
+};
 type PortalData = {
   user: { firstName: string | null; lastName: string | null; email: string };
   children: Child[];
   fees: Fee[];
+  parentContacts: ParentContact[];
+  emergencyContacts: EmergencyContact[];
 };
 type Activity = {
   id: number; classId: number; className: string; title: string;
@@ -56,6 +64,7 @@ function loadRazorpayScript(): Promise<boolean> {
 function ParentPortal() {
   const getPortalFn         = useServerFn(getParentPortal);
   const updateChildFn       = useServerFn(updateChildPersonal);
+  const updateParentFn      = useServerFn(updateParentContact);
   const getActivitiesFn     = useServerFn(getCurriculumActivities);
   const createOrderFn       = useServerFn(createRazorpayOrder);
   const verifyFn            = useServerFn(verifyRazorpayPayment);
@@ -75,7 +84,7 @@ function ParentPortal() {
   const [payError, setPayError] = useState<string>("");
   const [editing, setEditing]   = useState(false);
   const [saving, setSaving]     = useState(false);
-  const [editForm, setEditForm] = useState<{ bloodGroup: string; gender: string }>({ bloodGroup: "", gender: "" });
+  const [editForm, setEditForm] = useState<{ bloodGroup: string; gender: string; dateOfBirth: string }>({ bloodGroup: "", gender: "", dateOfBirth: "" });
 
   // Academic profile state
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
@@ -138,6 +147,7 @@ function ParentPortal() {
       const payload: any = { studentId: child.id };
       if (editForm.gender) payload.gender = editForm.gender;
       if (editForm.bloodGroup) payload.bloodGroup = editForm.bloodGroup;
+      if (editForm.dateOfBirth) payload.dateOfBirth = editForm.dateOfBirth;
       await updateChildFn({ data: payload });
       const refreshed = await getPortalFn() as PortalData;
       setData(refreshed);
@@ -277,6 +287,7 @@ function ParentPortal() {
                     {child.bloodGroup && !editing && <span>Blood Group: <span className="font-medium text-slate-700 uppercase">{child.bloodGroup}</span></span>}
                     {editing && (
                       <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                        <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
                         <select value={editForm.gender} onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
                           <option value="">Select gender</option>
                           <option value="male">Male</option>
@@ -296,7 +307,7 @@ function ParentPortal() {
                       <button onClick={() => setEditing(false)} disabled={saving} className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200 transition">Cancel</button>
                     </div>
                   ) : (
-                    <button onClick={() => { setEditForm({ bloodGroup: child.bloodGroup ?? "", gender: child.gender ?? "" }); setEditing(true); }} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-100 transition">Edit</button>
+                    <button onClick={() => { setEditForm({ bloodGroup: child.bloodGroup ?? "", gender: child.gender ?? "", dateOfBirth: child.dateOfBirth ?? "" }); setEditing(true); }} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-100 transition">Edit</button>
                   )}
                 </div>
               </div>

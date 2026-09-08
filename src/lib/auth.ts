@@ -1058,7 +1058,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
   if (!userId) throw new Error("Not authenticated");
 
   const { db } = await import("@/lib/db");
-  const { users, parents, students, invoices } = await import("@/lib/db/schema");
+  const { users, parents, students, invoices, emergencyContacts } = await import("@/lib/db/schema");
 
   const [user] = await db
     .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
@@ -1069,7 +1069,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
   if (user.role !== "parent") throw new Error("Not authorized");
 
   const parentRecords = await db
-    .select({ studentId: parents.studentId, relation: parents.relation })
+    .select({ id: parents.id, studentId: parents.studentId, relation: parents.relation, phone: parents.phone, address: parents.address })
     .from(parents)
     .where(and(eq(parents.schoolId, user.schoolId), eq(parents.email, user.email ?? "")));
 
@@ -1111,12 +1111,27 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
         .orderBy(asc(invoices.dueDate))
     : [];
 
+  const emergency = childIds.length
+    ? await db
+        .select({
+          id: emergencyContacts.id,
+          studentId: emergencyContacts.studentId,
+          name: emergencyContacts.name,
+          relation: emergencyContacts.relation,
+          phone: emergencyContacts.phone,
+        })
+        .from(emergencyContacts)
+        .where(inArray(emergencyContacts.studentId, childIds))
+    : [];
+
   return {
     user: { firstName: user.firstName, lastName: user.lastName, email: user.email },
     children: children.map((c) => ({
       ...c,
       dateOfBirth: c.dateOfBirth ? fmtDate(c.dateOfBirth) : null,
     })),
+    parentContacts: parentRecords,
+    emergencyContacts: emergency,
     fees: fees.map((f) => ({
       ...f,
       dueDate: f.dueDate ? fmtDate(f.dueDate) : null,
@@ -1130,6 +1145,7 @@ const updateChildPersonalSchema = z.object({
   studentId: z.number(),
   bloodGroup: z.string().max(10).optional(),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export const updateChildPersonal = createServerFn({ method: "POST" })
@@ -1157,8 +1173,45 @@ export const updateChildPersonal = createServerFn({ method: "POST" })
       .set({
         bloodGroup: data.bloodGroup,
         gender: data.gender,
+        dateOfBirth: data.dateOfBirth as any,
       })
       .where(eq(students.id, data.studentId));
+    return { ok: true };
+  });
+
+const updateParentContactSchema = z.object({
+  parentId: z.number(),
+  phone: z.string().max(50).optional(),
+  address: z.string().max(65535).optional(),
+});
+
+export const updateParentContact = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateParentContactSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, parents } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, schoolId: users.schoolId, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user || user.role !== "parent") throw new Error("Not authorized");
+
+    const [parent] = await db
+      .select({ id: parents.id, email: parents.email })
+      .from(parents)
+      .where(and(eq(parents.id, data.parentId), eq(parents.schoolId, user.schoolId)))
+      .limit(1);
+    if (!parent || parent.email !== user.email) throw new Error("Not authorized");
+
+    await db.update(parents)
+      .set({
+        phone: data.phone,
+        address: data.address,
+      })
+      .where(eq(parents.id, data.parentId));
     return { ok: true };
   });
 
