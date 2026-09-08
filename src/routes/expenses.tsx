@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Pencil, Trash2, Wallet, Search } from "lucide-react";
 import { manageExpense, listExpenses, deleteExpense } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
+import { usePagination } from "@/lib/usePagination";
+import { Pagination } from "@/components/pagination";
 
 export const Route = createFileRoute("/expenses")({
   component: ExpensesPage,
@@ -13,6 +15,7 @@ export const Route = createFileRoute("/expenses")({
 type Expense = { id: number; category: string; description: string | null; amount: string; expenseDate: string | null };
 
 const CATEGORIES = ["salary", "electricity", "rent", "supplies", "transport", "maintenance", "other"];
+const PAGE_SIZE = 12;
 const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
 const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
@@ -30,18 +33,19 @@ function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState<{ id?: number; category: string; description: string; amount: string; expenseDate: string } | null>(null);
 
-  const PAGE_SIZE = 12;
-
-  const filteredExpenses = expenses.filter((e) => {
+  const filteredExpenses = useMemo(() => {
     const q = search.toLowerCase();
-    return (e.category ?? "").toLowerCase().includes(q)
+    return expenses.filter((e) =>
+      (e.category ?? "").toLowerCase().includes(q)
       || (e.description ?? "").toLowerCase().includes(q)
       || (e.amount ?? "").includes(q)
-      || (e.expenseDate ?? "").includes(q);
-  });
+      || (e.expenseDate ?? "").includes(q)
+    );
+  }, [expenses, search]);
+
+  const { pageItems, currentPage, setCurrentPage, totalPages } = usePagination(filteredExpenses, PAGE_SIZE);
 
   const load = async () => {
     if (!tenant) return;
@@ -49,18 +53,11 @@ function ExpensesPage() {
     setExpenses(e);
   };
 
-  const totalPages = Math.ceil(filteredExpenses.length / PAGE_SIZE);
-  const pageItems = filteredExpenses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
   useEffect(() => {
     if (!tenant) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, expenses]);
 
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
@@ -139,18 +136,13 @@ function ExpensesPage() {
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-slate-500">Showing {pageItems.length} of {filteredExpenses.length} records</p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50">Prev</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setCurrentPage(p)} className={`w-9 h-9 text-sm font-semibold rounded-lg ${currentPage === p ? "bg-blue-600 text-white" : "border border-slate-200 hover:bg-slate-50"}`}>{p}</button>
-              ))}
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50">Next</button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredExpenses.length}
+          pageSize={PAGE_SIZE}
+        />
       </div>
     </div>
   );
