@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Pencil, Trash2, Wallet, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, Search, Save, X } from "lucide-react";
 import { manageExpense, listExpenses, deleteExpense } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
@@ -102,14 +102,18 @@ function ExpensesPage() {
               <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Amount" />
               <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls} placeholder="Description" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setForm(null)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 text-xs font-semibold transition hover:bg-red-100">
+                <X className="w-3.5 h-3.5" /> Cancel
+              </button>
               <button onClick={async () => {
                 await manageExpenseFn({ data: { id: form.id, schoolId: tenant.schoolId, locationId: tenant.locationId, category: form.category as any, amount: form.amount, description: form.description, expenseDate: form.expenseDate } });
                 setForm(null);
                 await load();
                 toast("Saved", "success");
-              }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-              <button onClick={() => setForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
+              }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition">
+                <Save className="w-3.5 h-3.5" /> Save
+              </button>
             </div>
           </div>
         )}
