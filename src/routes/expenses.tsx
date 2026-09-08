@@ -62,21 +62,23 @@ function ExpensesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-wrap items-end gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls + " bg-white"} />
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row flex-wrap items-end sm:items-end gap-4">
+        <div className="flex items-end gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls + " bg-white h-10"} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white h-10"} />
+          </div>
+          <button onClick={load} className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white"} />
-        </div>
-        <button onClick={load} className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
-        <div className="flex-1 min-w-[200px]">
+        <div className="w-full sm:flex-1 sm:min-w-[260px]">
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">Search</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " bg-white pl-9 w-full"} placeholder="Search by category, description, amount, date" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " bg-white pl-9 h-10 w-full"} placeholder="Search by category, description, amount, date" />
           </div>
         </div>
       </div>
@@ -105,24 +107,26 @@ function ExpensesPage() {
           </div>
         )}
 
-        <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
-          <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2">Category</th><th className="text-left px-4 py-2">Description</th><th className="text-left px-4 py-2">Date</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Actions</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredExpenses.map((e) => (
-              <tr key={e.id}>
-                <td className="px-4 py-2 capitalize">{e.category}</td>
-                <td className="px-4 py-2 text-slate-500">{e.description || "—"}</td>
-                <td className="px-4 py-2 text-slate-500">{e.expenseDate ?? "—"}</td>
-                <td className="px-4 py-2 text-right">{money(parseFloat(e.amount))}</td>
-                <td className="px-4 py-2 text-right">
-                  <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ?? today })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                  <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                </td>
-              </tr>
-            ))}
-            {filteredExpenses.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">{search ? "No matching expenses" : "No expenses in this period"}</td></tr>}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Category</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Description</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Date</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Amount</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Actions</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredExpenses.map((e) => (
+                <tr key={e.id} className="hover:bg-slate-50 even:bg-white">
+                  <td className="px-4 py-2.5 capitalize">{e.category}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{e.description || "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{e.expenseDate ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-right font-medium text-slate-800">{money(parseFloat(e.amount))}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ?? today })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </td>
+                </tr>
+              ))}
+              {filteredExpenses.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">{search ? "No matching expenses" : "No expenses found"}</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
