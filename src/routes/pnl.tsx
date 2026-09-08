@@ -168,9 +168,8 @@ function PnLPage() {
         </div>
 
         {/* Report preview */}
-        <div className="flex-1 w-full">
-          <div className="overflow-x-auto">
-            <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-6 text-sm">
+        <div className="flex-1 w-full h-[calc(100vh-200px)] overflow-auto">
+          <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-6 text-sm">
               <style>{`
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
                 .report-pdf .report-header { background-color: #ffffff !important; border-bottom: 2px solid #2563eb !important; }
@@ -322,7 +321,6 @@ function PnLPage() {
                 This is a computer-generated report. For queries, contact {tenant.schoolName}.
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
