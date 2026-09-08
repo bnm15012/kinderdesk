@@ -92,37 +92,36 @@ function ExpensesPage() {
 
       {/* Expenses list */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        {form && (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-[60px_1fr_1.5fr_120px_120px_140px] gap-3 items-center">
-              <div className="flex items-center justify-center h-10 text-slate-400 text-sm font-semibold">—</div>
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls + " bg-white"}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-              </select>
-              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls} placeholder="Description" />
-              <input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} className={inputCls + " bg-white"} />
-              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Amount" />
-              <div className="flex items-center gap-2 justify-end">
-                <button onClick={() => setForm(null)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 text-xs font-semibold transition hover:bg-red-100">
-                  <X className="w-3.5 h-3.5" /> Cancel
-                </button>
-                <button onClick={async () => {
-                  await manageExpenseFn({ data: { id: form.id, schoolId: tenant.schoolId, locationId: tenant.locationId, category: form.category as any, amount: form.amount, description: form.description, expenseDate: form.expenseDate } });
-                  setForm(null);
-                  await load();
-                  toast("Saved", "success");
-                }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition">
-                  <Save className="w-3.5 h-3.5" /> Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2.5 font-semibold text-slate-700 w-16">S.No</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Category</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Description</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Date</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Amount</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Actions</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
+              {form && (
+                <tr className="bg-slate-50">
+                  <td className="px-4 py-2.5 text-slate-400 w-16 text-center font-semibold">—</td>
+                  <td className="px-4 py-2.5"><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls + " bg-white w-full"}>
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+                  </select></td>
+                  <td className="px-4 py-2.5"><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls + " w-full"} placeholder="Description" /></td>
+                  <td className="px-4 py-2.5"><input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} className={inputCls + " bg-white w-full"} /></td>
+                  <td className="px-4 py-2.5"><input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls + " w-full"} placeholder="Amount" /></td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setForm(null)} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 text-xs font-semibold transition hover:bg-red-100">
+                        <X className="w-3.5 h-3.5" /> Cancel
+                      </button>
+                      <button onClick={async () => {
+                        await manageExpenseFn({ data: { id: form.id, schoolId: tenant.schoolId, locationId: tenant.locationId, category: form.category as any, amount: form.amount, description: form.description, expenseDate: form.expenseDate } });
+                        setForm(null);
+                        await load();
+                        toast("Saved", "success");
+                      }} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition">
+                        <Save className="w-3.5 h-3.5" /> Save
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {pageItems.map((e, i) => (
                 <tr key={e.id} className="hover:bg-slate-50 even:bg-white">
                   <td className="px-4 py-2.5 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
@@ -136,7 +135,7 @@ function ExpensesPage() {
                   </td>
                 </tr>
               ))}
-              {pageItems.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">{search ? "No matching expenses" : "No expenses found"}</td></tr>}
+              {pageItems.length === 0 && !form && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">{search ? "No matching expenses" : "No expenses found"}</td></tr>}
             </tbody>
           </table>
         </div>
