@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
 import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Clipboard, Megaphone } from "lucide-react";
+import { fmtDateTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/parent")({
   component: ParentPortal,
@@ -608,6 +609,7 @@ function ParentPortal() {
                       <h3 className="font-semibold text-slate-900 text-sm">{a.title}</h3>
                     </div>
                     {a.message && <p className="text-xs text-slate-500">{a.message}</p>}
+                    <p className="text-[10px] text-slate-400 mt-1">{fmtDateTime(a.createdAt)}</p>
                   </div>
                 ))}
               </div>

@@ -2,14 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  BookOpen, Clock, Megaphone, Plus, X, Pencil, Trash2, Save,
+  BookOpen, Clock, Plus, X, Pencil, Trash2, Save,
   AlertCircle, Loader2, CheckCircle2, GraduationCap, Award, SlidersHorizontal,
 } from "lucide-react";
 import {
   manageSubject, listSubjects, deleteSubject,
   setClassSubjects, getClassSubjects,
   upsertTimetable, getTimetable, deleteTimetable,
-  manageSchoolAnnouncement, listSchoolAnnouncements, deleteSchoolAnnouncement,
   listClassesForSchool,
   getSchoolBoard, setSchoolBoard,
   listGradingScales, manageGradingScale, deleteGradingScale, seedDefaultGradingScales,
@@ -24,7 +23,6 @@ export const Route = createFileRoute("/academics")({
 type Subject = { id: number; name: string; code: string | null; status: string };
 type ClassRow = { id: number; name: string; ageGroup: string };
 type TT = { id: number; dayOfWeek: number; periodNumber: number; startTime: string | null; endTime: string | null; subjectId: number | null; teacherId: number | null; subjectName: string | null; teacherName: string | null };
-type Announcement = { id: number; title: string; message: string | null; target: string; createdAt: any };
 
 const DAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
@@ -32,7 +30,7 @@ const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-5
 function AcademicsPage() {
   const { tenant } = useTenant();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<"subjects" | "classes" | "timetable" | "announcements" | "grading">("subjects");
+  const [activeTab, setActiveTab] = useState<"subjects" | "classes" | "timetable" | "grading">("subjects");
 
   // Server fns
   const manageSubjectFn = useServerFn(manageSubject);
@@ -44,9 +42,6 @@ function AcademicsPage() {
   const getTimetableFn = useServerFn(getTimetable);
   const deleteTimetableFn = useServerFn(deleteTimetable);
   const listClassesFn = useServerFn(listClassesForSchool);
-  const manageAnnouncementFn = useServerFn(manageSchoolAnnouncement);
-  const listAnnouncementsFn = useServerFn(listSchoolAnnouncements);
-  const deleteAnnouncementFn = useServerFn(deleteSchoolAnnouncement);
   const getSchoolBoardFn = useServerFn(getSchoolBoard);
   const setSchoolBoardFn = useServerFn(setSchoolBoard);
   const listGradingScalesFn = useServerFn(listGradingScales);
@@ -71,10 +66,6 @@ function AcademicsPage() {
   const [tt, setTt] = useState<TT[]>([]);
   const [ttForm, setTtForm] = useState<{ id?: number; dayOfWeek: number; periodNumber: number; startTime: string; endTime: string; subjectId: number; teacherId: number } | null>(null);
 
-  // Announcements
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [annForm, setAnnForm] = useState<{ id?: number; title: string; message: string; target: string } | null>(null);
-
   // Grading / board
   const [schoolBoard, setSchoolBoardValue] = useState<string>("generic");
   type Scale = { id: number; board: string; name: string; minPercentage: string | number; maxPercentage: string | number; gradePoint: string | number | null };
@@ -90,7 +81,6 @@ function AcademicsPage() {
   useEffect(() => {
     if (!tenant) return;
     if (activeTab === "subjects") listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
-    if (activeTab === "announcements") listAnnouncementsFn({ data: {} }).then((d) => setAnnouncements(d as Announcement[]));
     if (activeTab === "grading") {
       getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoardValue(d));
       listGradingScalesFn({ data: { board: schoolBoard } }).then((d: any) => setGradingScalesList(d));
@@ -121,7 +111,6 @@ function AcademicsPage() {
           { key: "classes", label: "Class Subjects", icon: GraduationCap },
           { key: "timetable", label: "Timetable", icon: Clock },
           ...((schoolBoard !== "preschool" ? [{ key: "grading", label: "Board & Grading", icon: Award }] : []) as any[]),
-          { key: "announcements", label: "Announcements", icon: Megaphone },
         ] as any[]).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -295,58 +284,6 @@ function AcademicsPage() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Announcements */}
-      {activeTab === "announcements" && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-800">School Announcements</h2>
-            <button onClick={() => setAnnForm({ title: "", message: "", target: "all" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition">
-              <Plus className="w-3.5 h-3.5" /> Add
-            </button>
-          </div>
-
-          {annForm && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
-              <input value={annForm.title} onChange={(e) => setAnnForm({ ...annForm, title: e.target.value })} className={inputCls} placeholder="Title" />
-              <textarea value={annForm.message} onChange={(e) => setAnnForm({ ...annForm, message: e.target.value })} className={inputCls} rows={3} placeholder="Message" />
-              <select value={annForm.target} onChange={(e) => setAnnForm({ ...annForm, target: e.target.value })} className={inputCls + " bg-white"}>
-                <option value="all">All</option>
-                <option value="parents">Parents</option>
-                <option value="staff">Staff</option>
-              </select>
-              <div className="flex gap-2">
-                <button onClick={async () => {
-                  if (!annForm.title) return;
-                  await manageAnnouncementFn({ data: { id: annForm.id, title: annForm.title, message: annForm.message, target: annForm.target as any } });
-                  setAnnForm(null);
-                  const d = await listAnnouncementsFn({ data: {} });
-                  setAnnouncements(d as Announcement[]);
-                  toast("Saved", "success");
-                }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-                <button onClick={() => setAnnForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {announcements.map((a) => (
-              <div key={a.id} className="p-4 rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-bold text-slate-800">{a.title}</p>
-                  <div className="flex gap-1">
-                    <button onClick={() => setAnnForm({ id: a.id, title: a.title, message: a.message ?? "", target: a.target })} className="p-1 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={async () => { await deleteAnnouncementFn({ data: { id: a.id } }); setAnnouncements((p) => p.filter((x) => x.id !== a.id)); }} className="p-1 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500 mb-1">{a.message}</p>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{a.target}</span>
-              </div>
-            ))}
-            {announcements.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No announcements</p>}
           </div>
         </div>
       )}

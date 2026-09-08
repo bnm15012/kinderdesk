@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AcademicsRouteImport } from './routes/academics'
 import { Route as AdmissionsRouteImport } from './routes/admissions'
+import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as ClassesRouteImport } from './routes/classes'
 import { Route as ConfirmRouteImport } from './routes/confirm'
@@ -53,6 +54,7 @@ import { Route as SuperAdminPlansRouteImport } from './routes/super-admin.plans'
 import { Route as SuperAdminSchoolsRouteImport } from './routes/super-admin.schools'
 import { Route as SuperAdminSubscriptionsRouteImport } from './routes/super-admin.subscriptions'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
+import { Route as TeacherAnnouncementsRouteImport } from './routes/teacher.announcements'
 import { Route as TeacherAttendanceRouteImport } from './routes/teacher.attendance'
 import { Route as SuperAdminSchoolsSchoolIdRouteImport } from './routes/super-admin.schools.$schoolId'
 
@@ -74,6 +76,11 @@ const AcademicsRoute = AcademicsRouteImport.update({
 const AdmissionsRoute = AdmissionsRouteImport.update({
   id: '/admissions',
   path: '/admissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnnouncementsRoute = AnnouncementsRouteImport.update({
+  id: '/announcements',
+  path: '/announcements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AttendanceRoute = AttendanceRouteImport.update({
@@ -276,6 +283,11 @@ const TeacherIndexRoute = TeacherIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TeacherRoute,
 } as any)
+const TeacherAnnouncementsRoute = TeacherAnnouncementsRouteImport.update({
+  id: '/announcements',
+  path: '/announcements',
+  getParentRoute: () => TeacherRoute,
+} as any)
 const TeacherAttendanceRoute = TeacherAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
@@ -293,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
+  '/announcements': typeof AnnouncementsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
   '/confirm': typeof ConfirmRoute
@@ -330,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/plans': typeof SuperAdminPlansRoute
   '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
+  '/teacher/announcements': typeof TeacherAnnouncementsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
@@ -341,6 +355,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
+  '/announcements': typeof AnnouncementsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
   '/confirm': typeof ConfirmRoute
@@ -375,6 +390,7 @@ export interface FileRoutesByTo {
   '/super-admin/plans': typeof SuperAdminPlansRoute
   '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
+  '/teacher/announcements': typeof TeacherAnnouncementsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff': typeof StaffIndexRoute
   '/students': typeof StudentsIndexRoute
@@ -387,6 +403,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
+  '/announcements': typeof AnnouncementsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
   '/confirm': typeof ConfirmRoute
@@ -424,6 +441,7 @@ export interface FileRoutesById {
   '/super-admin/plans': typeof SuperAdminPlansRoute
   '/super-admin/schools': typeof SuperAdminSchoolsRouteWithChildren
   '/super-admin/subscriptions': typeof SuperAdminSubscriptionsRoute
+  '/teacher/announcements': typeof TeacherAnnouncementsRoute
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/staff/': typeof StaffIndexRoute
   '/students/': typeof StudentsIndexRoute
@@ -437,6 +455,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/academics'
     | '/admissions'
+    | '/announcements'
     | '/attendance'
     | '/classes'
     | '/confirm'
@@ -474,6 +493,7 @@ export interface FileRouteTypes {
     | '/super-admin/plans'
     | '/super-admin/schools'
     | '/super-admin/subscriptions'
+    | '/teacher/announcements'
     | '/teacher/attendance'
     | '/staff/'
     | '/students/'
@@ -485,6 +505,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/academics'
     | '/admissions'
+    | '/announcements'
     | '/attendance'
     | '/classes'
     | '/confirm'
@@ -519,6 +540,7 @@ export interface FileRouteTypes {
     | '/super-admin/plans'
     | '/super-admin/schools'
     | '/super-admin/subscriptions'
+    | '/teacher/announcements'
     | '/teacher/attendance'
     | '/staff'
     | '/students'
@@ -530,6 +552,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/academics'
     | '/admissions'
+    | '/announcements'
     | '/attendance'
     | '/classes'
     | '/confirm'
@@ -567,6 +590,7 @@ export interface FileRouteTypes {
     | '/super-admin/plans'
     | '/super-admin/schools'
     | '/super-admin/subscriptions'
+    | '/teacher/announcements'
     | '/teacher/attendance'
     | '/staff/'
     | '/students/'
@@ -579,6 +603,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AcademicsRoute: typeof AcademicsRoute
   AdmissionsRoute: typeof AdmissionsRoute
+  AnnouncementsRoute: typeof AnnouncementsRoute
   AttendanceRoute: typeof AttendanceRoute
   ClassesRoute: typeof ClassesRoute
   ConfirmRoute: typeof ConfirmRoute
@@ -639,6 +664,13 @@ declare module '@tanstack/react-router' {
       path: '/admissions'
       fullPath: '/admissions'
       preLoaderRoute: typeof AdmissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/announcements': {
+      id: '/announcements'
+      path: '/announcements'
+      fullPath: '/announcements'
+      preLoaderRoute: typeof AnnouncementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/attendance': {
@@ -921,6 +953,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherIndexRouteImport
       parentRoute: typeof TeacherRoute
     }
+    '/teacher/announcements': {
+      id: '/teacher/announcements'
+      path: '/announcements'
+      fullPath: '/teacher/announcements'
+      preLoaderRoute: typeof TeacherAnnouncementsRouteImport
+      parentRoute: typeof TeacherRoute
+    }
     '/teacher/attendance': {
       id: '/teacher/attendance'
       path: '/attendance'
@@ -996,11 +1035,13 @@ const SuperAdminRouteWithChildren = SuperAdminRoute._addFileChildren(
 )
 
 interface TeacherRouteChildren {
+  TeacherAnnouncementsRoute: typeof TeacherAnnouncementsRoute
   TeacherAttendanceRoute: typeof TeacherAttendanceRoute
   TeacherIndexRoute: typeof TeacherIndexRoute
 }
 
 const TeacherRouteChildren: TeacherRouteChildren = {
+  TeacherAnnouncementsRoute: TeacherAnnouncementsRoute,
   TeacherAttendanceRoute: TeacherAttendanceRoute,
   TeacherIndexRoute: TeacherIndexRoute,
 }
@@ -1013,6 +1054,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AcademicsRoute: AcademicsRoute,
   AdmissionsRoute: AdmissionsRoute,
+  AnnouncementsRoute: AnnouncementsRoute,
   AttendanceRoute: AttendanceRoute,
   ClassesRoute: ClassesRoute,
   ConfirmRoute: ConfirmRoute,

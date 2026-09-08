@@ -507,6 +507,16 @@ export const schoolAnnouncements = mysqlTable("school_announcements", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Tracks which users have dismissed a school announcement
+export const schoolAnnouncementDismissals = mysqlTable("school_announcement_dismissals", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolAnnouncementId: int("school_announcement_id").notNull().references(() => schoolAnnouncements.id, { onDelete: "cascade" }),
+  userId: int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dismissedAt: timestamp("dismissed_at").defaultNow(),
+}, (t) => ({
+  uniqueDismissal: uniqueIndex("school_announcement_dismissals_sa_user").on(t.schoolAnnouncementId, t.userId),
+}));
+
 // ── Documents (birth certificate, immunization, photos) ─────────────────────
 export const documents = mysqlTable("documents", {
   id: int("id").primaryKey().autoincrement(),

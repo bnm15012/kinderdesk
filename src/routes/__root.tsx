@@ -28,6 +28,7 @@ import {
   Clipboard,
   TrendingUp,
   Wallet,
+  Megaphone,
 } from "lucide-react";
 import appCss from "../styles.css?url";
 import { TenantProvider, useTenant } from "@/lib/tenant";
@@ -57,19 +58,20 @@ export function roleHome(role: string | null | undefined): string {
 
 // Nav items visible per role
 const ADMIN_NAV = [
-  { to: "/dashboard",   label: "Dashboard",   icon: LayoutDashboard },
-  { to: "/admissions",  label: "Admissions",  icon: UserPlus },
-  { to: "/students",    label: "Students",    icon: Users },
-  { to: "/attendance",  label: "Attendance",  icon: CalendarCheck },
-  { to: "/fees",        label: "Fees",        icon: DollarSign },
-  { to: "/academics",   label: "Academics",   icon: GraduationCap },
-  { to: "/exams",       label: "Exams",       icon: ClipboardList },
-  { to: "/homework",    label: "Homework",    icon: Clipboard },
-  { to: "/staff",       label: "Staff",       icon: Briefcase },
-  { to: "/classes",     label: "Classes",     icon: DoorOpen },
-  { to: "/expenses",    label: "Expenses",    icon: Wallet },
-  { to: "/pnl",         label: "P&L",         icon: TrendingUp },
-  { to: "/curriculum",  label: "Activities",  icon: BookOpen },
+  { to: "/dashboard",       label: "Dashboard",      icon: LayoutDashboard },
+  { to: "/admissions",      label: "Admissions",     icon: UserPlus },
+  { to: "/students",        label: "Students",       icon: Users },
+  { to: "/attendance",      label: "Attendance",     icon: CalendarCheck },
+  { to: "/fees",            label: "Fees",           icon: DollarSign },
+  { to: "/academics",       label: "Academics",      icon: GraduationCap },
+  { to: "/exams",           label: "Exams",          icon: ClipboardList },
+  { to: "/homework",        label: "Homework",       icon: Clipboard },
+  { to: "/staff",           label: "Staff",          icon: Briefcase },
+  { to: "/classes",         label: "Classes",        icon: DoorOpen },
+  { to: "/expenses",        label: "Expenses",       icon: Wallet },
+  { to: "/pnl",             label: "P&L",            icon: TrendingUp },
+  { to: "/curriculum",      label: "Activities",     icon: BookOpen },
+  { to: "/announcements",   label: "Announcements",  icon: Megaphone },
 ];
 
 const SCHOOL_ADMIN_NAV = [
@@ -78,12 +80,13 @@ const SCHOOL_ADMIN_NAV = [
 ];
 
 const TEACHER_NAV = [
-  { to: "/teacher",             label: "My Dashboard",  icon: LayoutDashboard },
-  { to: "/teacher/attendance",  label: "Attendance",    icon: CalendarCheck   },
-  { to: "/homework",            label: "Homework",      icon: BookOpen        },
-  { to: "/classes",             label: "Classes",       icon: DoorOpen        },
-  { to: "/exams",               label: "Exams",         icon: ClipboardList   },
-  { to: "/curriculum",          label: "Activities",    icon: BookOpen        },
+  { to: "/teacher",               label: "My Dashboard",  icon: LayoutDashboard },
+  { to: "/teacher/attendance",    label: "Attendance",    icon: CalendarCheck   },
+  { to: "/homework",              label: "Homework",      icon: BookOpen        },
+  { to: "/classes",               label: "Classes",       icon: DoorOpen        },
+  { to: "/exams",                 label: "Exams",         icon: ClipboardList   },
+  { to: "/curriculum",            label: "Activities",    icon: BookOpen        },
+  { to: "/teacher/announcements", label: "Announcements", icon: Megaphone       },
 ];
 
 const PARENT_NAV = [
@@ -302,10 +305,10 @@ function AppShell() {
       }
       // Role-based redirect
       const home = roleHome(user.role);
-      const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/expenses", "/pnl"];
+      const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/expenses", "/pnl", "/announcements"];
       const accountantRoutes = ["/dashboard", "/fees"];
       const receptionistRoutes = ["/admissions", "/fees", "/exams"];
-      const teacherRoutes = ["/teacher", "/teacher/attendance", "/homework", "/classes", "/exams", "/curriculum"];
+      const teacherRoutes = ["/teacher", "/teacher/attendance", "/homework", "/classes", "/exams", "/curriculum", "/teacher/announcements"];
       const parentRoutes = ["/parent"];
       const superRoutes = ["/super-admin"];
       if (user.role === "teacher" || user.role === "staff") {

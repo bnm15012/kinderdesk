@@ -870,7 +870,7 @@ export const getTeacherDashboard = createServerFn({ method: "GET" }).handler(asy
   if (!userId) throw new Error("Not authenticated");
 
   const { db } = await import("@/lib/db");
-  const { users, staff, staffClassAssignments, classes, classEnrollments, staffAttendance } = await import("@/lib/db/schema");
+  const { users, staff, staffClassAssignments, classes, classEnrollments, staffAttendance, students } = await import("@/lib/db/schema");
 
   const [user] = await db
     .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
@@ -1788,7 +1788,7 @@ async function requireAuth(requestedSchoolId?: number, requestedLocationId?: num
   const { db } = await import("@/lib/db");
   const { users } = await import("@/lib/db/schema");
   const [user] = await db
-    .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId })
+    .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email })
     .from(users).where(eq(users.id, userId)).limit(1);
   if (!user) throw new Error("Not authenticated");
 
@@ -2636,11 +2636,13 @@ const listClassesSchema = z.object({ schoolId: z.number(), locationId: z.number(
 export const listClasses = createServerFn({ method: "GET" })
   .validator((input: unknown) => listClassesSchema.parse(input))
   .handler(async ({ data }) => {
-    await requireAuth(data.schoolId, data.locationId);
+    const user = await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { classes, classEnrollments } = await import("@/lib/db/schema");
+    const { classes, classEnrollments, staff, staffClassAssignments } = await import("@/lib/db/schema");
 
-    const rows = await db
+    const isAdmin = user.role === "super_admin" || user.role === "school_admin" || user.role === "location_admin";
+
+    let query: any = db
       .select({
         id: classes.id,
         name: classes.name,
@@ -2655,6 +2657,41 @@ export const listClasses = createServerFn({ method: "GET" })
       .from(classes)
       .where(and(eq(classes.schoolId, data.schoolId), eq(classes.locationId, data.locationId)))
       .orderBy(asc(classes.name));
+
+    if (!isAdmin && (user.role === "teacher" || user.role === "staff")) {
+      const [staffRecord] = await db
+        .select({ id: staff.id })
+        .from(staff)
+        .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+        .limit(1);
+
+      if (staffRecord) {
+        query = db
+          .select({
+            id: classes.id,
+            name: classes.name,
+            ageGroup: classes.ageGroup,
+            roomName: classes.roomName,
+            capacity: classes.capacity,
+            startTime: classes.startTime,
+            endTime: classes.endTime,
+            academicYear: classes.academicYear,
+            status: classes.status,
+          })
+          .from(classes)
+          .innerJoin(staffClassAssignments, eq(staffClassAssignments.classId, classes.id))
+          .where(and(
+            eq(classes.schoolId, data.schoolId),
+            eq(classes.locationId, data.locationId),
+            eq(staffClassAssignments.staffId, staffRecord.id),
+          ))
+          .orderBy(asc(classes.name));
+      } else {
+        return [];
+      }
+    }
+
+    const rows = await query;
 
     // Attach enrolled count per class
     return Promise.all(rows.map(async (c) => {
@@ -2681,7 +2718,10 @@ const addClassSchema = z.object({
 export const addClass = createServerFn({ method: "POST" })
   .validator((input: unknown) => addClassSchema.parse(input))
   .handler(async ({ data }) => {
-    await requireAuth(data.schoolId, data.locationId);
+    const user = await requireAuth(data.schoolId, data.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) {
+      throw new Error("Only admins can add classes");
+    }
     const { db } = await import("@/lib/db");
     const { classes } = await import("@/lib/db/schema");
 
@@ -2722,7 +2762,6 @@ const updateClassSchema = z.object({
 export const updateClass = createServerFn({ method: "POST" })
   .validator((input: unknown) => updateClassSchema.parse(input))
   .handler(async ({ data }) => {
-    await requireSession();
     const { db } = await import("@/lib/db");
     const { classes } = await import("@/lib/db/schema");
 
@@ -2732,6 +2771,11 @@ export const updateClass = createServerFn({ method: "POST" })
       .where(eq(classes.id, data.classId))
       .limit(1);
     if (!cls) throw new Error("Class not found");
+
+    const user = await requireAuth(cls.schoolId, cls.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) {
+      throw new Error("Only admins can update classes");
+    }
 
     const [existing] = await db
       .select({ id: classes.id })
@@ -2761,9 +2805,21 @@ const archiveClassSchema = z.object({ classId: z.number() });
 export const archiveClass = createServerFn({ method: "POST" })
   .validator((input: unknown) => archiveClassSchema.parse(input))
   .handler(async ({ data }) => {
-    await requireSession();
     const { db } = await import("@/lib/db");
     const { classes } = await import("@/lib/db/schema");
+
+    const [cls] = await db
+      .select({ id: classes.id, schoolId: classes.schoolId, locationId: classes.locationId })
+      .from(classes)
+      .where(eq(classes.id, data.classId))
+      .limit(1);
+    if (!cls) throw new Error("Class not found");
+
+    const user = await requireAuth(cls.schoolId, cls.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) {
+      throw new Error("Only admins can archive classes");
+    }
+
     await db.update(classes).set({ status: "inactive" }).where(eq(classes.id, data.classId));
     return { ok: true };
   });
@@ -4018,47 +4074,40 @@ export const deleteAnnouncement = createServerFn({ method: "POST" })
 
 // ── Any user: get active announcements for their role (for banner) ────────────
 export const getActiveAnnouncements = createServerFn({ method: "GET" }).handler(async () => {
-  const req = getRequest();
-  const cookieHeader = req?.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
-  const token = match?.[1];
-  if (!token) return [];
-  const { payload } = await verifySessionToken(token).catch(() => ({ payload: null }));
-  if (!payload) return [];
-  const userId = Number((payload as any).userId);
+  const user = await requireAuth();
   const { db } = await import("@/lib/db");
-  const { users, announcements, announcementDismissals } = await import("@/lib/db/schema");
-  const { sql: sqlRaw, notInArray, or: drizzleOr } = await import("drizzle-orm");
+  const { schoolAnnouncements, schoolAnnouncementDismissals } = await import("@/lib/db/schema");
 
-  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
-  if (!user) return [];
-
-  const now = new Date();
+  const target = user.role === "parent" ? "parents" : "staff";
 
   // Dismissed by this user
   const dismissed = await db
-    .select({ announcementId: announcementDismissals.announcementId })
-    .from(announcementDismissals)
-    .where(eq(announcementDismissals.userId, userId));
+    .select({ announcementId: schoolAnnouncementDismissals.schoolAnnouncementId })
+    .from(schoolAnnouncementDismissals)
+    .where(eq(schoolAnnouncementDismissals.userId, user.id));
   const dismissedIds = dismissed.map((d) => d.announcementId);
 
-  // Active, not expired, not dismissed, targeted at this role or "all"
+  const conditions = [
+    eq(schoolAnnouncements.schoolId, user.schoolId),
+    eq(schoolAnnouncements.locationId, user.locationId),
+    or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, target)),
+  ];
+  if (dismissedIds.length > 0) {
+    conditions.push(notInArray(schoolAnnouncements.id, dismissedIds));
+  }
+
   const rows = await db
     .select()
-    .from(announcements)
-    .where(
-      and(
-        eq(announcements.isActive, 1),
-        ...(dismissedIds.length > 0 ? [notInArray(announcements.id, dismissedIds)] : []),
-      )
-    )
-    .orderBy(desc(announcements.createdAt));
+    .from(schoolAnnouncements)
+    .where(and(...conditions))
+    .orderBy(desc(schoolAnnouncements.createdAt));
 
-  return rows.filter((a) => {
-    if (a.expiresAt && new Date(a.expiresAt) < now) return false;
-    if (a.targetRole === "all") return true;
-    return a.targetRole === user.role;
-  });
+  return rows.map((a) => ({
+    id: a.id,
+    title: a.title,
+    body: a.message ?? "",
+    type: "info" as const,
+  }));
 });
 
 // ── Any user: dismiss an announcement ────────────────────────────────────────
@@ -4066,20 +4115,29 @@ const dismissAnnouncementSchema = z.object({ announcementId: z.number() });
 export const dismissAnnouncement = createServerFn({ method: "POST" })
   .validator((i: unknown) => dismissAnnouncementSchema.parse(i))
   .handler(async ({ data }) => {
-    const req = getRequest();
-    const cookieHeader = req?.headers.get("cookie") ?? "";
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
-    const token = match?.[1];
-    if (!token) throw new Error("Not authenticated");
-    const { payload } = await verifySessionToken(token);
-    const userId = Number(payload.userId);
+    const user = await requireAuth();
     const { db } = await import("@/lib/db");
-    const { announcementDismissals } = await import("@/lib/db/schema");
-    // Ignore duplicate dismissals
-    await db.insert(announcementDismissals).values({
-      announcementId: data.announcementId,
-      userId,
-    }).onDuplicateKeyUpdate({ set: { dismissedAt: new Date() } });
+    const { schoolAnnouncementDismissals } = await import("@/lib/db/schema");
+
+    const [existing] = await db
+      .select({ id: schoolAnnouncementDismissals.id })
+      .from(schoolAnnouncementDismissals)
+      .where(and(
+        eq(schoolAnnouncementDismissals.schoolAnnouncementId, data.announcementId),
+        eq(schoolAnnouncementDismissals.userId, user.id),
+      ))
+      .limit(1);
+
+    if (existing) {
+      await db.update(schoolAnnouncementDismissals)
+        .set({ dismissedAt: new Date() })
+        .where(eq(schoolAnnouncementDismissals.id, existing.id));
+    } else {
+      await db.insert(schoolAnnouncementDismissals).values({
+        schoolAnnouncementId: data.announcementId,
+        userId: user.id,
+      });
+    }
     return { ok: true };
   });
 
@@ -5945,15 +6003,18 @@ const listSchoolAnnouncementsSchema = z.object({
 export const listSchoolAnnouncements = createServerFn({ method: "GET" })
   .validator((i: unknown) => listSchoolAnnouncementsSchema.parse(i))
   .handler(async ({ data }) => {
-    await requireSession();
+    const { schoolId, locationId } = await requireAuth();
     const { db } = await import("@/lib/db");
     const { schoolAnnouncements } = await import("@/lib/db/schema");
 
-    const conditions = [];
+    const conditions = [
+      eq(schoolAnnouncements.schoolId, schoolId),
+      eq(schoolAnnouncements.locationId, locationId),
+    ];
     if (data.target) conditions.push(or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, data.target)));
 
     return db.select().from(schoolAnnouncements)
-      .where(conditions.length ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .orderBy(desc(schoolAnnouncements.createdAt));
   });
 

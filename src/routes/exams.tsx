@@ -9,7 +9,7 @@ import {
   manageExam, listExams, deleteExam,
   upsertExamSubject, listExamSubjects, deleteExamSubject,
   getStudentsForMarks, listStudentMarks, saveStudentMarks,
-  listClassesForSchool, listSubjects, getReportCardData,
+  listClasses, listSubjects, getReportCardData,
   getSchoolBoard,
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
@@ -37,7 +37,7 @@ function ExamsPage() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [selectedClass, setSelectedClass] = useState<number>(0);
 
-  const listClassesFn = useServerFn(listClassesForSchool);
+  const listClassesFn = useServerFn(listClasses);
   const listSubjectsFn = useServerFn(listSubjects);
   const manageExamFn = useServerFn(manageExam);
   const listExamsFn = useServerFn(listExams);

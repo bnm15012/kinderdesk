@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
-import { manageHomework, listHomework, deleteHomework, listClassesForSchool, listSubjects } from "@/lib/auth";
+import { manageHomework, listHomework, deleteHomework, listClasses, listSubjects } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { fmtDate } from "@/lib/utils";
@@ -25,7 +25,7 @@ function HomeworkPage() {
   const [hwList, setHwList] = useState<HW[]>([]);
   const [selectedClass, setSelectedClass] = useState<number>(0);
 
-  const listClassesFn = useServerFn(listClassesForSchool);
+  const listClassesFn = useServerFn(listClasses);
   const listSubjectsFn = useServerFn(listSubjects);
   const listHwFn = useServerFn(listHomework);
   const manageHwFn = useServerFn(manageHomework);

@@ -5,7 +5,7 @@ import {
   X, Plus, Search, Users, AlertCircle, ChevronRight,
   DoorOpen, Clock, Pencil, Save, XCircle, Trash2,
 } from "lucide-react";
-import { listClasses, addClass, updateClass, archiveClass } from "@/lib/auth";
+import { listClasses, addClass, updateClass, archiveClass, getSession } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 
 export const Route = createFileRoute("/classes")({
@@ -231,12 +231,16 @@ function EditClassDrawer({ cls, onClose, onUpdated, onArchived }: {
 function Classes() {
   const { tenant } = useTenant();
   const listFn = useServerFn(listClasses);
+  const sessionFn = useServerFn(getSession);
   const [rows, setRows] = useState<ClassRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<ClassRow | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+
+  const isAdmin = ["super_admin", "school_admin", "location_admin"].includes(role ?? "");
 
   const load = () => {
     setLoading(true);
@@ -245,7 +249,9 @@ function Classes() {
       .catch((e) => setError(e?.message ?? "Failed to load"))
       .finally(() => setLoading(false));
   };
+
   useEffect(() => { load(); }, [tenant.schoolId, tenant.locationId]);
+  useEffect(() => { sessionFn().then((u) => u && setRole(u.role)); }, []);
 
   const filtered = rows.filter((c) => {
     const q = search.toLowerCase();
@@ -261,9 +267,11 @@ function Classes() {
             {loading ? "Loading…" : `${rows.filter(r => r.status === "active").length} active class${rows.filter(r => r.status === "active").length !== 1 ? "es" : ""}`}
           </p>
         </div>
-        <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
-          <Plus className="w-4 h-4" /> Add Class
-        </button>
+        {isAdmin && (
+          <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
+            <Plus className="w-4 h-4" /> Add Class
+          </button>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -301,7 +309,11 @@ function Classes() {
                 const pct = Math.round((c.enrolledCount / c.capacity) * 100);
                 const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-blue-500";
                 return (
-                  <tr key={c.id} onClick={() => setSelected(c)} className="hover:bg-slate-50 cursor-pointer transition">
+                  <tr
+                    key={c.id}
+                    onClick={() => isAdmin && setSelected(c)}
+                    className={`transition ${isAdmin ? "hover:bg-slate-50 cursor-pointer" : ""}`}
+                  >
                     <td className="px-4 py-3 text-slate-500 w-16">{i + 1}</td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-900">{c.name}</p>

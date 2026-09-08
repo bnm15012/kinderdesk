@@ -35,7 +35,7 @@ export function AnnouncementBanner() {
 
   const dismiss = async (id: number) => {
     setItems((prev) => prev.filter((a) => a.id !== id));
-    try { await dismissFn({ data: { announcementId: id } }); } catch { /* silent */ }
+    try { await dismissFn({ data: { announcementId: id } }); } catch (e: any) { console.error("Failed to dismiss announcement:", e?.message ?? e); }
   };
 
   if (items.length === 0) return null;
