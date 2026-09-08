@@ -5444,7 +5444,158 @@ export const deleteSchoolAnnouncement = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ── AUTO-GENERATED REPORT CARD (from marks) ───────────────────────────────────
+// ── SCHOOL BOARD ──────────────────────────────────────────────────────────────
+
+const setSchoolBoardSchema = z.object({ schoolId: z.number(), board: z.enum(["generic", "CBSE", "ICSE", "IB", "STATE"]) });
+export const setSchoolBoard = createServerFn({ method: "POST" })
+  .validator((i: unknown) => setSchoolBoardSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId: userSchoolId } = await requireAuth();
+    if (userSchoolId !== data.schoolId) throw new Error("Not authorized");
+    const { db } = await import("@/lib/db");
+    const { schools } = await import("@/lib/db/schema");
+    await db.update(schools).set({ board: data.board }).where(eq(schools.id, data.schoolId));
+    return { ok: true };
+  });
+
+const getSchoolBoardSchema = z.object({ schoolId: z.number() });
+export const getSchoolBoard = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getSchoolBoardSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId);
+    const { db } = await import("@/lib/db");
+    const { schools } = await import("@/lib/db/schema");
+    const [s] = await db.select({ board: schools.board }).from(schools).where(eq(schools.id, data.schoolId)).limit(1);
+    return s?.board ?? "generic";
+  });
+
+// ── GRADING SCALES ────────────────────────────────────────────────────────────
+
+const manageGradingScaleSchema = z.object({
+  id: z.number().optional(),
+  board: z.string().trim().min(1).max(20),
+  name: z.string().trim().min(1).max(50),
+  minPercentage: z.number().min(0).max(100),
+  maxPercentage: z.number().min(0).max(100),
+  gradePoint: z.number().optional(),
+});
+
+export const manageGradingScale = createServerFn({ method: "POST" })
+  .validator((i: unknown) => manageGradingScaleSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { gradingScales } = await import("@/lib/db/schema");
+    if (data.id) {
+      await db.update(gradingScales).set({
+        board: data.board,
+        name: data.name,
+        minPercentage: String(data.minPercentage),
+        maxPercentage: String(data.maxPercentage),
+        gradePoint: data.gradePoint != null ? String(data.gradePoint) : null,
+      }).where(eq(gradingScales.id, data.id));
+      return { id: data.id };
+    }
+    const [r] = await db.insert(gradingScales).values({
+      schoolId,
+      board: data.board,
+      name: data.name,
+      minPercentage: String(data.minPercentage),
+      maxPercentage: String(data.maxPercentage),
+      gradePoint: data.gradePoint != null ? String(data.gradePoint) : null,
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const listGradingScalesSchema = z.object({ board: z.string().optional() });
+export const listGradingScales = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listGradingScalesSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { gradingScales } = await import("@/lib/db/schema");
+    const conditions: any[] = [eq(gradingScales.schoolId, schoolId)];
+    if (data.board) conditions.push(eq(gradingScales.board, data.board));
+    return db.select().from(gradingScales)
+      .where(and(...conditions))
+      .orderBy(asc(gradingScales.minPercentage));
+  });
+
+const deleteGradingScaleSchema = z.object({ id: z.number() });
+export const deleteGradingScale = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteGradingScaleSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { gradingScales } = await import("@/lib/db/schema");
+    await db.delete(gradingScales).where(and(eq(gradingScales.id, data.id), eq(gradingScales.schoolId, schoolId)));
+    return { ok: true };
+  });
+
+// Seed default grading scales for a board
+export const seedDefaultGradingScales = createServerFn({ method: "POST" })
+  .handler(async () => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { gradingScales } = await import("@/lib/db/schema");
+
+    const defaults: Record<string, { name: string; min: number; max: number; gp?: number }[]> = {
+      CBSE: [
+        { name: "A1", min: 91, max: 100, gp: 10 },
+        { name: "A2", min: 81, max: 90, gp: 9 },
+        { name: "B1", min: 71, max: 80, gp: 8 },
+        { name: "B2", min: 61, max: 70, gp: 7 },
+        { name: "C1", min: 51, max: 60, gp: 6 },
+        { name: "C2", min: 41, max: 50, gp: 5 },
+        { name: "D",  min: 33, max: 40, gp: 4 },
+        { name: "E",  min: 0,  max: 32, gp: 0 },
+      ],
+      ICSE: [
+        { name: "A+", min: 90, max: 100, gp: 10 },
+        { name: "A",  min: 80, max: 89,  gp: 9 },
+        { name: "B+", min: 70, max: 79,  gp: 8 },
+        { name: "B",  min: 60, max: 69,  gp: 7 },
+        { name: "C+", min: 50, max: 59,  gp: 6 },
+        { name: "C",  min: 40, max: 49,  gp: 5 },
+        { name: "D",  min: 33, max: 39,  gp: 4 },
+        { name: "F",  min: 0,  max: 32,  gp: 0 },
+      ],
+      generic: [
+        { name: "A+", min: 90, max: 100 },
+        { name: "A",  min: 80, max: 89 },
+        { name: "B+", min: 70, max: 79 },
+        { name: "B",  min: 60, max: 69 },
+        { name: "C",  min: 50, max: 59 },
+        { name: "D",  min: 33, max: 49 },
+        { name: "F",  min: 0,  max: 32 },
+      ],
+    };
+
+    for (const [board, rows] of Object.entries(defaults)) {
+      const existing = await db.select({ id: gradingScales.id }).from(gradingScales).where(and(eq(gradingScales.schoolId, schoolId), eq(gradingScales.board, board))).limit(1);
+      if (existing.length) continue;
+      await db.insert(gradingScales).values(rows.map((r) => ({
+        schoolId,
+        board,
+        name: r.name,
+        minPercentage: String(r.min),
+        maxPercentage: String(r.max),
+        gradePoint: r.gp != null ? String(r.gp) : null,
+      })));
+    }
+    return { ok: true };
+  });
+
+function gradeForPercentage(pct: number, scales: { name: string; minPercentage: string | number; maxPercentage: string | number; gradePoint?: string | number | null }[]) {
+  for (const s of scales) {
+    const min = parseFloat(s.minPercentage as string);
+    const max = parseFloat(s.maxPercentage as string);
+    if (pct >= min && pct <= max) return { grade: s.name, gradePoint: s.gradePoint ? parseFloat(s.gradePoint as string) : null };
+  }
+  return { grade: "—", gradePoint: null };
+}
+
+// ── AUTO-GENERATED REPORT CARD (from marks, board-aware) ───────────────────────
 
 const getReportCardDataSchema = z.object({
   studentId: z.number(),
@@ -5457,7 +5608,7 @@ export const getReportCardData = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireSession();
     const { db } = await import("@/lib/db");
-    const { students, studentMarks, examSubjects, exams, subjects, classes } = await import("@/lib/db/schema");
+    const { students, studentMarks, examSubjects, exams, subjects, classes, schools, gradingScales } = await import("@/lib/db/schema");
 
     const [student] = await db.select({
       id: students.id,
@@ -5466,26 +5617,74 @@ export const getReportCardData = createServerFn({ method: "GET" })
       dateOfBirth: students.dateOfBirth,
       currentClassId: students.currentClassId,
       gender: students.gender,
+      schoolId: students.schoolId,
     })
       .from(students).where(eq(students.id, data.studentId)).limit(1);
 
     if (!student) throw new Error("Student not found");
 
-    const className = student.currentClassId
-      ? (await db.select({ name: classes.name, ageGroup: classes.ageGroup }).from(classes).where(eq(classes.id, student.currentClassId)).limit(1))[0]?.name
+    const [school] = await db.select({ board: schools.board }).from(schools).where(eq(schools.id, student.schoolId)).limit(1);
+    const board = school?.board ?? "generic";
+
+    const classInfo = student.currentClassId
+      ? (await db.select({ name: classes.name, ageGroup: classes.ageGroup }).from(classes).where(eq(classes.id, student.currentClassId)).limit(1))[0]
       : null;
 
-    // Find matching exams
+    const scales = await db.select({
+      name: gradingScales.name,
+      minPercentage: gradingScales.minPercentage,
+      maxPercentage: gradingScales.maxPercentage,
+      gradePoint: gradingScales.gradePoint,
+    }).from(gradingScales).where(and(eq(gradingScales.schoolId, student.schoolId), eq(gradingScales.board, board)));
+
+    if (scales.length === 0 && board !== "generic") {
+      // seed defaults if missing
+      const defaults = {
+        CBSE: [
+          { name: "A1", min: 91, max: 100, gp: 10 },
+          { name: "A2", min: 81, max: 90, gp: 9 },
+          { name: "B1", min: 71, max: 80, gp: 8 },
+          { name: "B2", min: 61, max: 70, gp: 7 },
+          { name: "C1", min: 51, max: 60, gp: 6 },
+          { name: "C2", min: 41, max: 50, gp: 5 },
+          { name: "D",  min: 33, max: 40, gp: 4 },
+          { name: "E",  min: 0,  max: 32, gp: 0 },
+        ],
+        ICSE: [
+          { name: "A+", min: 90, max: 100, gp: 10 },
+          { name: "A",  min: 80, max: 89,  gp: 9 },
+          { name: "B+", min: 70, max: 79,  gp: 8 },
+          { name: "B",  min: 60, max: 69,  gp: 7 },
+          { name: "C+", min: 50, max: 59,  gp: 6 },
+          { name: "C",  min: 40, max: 49,  gp: 5 },
+          { name: "D",  min: 33, max: 39,  gp: 4 },
+          { name: "F",  min: 0,  max: 32,  gp: 0 },
+        ],
+      }[board];
+      if (defaults) {
+        await db.insert(gradingScales).values(defaults.map((r) => ({
+          schoolId: student.schoolId,
+          board,
+          name: r.name,
+          minPercentage: String(r.min),
+          maxPercentage: String(r.max),
+          gradePoint: String(r.gp),
+        })));
+        scales.push(...defaults.map((r) => ({ name: r.name, minPercentage: String(r.min), maxPercentage: String(r.max), gradePoint: String(r.gp) })));
+      }
+    }
+
+    // Find matching exams (any class for this year+term, in case of class changes)
     const matchingExams = await db.select({ id: exams.id })
       .from(exams)
       .where(and(
+        eq(exams.schoolId, student.schoolId),
         eq(exams.academicYear, data.academicYear),
         eq(exams.term, data.term),
-        eq(exams.classId, student.currentClassId ?? 0),
       ));
 
     const examIds = matchingExams.map((e) => e.id);
-    const marksData = examIds.length
+    const marksDataRaw = examIds.length
       ? await db.select({
           subjectName: subjects.name,
           maxMarks: examSubjects.maxMarks,
@@ -5498,19 +5697,39 @@ export const getReportCardData = createServerFn({ method: "GET" })
         .where(and(inArray(examSubjects.examId, examIds), eq(studentMarks.studentId, data.studentId)))
       : [];
 
+    const marksData = marksDataRaw.map((m) => {
+      const max = parseFloat(m.maxMarks as string) || 0;
+      const got = parseFloat(m.marks as string) || 0;
+      const pct = max > 0 ? (got / max) * 100 : 0;
+      const g = gradeForPercentage(pct, scales);
+      return {
+        subjectName: m.subjectName,
+        maxMarks: m.maxMarks,
+        marks: m.marks,
+        percentage: Math.round(pct * 100) / 100,
+        grade: m.grade ?? g.grade,
+        gradePoint: g.gradePoint,
+      };
+    });
+
     const totalMax = marksData.reduce((sum, m) => sum + (parseFloat(m.maxMarks as string) || 0), 0);
     const totalGot = marksData.reduce((sum, m) => sum + (parseFloat(m.marks as string) || 0), 0);
     const percentage = totalMax > 0 ? Math.round((totalGot / totalMax) * 100) : 0;
+    const overallGrade = gradeForPercentage(percentage, scales);
 
     return {
       student,
-      className,
+      board,
+      className: classInfo?.name ?? null,
+      ageGroup: classInfo?.ageGroup ?? null,
       academicYear: data.academicYear,
       term: data.term,
       marks: marksData,
       totalMax,
       totalGot,
       percentage,
+      overallGrade: overallGrade.grade,
+      overallGradePoint: overallGrade.gradePoint,
     };
   });
 

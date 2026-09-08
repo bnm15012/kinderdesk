@@ -74,6 +74,12 @@ function ExamsPage() {
   }, [tenant]);
 
   useEffect(() => {
+    if (selectedClass) {
+      getStudentsFn({ data: { classId: selectedClass } }).then((d) => setStudents(d as Student[]));
+    }
+  }, [selectedClass]);
+
+  useEffect(() => {
     if (activeTab === "exams" && selectedExam) {
       listExamSubjectsFn({ data: { examId: selectedExam.id } }).then((d) => setExamSubjects(d as ExamSubject[]));
     }
@@ -273,7 +279,7 @@ function ExamsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
             <select value={rcStudent} onChange={(e) => setRcStudent(e.target.value ? Number(e.target.value) : "")} className={inputCls + " bg-white"}>
               <option value="">— student —</option>
-              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {students.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
             </select>
             <input value={rcYear} onChange={(e) => setRcYear(e.target.value)} className={inputCls} placeholder="2025-26" />
             <input value={rcTerm} onChange={(e) => setRcTerm(e.target.value)} className={inputCls} placeholder="Term 1" />
@@ -287,7 +293,10 @@ function ExamsPage() {
           {rcData && (
             <div className="border border-slate-200 rounded-2xl p-8 bg-white">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-900">Report Card</h2>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <h2 className="text-2xl font-bold text-slate-900">Report Card</h2>
+                  <span className="px-2.5 py-0.5 text-xs font-bold uppercase rounded-full bg-blue-100 text-blue-700">{rcData.board}</span>
+                </div>
                 <p className="text-sm text-slate-500">{rcData.academicYear} · {rcData.term}</p>
               </div>
               <div className="mb-4">
@@ -295,17 +304,28 @@ function ExamsPage() {
                 <p className="text-sm"><strong>Class:</strong> {rcData.className}</p>
               </div>
               <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden mb-4">
-                <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2">Subject</th><th className="px-4 py-2">Max</th><th className="px-4 py-2">Obtained</th></tr></thead>
+                <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2">Subject</th><th className="px-4 py-2">Max</th><th className="px-4 py-2">Obtained</th><th className="px-4 py-2">%</th><th className="px-4 py-2">Grade</th><th className="px-4 py-2">GP</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
                   {rcData.marks.map((m: any, i: number) => (
-                    <tr key={i}><td className="px-4 py-2">{m.subjectName}</td><td className="px-4 py-2 text-center">{m.maxMarks}</td><td className="px-4 py-2 text-center">{m.marks ?? "—"}</td></tr>
+                    <tr key={i}>
+                      <td className="px-4 py-2">{m.subjectName}</td>
+                      <td className="px-4 py-2 text-center">{m.maxMarks}</td>
+                      <td className="px-4 py-2 text-center">{m.marks ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{m.percentage ?? "—"}</td>
+                      <td className="px-4 py-2 text-center font-bold text-blue-700">{m.grade ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{m.gradePoint ?? "—"}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-bold">Percentage: {rcData.percentage}%</p>
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl p-4 mb-4">
+                <div>
+                  <p className="text-sm font-bold">Percentage: {rcData.percentage}%</p>
+                  <p className="text-sm font-bold text-blue-700">Overall Grade: {rcData.overallGrade} {rcData.overallGradePoint ? `(${rcData.overallGradePoint} GP)` : ""}</p>
+                </div>
                 <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg"><Printer className="w-3.5 h-3.5" /> Print</button>
               </div>
+              <p className="text-xs text-slate-400 text-center">Board: {rcData.board} grading scale applied automatically</p>
             </div>
           )}
         </div>

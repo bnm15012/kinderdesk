@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BookOpen, Clock, Megaphone, Plus, X, Pencil, Trash2, Save,
-  AlertCircle, Loader2, CheckCircle2, GraduationCap,
+  AlertCircle, Loader2, CheckCircle2, GraduationCap, Award, SlidersHorizontal,
 } from "lucide-react";
 import {
   manageSubject, listSubjects, deleteSubject,
@@ -11,6 +11,8 @@ import {
   upsertTimetable, getTimetable, deleteTimetable,
   manageSchoolAnnouncement, listSchoolAnnouncements, deleteSchoolAnnouncement,
   listClassesForSchool,
+  getSchoolBoard, setSchoolBoard,
+  listGradingScales, manageGradingScale, deleteGradingScale, seedDefaultGradingScales,
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
@@ -30,7 +32,7 @@ const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-5
 function AcademicsPage() {
   const { tenant } = useTenant();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<"subjects" | "classes" | "timetable" | "announcements">("subjects");
+  const [activeTab, setActiveTab] = useState<"subjects" | "classes" | "timetable" | "announcements" | "grading">("subjects");
 
   // Server fns
   const manageSubjectFn = useServerFn(manageSubject);
@@ -45,6 +47,12 @@ function AcademicsPage() {
   const manageAnnouncementFn = useServerFn(manageSchoolAnnouncement);
   const listAnnouncementsFn = useServerFn(listSchoolAnnouncements);
   const deleteAnnouncementFn = useServerFn(deleteSchoolAnnouncement);
+  const getSchoolBoardFn = useServerFn(getSchoolBoard);
+  const setSchoolBoardFn = useServerFn(setSchoolBoard);
+  const listGradingScalesFn = useServerFn(listGradingScales);
+  const manageGradingScaleFn = useServerFn(manageGradingScale);
+  const deleteGradingScaleFn = useServerFn(deleteGradingScale);
+  const seedDefaultGradingScalesFn = useServerFn(seedDefaultGradingScales);
 
   // Shared data
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -67,6 +75,12 @@ function AcademicsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [annForm, setAnnForm] = useState<{ id?: number; title: string; message: string; target: string } | null>(null);
 
+  // Grading / board
+  const [schoolBoard, setSchoolBoard] = useState<string>("generic");
+  type Scale = { id: number; board: string; name: string; minPercentage: string | number; maxPercentage: string | number; gradePoint: string | number | null };
+  const [gradingScalesList, setGradingScalesList] = useState<Scale[]>([]);
+  const [scaleForm, setScaleForm] = useState<{ id?: number; name: string; minPercentage: string; maxPercentage: string; gradePoint: string } | null>(null);
+
   useEffect(() => {
     if (!tenant) return;
     listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
@@ -77,7 +91,11 @@ function AcademicsPage() {
     if (!tenant) return;
     if (activeTab === "subjects") listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
     if (activeTab === "announcements") listAnnouncementsFn({ data: {} }).then((d) => setAnnouncements(d as Announcement[]));
-  }, [activeTab, tenant]);
+    if (activeTab === "grading") {
+      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoard(d));
+      listGradingScalesFn({ data: { board: schoolBoard } }).then((d: any) => setGradingScalesList(d));
+    }
+  }, [activeTab, tenant, schoolBoard]);
 
   useEffect(() => {
     if (activeTab === "classes" && selectedClass) {
@@ -102,6 +120,7 @@ function AcademicsPage() {
           { key: "subjects", label: "Subjects", icon: BookOpen },
           { key: "classes", label: "Class Subjects", icon: GraduationCap },
           { key: "timetable", label: "Timetable", icon: Clock },
+          { key: "grading", label: "Board & Grading", icon: Award },
           { key: "announcements", label: "Announcements", icon: Megaphone },
         ] as const).map(({ key, label, icon: Icon }) => (
           <button
@@ -328,6 +347,86 @@ function AcademicsPage() {
               </div>
             ))}
             {announcements.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No announcements</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Board & Grading */}
+      {activeTab === "grading" && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-base font-bold text-slate-800 mb-3">School Board</h2>
+            <div className="flex items-center gap-3">
+              <select value={schoolBoard} onChange={(e) => setSchoolBoard(e.target.value)} className={inputCls + " w-48 bg-white"}>
+                <option value="generic">Generic</option>
+                <option value="CBSE">CBSE</option>
+                <option value="ICSE">ICSE</option>
+                <option value="IB">IB</option>
+                <option value="STATE">State Board</option>
+              </select>
+              <button onClick={async () => {
+                if (!tenant) return;
+                await setSchoolBoardFn({ data: { schoolId: tenant.schoolId, board: schoolBoard as any } });
+                toast("Board saved", "success");
+              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg">Save board</button>
+              <button onClick={async () => {
+                await seedDefaultGradingScalesFn({ data: {} });
+                const d = await listGradingScalesFn({ data: { board: schoolBoard } });
+                setGradingScalesList(d as Scale[]);
+                toast("Default scales seeded", "success");
+              }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg">Seed default scales</button>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-base font-bold text-slate-800 mb-3">Grading Scale — {schoolBoard}</h2>
+            {scaleForm && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
+                <div className="grid grid-cols-4 gap-3">
+                  <input value={scaleForm.name} onChange={(e) => setScaleForm({ ...scaleForm, name: e.target.value })} className={inputCls} placeholder="A1" />
+                  <input type="number" value={scaleForm.minPercentage} onChange={(e) => setScaleForm({ ...scaleForm, minPercentage: e.target.value })} className={inputCls} placeholder="Min %" />
+                  <input type="number" value={scaleForm.maxPercentage} onChange={(e) => setScaleForm({ ...scaleForm, maxPercentage: e.target.value })} className={inputCls} placeholder="Max %" />
+                  <input type="number" step="0.1" value={scaleForm.gradePoint} onChange={(e) => setScaleForm({ ...scaleForm, gradePoint: e.target.value })} className={inputCls} placeholder="Grade point" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    if (!tenant) return;
+                    await manageGradingScaleFn({ data: {
+                      id: scaleForm.id,
+                      board: schoolBoard,
+                      name: scaleForm.name,
+                      minPercentage: parseFloat(scaleForm.minPercentage),
+                      maxPercentage: parseFloat(scaleForm.maxPercentage),
+                      gradePoint: scaleForm.gradePoint ? parseFloat(scaleForm.gradePoint) : undefined,
+                    } });
+                    setScaleForm(null);
+                    const d = await listGradingScalesFn({ data: { board: schoolBoard } });
+                    setGradingScalesList(d as Scale[]);
+                    toast("Saved", "success");
+                  }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
+                  <button onClick={() => setScaleForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
+                </div>
+              </div>
+            )}
+            <button onClick={() => setScaleForm({ name: "", minPercentage: "", maxPercentage: "", gradePoint: "" })} className="mb-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg"><Plus className="w-3.5 h-3.5" /> Add scale</button>
+            <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+              <thead className="bg-slate-50"><tr><th className="px-4 py-2 text-left">Grade</th><th className="px-4 py-2">Min %</th><th className="px-4 py-2">Max %</th><th className="px-4 py-2">Grade Point</th><th></th></tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {gradingScalesList.map((s) => (
+                  <tr key={s.id}>
+                    <td className="px-4 py-2 font-bold text-slate-800">{s.name}</td>
+                    <td className="px-4 py-2 text-center">{s.minPercentage}</td>
+                    <td className="px-4 py-2 text-center">{s.maxPercentage}</td>
+                    <td className="px-4 py-2 text-center">{s.gradePoint ?? "—"}</td>
+                    <td className="px-4 py-2 text-right flex gap-1 justify-end">
+                      <button onClick={() => setScaleForm({ id: s.id, name: s.name, minPercentage: String(s.minPercentage), maxPercentage: String(s.maxPercentage), gradePoint: s.gradePoint ? String(s.gradePoint) : "" })} className="p-1 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={async () => { await deleteGradingScaleFn({ data: { id: s.id } }); setGradingScalesList((p) => p.filter((x) => x.id !== s.id)); }} className="p-1 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {gradingScalesList.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No grading scales for {schoolBoard}. Click "Seed default scales" or add manually.</p>}
           </div>
         </div>
       )}

@@ -26,6 +26,7 @@ export const schools = mysqlTable("schools", {
   country: varchar("country", { length: 100 }).default("India"),
   currency: varchar("currency", { length: 10 }).default("INR"),
   plan: varchar("plan", { length: 50 }).default("free"),
+  board: varchar("board", { length: 20 }).default("generic"), // CBSE, ICSE, IB, STATE, etc.
   razorpayKeyId: varchar("razorpay_key_id", { length: 255 }),
   razorpayKeySecret: varchar("razorpay_key_secret", { length: 255 }),
   maxLocations: int("max_locations").default(1),
@@ -406,6 +407,18 @@ export const studentMarks = mysqlTable("student_marks", {
   markedBy: int("marked_by").references(() => staff.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// ── Grading Scales (per board + school) ───────────────────────────────────────
+export const gradingScales = mysqlTable("grading_scales", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  board: varchar("board", { length: 20 }).notNull(), // CBSE, ICSE, generic
+  name: varchar("name", { length: 50 }).notNull(),   // e.g. "A1", "A+", "First"
+  minPercentage: decimal("min_percentage", { precision: 5, scale: 2 }).notNull(),
+  maxPercentage: decimal("max_percentage", { precision: 5, scale: 2 }).notNull(),
+  gradePoint: decimal("grade_point", { precision: 3, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ── Homework / Assignments ────────────────────────────────────────────────────
