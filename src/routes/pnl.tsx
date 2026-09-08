@@ -100,19 +100,21 @@ function PnLPage() {
 
       <div className="flex flex-col lg:flex-row gap-4 items-start no-print">
         {/* Filters */}
-        <div className="w-full lg:w-64 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${inputCls} pl-10`} />
+        <div className="w-full lg:w-80 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${inputCls} pl-10`} />
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`${inputCls} pl-10`} />
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`${inputCls} pl-10`} />
+              </div>
             </div>
           </div>
           <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition">
@@ -131,7 +133,7 @@ function PnLPage() {
         {/* Report preview */}
         <div className="flex-1 w-full">
           <div className="overflow-x-auto pb-6">
-            <div ref={reportRef} className="report-pdf print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] shadow-lg rounded-none p-8 mx-auto text-sm" style={{ minHeight: "297mm" }}>
+            <div ref={reportRef} className="report-pdf print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] shadow-lg rounded-none p-6 mx-auto text-sm">
               <style>{`
                 .report-pdf { background-color: #f8fafc !important; color: #0f172a !important; }
                 .report-pdf * { color: #0f172a !important; }
@@ -143,7 +145,7 @@ function PnLPage() {
                 .report-pdf .report-total { background-color: #f1f5f9 !important; }
               `}</style>
               {/* Header */}
-              <div className="report-header flex items-start justify-between rounded-2xl p-5 mb-6">
+              <div className="report-header flex items-start justify-between rounded-2xl p-4 mb-5">
                 <div className="flex flex-col items-start">
                   <div className="report-logo w-20 h-20 rounded-xl flex items-center justify-center text-xs font-semibold mb-3">LOGO</div>
                   <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
@@ -159,10 +161,10 @@ function PnLPage() {
               {!pnl ? (
                 <p className="text-slate-400 text-center py-20">Select a date range and click Generate Report</p>
               ) : (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {/* Income */}
                   <section>
-                    <h3 className="text-base font-bold text-slate-900 mb-3">Income</h3>
+                    <h3 className="text-base font-bold text-slate-900 mb-2">Income</h3>
                     <table className="report-table w-full text-sm">
                       <thead className="report-thead">
                         <tr>
@@ -195,7 +197,7 @@ function PnLPage() {
 
                   {/* Expenses */}
                   <section>
-                    <h3 className="text-base font-bold text-slate-900 mb-3">Expenses</h3>
+                    <h3 className="text-base font-bold text-slate-900 mb-2">Expenses</h3>
                     <table className="report-table w-full text-sm">
                       <thead className="report-thead">
                         <tr>
@@ -226,7 +228,7 @@ function PnLPage() {
 
                   {/* Summary */}
                   <section className="w-80 ml-auto">
-                    <h3 className="text-base font-bold text-slate-900 mb-3">Summary</h3>
+                    <h3 className="text-base font-bold text-slate-900 mb-2">Summary</h3>
                     <table className="report-table w-full text-sm">
                       <tbody>
                         <tr>
