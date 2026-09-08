@@ -409,6 +409,19 @@ export const studentMarks = mysqlTable("student_marks", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
+// ── Expenses ─────────────────────────────────────────────────────────────────
+export const expenses = mysqlTable("expenses", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  category: varchar("category", { length: 100 }).notNull(), // salary, electricity, rent, supplies, other
+  description: text("description"),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  expenseDate: date("expense_date"),
+  createdBy: int("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ── Grading Scales (per board + school) ───────────────────────────────────────
 export const gradingScales = mysqlTable("grading_scales", {
   id: int("id").primaryKey().autoincrement(),

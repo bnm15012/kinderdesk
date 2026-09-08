@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { z } from "zod";
-import { eq, and, count, desc, asc, inArray, notInArray, gte, or, sql, gt, ne } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, notInArray, gte, lte, or, sql, gt, ne } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -4834,6 +4834,149 @@ export const getSchoolPaymentSettings = createServerFn({ method: "GET" })
     return {
       razorpayKeyId: school?.razorpayKeyId ?? null,
       hasSecret: !!(school?.hasSecret),
+    };
+  });
+
+// ── EXPENSES & P&L ──────────────────────────────────────────────────────────
+
+const expenseCategories = ["salary", "electricity", "rent", "supplies", "transport", "maintenance", "other"] as const;
+
+const manageExpenseSchema = z.object({
+  id: z.number().optional(),
+  schoolId: z.number(),
+  locationId: z.number(),
+  category: z.enum(expenseCategories),
+  description: z.string().max(1000).optional(),
+  amount: z.string().or(z.number()),
+  expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const manageExpense = createServerFn({ method: "POST" })
+  .validator((i: unknown) => manageExpenseSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { expenses } = await import("@/lib/db/schema");
+    const user = await requireAuth(data.schoolId, data.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    if (data.id) {
+      await db.update(expenses).set({
+        category: data.category,
+        description: data.description,
+        amount: String(data.amount),
+        expenseDate: data.expenseDate as any,
+      }).where(eq(expenses.id, data.id));
+      return { id: data.id };
+    }
+
+    const [r] = await db.insert(expenses).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      category: data.category,
+      description: data.description,
+      amount: String(data.amount),
+      expenseDate: data.expenseDate as any,
+      createdBy: user.userId,
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const listExpensesSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export const listExpenses = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listExpensesSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { expenses } = await import("@/lib/db/schema");
+    const user = await requireAuth(data.schoolId, data.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    const conditions: any[] = [eq(expenses.schoolId, data.schoolId), eq(expenses.locationId, data.locationId)];
+    if (data.from) conditions.push(gte(expenses.expenseDate, data.from as any));
+    if (data.to) conditions.push(lte(expenses.expenseDate, data.to as any));
+
+    return db.select().from(expenses)
+      .where(and(...conditions))
+      .orderBy(desc(expenses.expenseDate));
+  });
+
+const deleteExpenseSchema = z.object({ id: z.number(), schoolId: z.number(), locationId: z.number() });
+export const deleteExpense = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteExpenseSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { expenses } = await import("@/lib/db/schema");
+    const user = await requireAuth(data.schoolId, data.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+    await db.delete(expenses).where(and(eq(expenses.id, data.id), eq(expenses.schoolId, data.schoolId), eq(expenses.locationId, data.locationId)));
+    return { ok: true };
+  });
+
+const getPnlSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const getPnl = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getPnlSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { expenses, invoices, payments } = await import("@/lib/db/schema");
+    const user = await requireAuth(data.schoolId, data.locationId);
+    if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    const [incomeRow] = await db.select({ total: sql`coalesce(sum(${payments.amount}), 0)` })
+      .from(payments)
+      .where(and(
+        eq(payments.schoolId, data.schoolId),
+        eq(payments.locationId, data.locationId),
+        gte(payments.paidAt, new Date(data.from + "T00:00:00")),
+        lte(payments.paidAt, new Date(data.to + "T23:59:59")),
+      ));
+
+    const [expenseRow] = await db.select({ total: sql`coalesce(sum(${expenses.amount}), 0)` })
+      .from(expenses)
+      .where(and(
+        eq(expenses.schoolId, data.schoolId),
+        eq(expenses.locationId, data.locationId),
+        gte(expenses.expenseDate, data.from as any),
+        lte(expenses.expenseDate, data.to as any),
+      ));
+
+    const expenseList = await db.select({
+      id: expenses.id,
+      category: expenses.category,
+      description: expenses.description,
+      amount: expenses.amount,
+      expenseDate: expenses.expenseDate,
+    })
+      .from(expenses)
+      .where(and(
+        eq(expenses.schoolId, data.schoolId),
+        eq(expenses.locationId, data.locationId),
+        gte(expenses.expenseDate, data.from as any),
+        lte(expenses.expenseDate, data.to as any),
+      ))
+      .orderBy(desc(expenses.expenseDate));
+
+    const income = parseFloat((incomeRow.total as any) ?? "0");
+    const expenseTotal = parseFloat((expenseRow.total as any) ?? "0");
+    const net = income - expenseTotal;
+
+    return {
+      from: data.from,
+      to: data.to,
+      income,
+      expenses: expenseTotal,
+      net,
+      expenseList,
     };
   });
 
