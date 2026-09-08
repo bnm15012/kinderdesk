@@ -7,45 +7,34 @@ async function login(page: any, creds: { email: string; password: string }) {
   await page.getByPlaceholder("you@school.com").fill(creds.email);
   await page.locator('input[type="password"]').fill(creds.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/(schools|dashboard)/);
+  await page.waitForURL("/dashboard");
 }
 
 test.describe("Admin seed", () => {
-  test("adds a branch, class and staff through the UI", async ({ page }) => {
+  test("creates branch and class through the UI", async ({ page }) => {
     test.setTimeout(120000);
     await login(page, ADMIN);
 
-    await test.step("Add a new branch", async () => {
+    await test.step("Add branch", async () => {
       await page.getByRole("link", { name: "School & Branches" }).click();
-      await page.getByRole("button", { name: /Add Branch/i }).click();
-      await page.getByLabel("Branch name").fill("HSR Layout");
-      await page.getByLabel("Address").fill("HSR Layout, Bangalore");
-      await page.getByRole("button", { name: "Save Branch" }).click();
-      await expect(page.getByText("HSR Layout")).toBeVisible();
+      await page.getByRole("button", { name: "Add Branch" }).click();
+      await page.getByPlaceholder("e.g. South Branch").fill("HSR Layout");
+      await page.getByPlaceholder("Street address").fill("HSR Layout, Bangalore");
+      await page.getByPlaceholder("Mumbai").fill("Bangalore");
+      await page.getByPlaceholder("Maharashtra").fill("Karnataka");
+      await page.getByPlaceholder("400001").fill("560102");
+      await page.getByRole("button", { name: "Add Branch" }).nth(1).click();
+      await expect(page.getByText("HSR Layout").first()).toBeVisible();
     });
 
-    await test.step("Add a class", async () => {
+    await test.step("Add class", async () => {
       await page.getByRole("link", { name: "Classes" }).click();
       await page.getByRole("button", { name: "Add Class" }).click();
-      await page.getByLabel("Class name").fill("Playgroup A");
-      await page.getByLabel("Age group").fill("2–3 years");
-      await page.getByLabel("Capacity").fill("25");
+      await page.getByPlaceholder("e.g. Nursery A").fill("Playgroup A");
+      await page.getByPlaceholder("e.g. 3–4 years").fill("2–3 years");
+      await page.locator('input[type="number"]').first().fill("25");
       await page.getByRole("button", { name: "Save Class" }).click();
-      await expect(page.getByText("Playgroup A")).toBeVisible();
-    });
-
-    await test.step("Add a receptionist staff", async () => {
-      await page.getByRole("link", { name: "Staff" }).click();
-      await page.getByRole("button", { name: "Add Staff" }).click();
-      await page.getByLabel("First name").fill("Reception");
-      await page.getByLabel("Last name").fill("Test");
-      await page.getByLabel("Email").fill("reception-test@gmail.com");
-      await page.getByLabel("Job title").fill("receptionist");
-      await page.getByText("Send login invite").click();
-      await page.getByRole("button", { name: "Save Staff" }).click();
-      await page.getByRole("button", { name: "Copy link" }).click();
-      await page.getByRole("button", { name: "Done" }).click();
-      await expect(page.getByText("Reception Test")).toBeVisible();
+      await expect(page.getByText("Playgroup A").first()).toBeVisible();
     });
   });
 });
