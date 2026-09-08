@@ -23,6 +23,9 @@ import {
   CreditCard,
   RefreshCcw,
   BookOpen,
+  ClipboardList,
+  FileText,
+  Clipboard,
 } from "lucide-react";
 import appCss from "../styles.css?url";
 import { TenantProvider, useTenant } from "@/lib/tenant";
@@ -56,6 +59,9 @@ const ADMIN_NAV = [
   { to: "/students",    label: "Students",    icon: Users },
   { to: "/attendance",  label: "Attendance",  icon: CalendarCheck },
   { to: "/fees",        label: "Fees",        icon: DollarSign },
+  { to: "/academics",   label: "Academics",   icon: GraduationCap },
+  { to: "/exams",       label: "Exams",       icon: ClipboardList },
+  { to: "/homework",    label: "Homework",    icon: Clipboard },
   { to: "/staff",       label: "Staff",       icon: Briefcase },
   { to: "/classes",     label: "Classes",     icon: DoorOpen },
   { to: "/curriculum",  label: "Activities",  icon: BookOpen },

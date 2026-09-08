@@ -1693,7 +1693,7 @@ async function requireSession() {
  *   teacher/staff    → only their own location
  *   parent           → only their own location
  */
-async function requireAuth(requestedSchoolId: number, requestedLocationId: number) {
+async function requireAuth(requestedSchoolId?: number, requestedLocationId?: number) {
   const userId = await requireSession();
   const { db } = await import("@/lib/db");
   const { users } = await import("@/lib/db/schema");
@@ -1703,11 +1703,13 @@ async function requireAuth(requestedSchoolId: number, requestedLocationId: numbe
   if (!user) throw new Error("Not authenticated");
 
   if (user.role === "super_admin") return user; // unrestricted
-  if (user.schoolId !== requestedSchoolId) throw new Error("Not authorized");
-  // School-wide roles can switch between any location in their school
-  if (SCHOOL_WIDE_ROLES.has(user.role ?? "")) return user;
-  // Location-scoped roles must match exactly
-  if (user.locationId !== requestedLocationId) throw new Error("Not authorized");
+  if (requestedSchoolId != null && user.schoolId !== requestedSchoolId) throw new Error("Not authorized");
+  if (requestedLocationId != null) {
+    // School-wide roles can switch between any location in their school
+    if (SCHOOL_WIDE_ROLES.has(user.role ?? "")) return user;
+    // Location-scoped roles must match exactly
+    if (user.locationId !== requestedLocationId) throw new Error("Not authorized");
+  }
   return user;
 }
 
@@ -4823,6 +4825,692 @@ export const getSchoolPaymentSettings = createServerFn({ method: "GET" })
     return {
       razorpayKeyId: school?.razorpayKeyId ?? null,
       hasSecret: !!(school?.hasSecret),
+    };
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCHOOL ERP MODULES (Subjects, Timetable, Exams, Marks, Homework, Announcements)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── SUBJECTS ─────────────────────────────────────────────────────────────────
+
+const manageSubjectSchema = z.object({
+  id: z.number().optional(),
+  name: z.string().trim().min(1).max(100),
+  code: z.string().trim().max(20).optional(),
+  status: z.enum(["active", "inactive"]).optional(),
+});
+
+export const manageSubject = createServerFn({ method: "POST" })
+  .validator((i: unknown) => manageSubjectSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, locationId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { subjects } = await import("@/lib/db/schema");
+
+    if (data.id) {
+      const [existing] = await db.select().from(subjects).where(eq(subjects.id, data.id)).limit(1);
+      if (!existing || existing.schoolId !== schoolId) throw new Error("Not authorized");
+      await db.update(subjects).set({
+        name: data.name,
+        code: data.code,
+        status: data.status as any,
+      }).where(eq(subjects.id, data.id));
+      return { id: data.id };
+    } else {
+      const [r] = await db.insert(subjects).values({
+        schoolId,
+        name: data.name,
+        code: data.code,
+        status: data.status as any ?? "active",
+      });
+      return { id: Number((r as any).insertId) };
+    }
+  });
+
+const listSubjectsSchema = z.object({ schoolId: z.number() });
+export const listSubjects = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listSubjectsSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId);
+    const { db } = await import("@/lib/db");
+    const { subjects } = await import("@/lib/db/schema");
+    return db.select().from(subjects).where(eq(subjects.schoolId, data.schoolId)).orderBy(asc(subjects.name));
+  });
+
+const deleteSubjectSchema = z.object({ id: z.number() });
+export const deleteSubject = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteSubjectSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { subjects } = await import("@/lib/db/schema");
+    await db.delete(subjects).where(and(eq(subjects.id, data.id), eq(subjects.schoolId, schoolId)));
+    return { ok: true };
+  });
+
+// ── CLASS SUBJECTS ───────────────────────────────────────────────────────────
+
+const setClassSubjectsSchema = z.object({
+  classId: z.number(),
+  subjectIds: z.array(z.number()),
+});
+
+export const setClassSubjects = createServerFn({ method: "POST" })
+  .validator((i: unknown) => setClassSubjectsSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, locationId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { classSubjects } = await import("@/lib/db/schema");
+
+    // remove existing
+    await db.delete(classSubjects).where(eq(classSubjects.classId, data.classId));
+
+    // insert new
+    if (data.subjectIds.length) {
+      await db.insert(classSubjects).values(data.subjectIds.map((sid) => ({
+        schoolId,
+        locationId,
+        classId: data.classId,
+        subjectId: sid,
+      })));
+    }
+    return { ok: true };
+  });
+
+const getClassSubjectsSchema = z.object({ classId: z.number() });
+export const getClassSubjects = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getClassSubjectsSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { classSubjects, subjects } = await import("@/lib/db/schema");
+
+    const rows = await db.select({
+      id: classSubjects.id,
+      classId: classSubjects.classId,
+      subjectId: classSubjects.subjectId,
+      name: subjects.name,
+      code: subjects.code,
+    })
+      .from(classSubjects)
+      .leftJoin(subjects, eq(classSubjects.subjectId, subjects.id))
+      .where(eq(classSubjects.classId, data.classId));
+
+    return rows;
+  });
+
+// ── TIMETABLE ────────────────────────────────────────────────────────────────
+
+const upsertTimetableSchema = z.object({
+  id: z.number().optional(),
+  classId: z.number(),
+  dayOfWeek: z.number().min(1).max(7),
+  periodNumber: z.number().min(1),
+  startTime: z.string().max(10).optional(),
+  endTime: z.string().max(10).optional(),
+  subjectId: z.number().optional(),
+  teacherId: z.number().optional(),
+});
+
+export const upsertTimetable = createServerFn({ method: "POST" })
+  .validator((i: unknown) => upsertTimetableSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, locationId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { timetable } = await import("@/lib/db/schema");
+
+    if (data.id) {
+      await db.update(timetable).set({
+        dayOfWeek: data.dayOfWeek,
+        periodNumber: data.periodNumber,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        subjectId: data.subjectId ?? null,
+        teacherId: data.teacherId ?? null,
+      }).where(eq(timetable.id, data.id));
+      return { id: data.id };
+    }
+
+    const [r] = await db.insert(timetable).values({
+      schoolId,
+      locationId,
+      classId: data.classId,
+      dayOfWeek: data.dayOfWeek,
+      periodNumber: data.periodNumber,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      subjectId: data.subjectId ?? null,
+      teacherId: data.teacherId ?? null,
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const deleteTimetableSchema = z.object({ id: z.number() });
+export const deleteTimetable = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteTimetableSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { timetable } = await import("@/lib/db/schema");
+    await db.delete(timetable).where(and(eq(timetable.id, data.id), eq(timetable.schoolId, schoolId)));
+    return { ok: true };
+  });
+
+const getTimetableSchema = z.object({ classId: z.number() });
+export const getTimetable = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getTimetableSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { timetable, subjects, staff } = await import("@/lib/db/schema");
+
+    const rows = await db.select({
+      id: timetable.id,
+      dayOfWeek: timetable.dayOfWeek,
+      periodNumber: timetable.periodNumber,
+      startTime: timetable.startTime,
+      endTime: timetable.endTime,
+      subjectId: timetable.subjectId,
+      teacherId: timetable.teacherId,
+      subjectName: subjects.name,
+      teacherName: staff.firstName,
+    })
+      .from(timetable)
+      .leftJoin(subjects, eq(timetable.subjectId, subjects.id))
+      .leftJoin(staff, eq(timetable.teacherId, staff.id))
+      .where(eq(timetable.classId, data.classId))
+      .orderBy(asc(timetable.dayOfWeek), asc(timetable.periodNumber));
+
+    return rows;
+  });
+
+// ── EXAMS ────────────────────────────────────────────────────────────────────
+
+const manageExamSchema = z.object({
+  id: z.number().optional(),
+  classId: z.number(),
+  academicYear: z.string().trim().min(1).max(20),
+  term: z.string().trim().min(1).max(100),
+  examType: z.string().trim().max(50).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  status: z.enum(["draft", "active", "archived"]).optional(),
+});
+
+export const manageExam = createServerFn({ method: "POST" })
+  .validator((i: unknown) => manageExamSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, locationId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { exams } = await import("@/lib/db/schema");
+
+    if (data.id) {
+      await db.update(exams).set({
+        classId: data.classId,
+        academicYear: data.academicYear,
+        term: data.term,
+        examType: data.examType,
+        startDate: data.startDate as any,
+        endDate: data.endDate as any,
+        status: data.status as any,
+      }).where(eq(exams.id, data.id));
+      return { id: data.id };
+    }
+
+    const [r] = await db.insert(exams).values({
+      schoolId,
+      locationId,
+      classId: data.classId,
+      academicYear: data.academicYear,
+      term: data.term,
+      examType: data.examType ?? "regular",
+      startDate: data.startDate as any,
+      endDate: data.endDate as any,
+      status: data.status as any ?? "draft",
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const listExamsSchema = z.object({
+  classId: z.number().optional(),
+  academicYear: z.string().optional(),
+});
+
+export const listExams = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listExamsSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { exams } = await import("@/lib/db/schema");
+
+    const conditions = [];
+    if (data.classId) conditions.push(eq(exams.classId, data.classId));
+    if (data.academicYear) conditions.push(eq(exams.academicYear, data.academicYear));
+
+    return db.select().from(exams)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(exams.createdAt));
+  });
+
+const deleteExamSchema = z.object({ id: z.number() });
+export const deleteExam = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteExamSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { exams } = await import("@/lib/db/schema");
+    await db.delete(exams).where(and(eq(exams.id, data.id), eq(exams.schoolId, schoolId)));
+    return { ok: true };
+  });
+
+// ── EXAM SUBJECTS ────────────────────────────────────────────────────────────
+
+const upsertExamSubjectSchema = z.object({
+  id: z.number().optional(),
+  examId: z.number(),
+  subjectId: z.number(),
+  maxMarks: z.string().or(z.number()),
+  examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export const upsertExamSubject = createServerFn({ method: "POST" })
+  .validator((i: unknown) => upsertExamSubjectSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { examSubjects, exams } = await import("@/lib/db/schema");
+
+    const [exam] = await db.select().from(exams).where(eq(exams.id, data.examId)).limit(1);
+    if (!exam || exam.schoolId !== schoolId) throw new Error("Not authorized");
+
+    const maxMarks = String(data.maxMarks);
+
+    if (data.id) {
+      await db.update(examSubjects).set({
+        subjectId: data.subjectId,
+        maxMarks,
+        examDate: data.examDate as any,
+      }).where(eq(examSubjects.id, data.id));
+      return { id: data.id };
+    }
+
+    const [r] = await db.insert(examSubjects).values({
+      examId: data.examId,
+      subjectId: data.subjectId,
+      maxMarks,
+      examDate: data.examDate as any,
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const listExamSubjectsSchema = z.object({ examId: z.number() });
+export const listExamSubjects = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listExamSubjectsSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { examSubjects, subjects } = await import("@/lib/db/schema");
+
+    return db.select({
+      id: examSubjects.id,
+      examId: examSubjects.examId,
+      subjectId: examSubjects.subjectId,
+      maxMarks: examSubjects.maxMarks,
+      examDate: examSubjects.examDate,
+      name: subjects.name,
+    })
+      .from(examSubjects)
+      .leftJoin(subjects, eq(examSubjects.subjectId, subjects.id))
+      .where(eq(examSubjects.examId, data.examId));
+  });
+
+const deleteExamSubjectSchema = z.object({ id: z.number() });
+export const deleteExamSubject = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteExamSubjectSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { examSubjects, exams } = await import("@/lib/db/schema");
+    const [es] = await db.select().from(examSubjects).where(eq(examSubjects.id, data.id)).limit(1);
+    if (es) {
+      const [exam] = await db.select().from(exams).where(eq(exams.id, es.examId)).limit(1);
+      if (exam?.schoolId === schoolId) {
+        await db.delete(examSubjects).where(eq(examSubjects.id, data.id));
+      }
+    }
+    return { ok: true };
+  });
+
+// ── STUDENT MARKS ─────────────────────────────────────────────────────────────
+
+const getStudentsForMarksSchema = z.object({ classId: z.number() });
+export const getStudentsForMarks = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getStudentsForMarksSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { students } = await import("@/lib/db/schema");
+    return db.select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+    })
+      .from(students)
+      .where(eq(students.currentClassId, data.classId))
+      .orderBy(asc(students.firstName));
+  });
+
+const saveStudentMarksSchema = z.object({
+  marks: z.array(z.object({
+    studentId: z.number(),
+    examSubjectId: z.number(),
+    marks: z.string().or(z.number()).optional(),
+    grade: z.string().max(10).optional(),
+    notes: z.string().optional(),
+  })),
+});
+
+export const saveStudentMarks = createServerFn({ method: "POST" })
+  .validator((i: unknown) => saveStudentMarksSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { studentMarks, examSubjects, exams } = await import("@/lib/db/schema");
+
+    // validate all exam-subjects belong to this school
+    const ids = data.marks.map((m) => m.examSubjectId);
+    if (ids.length) {
+      const esRows = await db.select({ examId: examSubjects.examId })
+        .from(examSubjects)
+        .where(inArray(examSubjects.id, ids));
+      const examIds = [...new Set(esRows.map((e) => e.examId))];
+      const examRows = await db.select({ id: exams.id, schoolId: exams.schoolId })
+        .from(exams).where(inArray(exams.id, examIds));
+      if (examRows.some((e) => e.schoolId !== schoolId)) throw new Error("Not authorized");
+    }
+
+    for (const m of data.marks) {
+      const marksValue = m.marks === "" || m.marks == null ? null : String(m.marks);
+      const [existing] = await db.select({ id: studentMarks.id })
+        .from(studentMarks)
+        .where(and(eq(studentMarks.studentId, m.studentId), eq(studentMarks.examSubjectId, m.examSubjectId)))
+        .limit(1);
+
+      if (existing) {
+        await db.update(studentMarks).set({
+          marks: marksValue,
+          grade: m.grade,
+          notes: m.notes,
+          markedBy: userId,
+        }).where(eq(studentMarks.id, existing.id));
+      } else {
+        await db.insert(studentMarks).values({
+          studentId: m.studentId,
+          examSubjectId: m.examSubjectId,
+          marks: marksValue,
+          grade: m.grade,
+          notes: m.notes,
+          markedBy: userId,
+        });
+      }
+    }
+    return { ok: true };
+  });
+
+const listStudentMarksSchema = z.object({
+  classId: z.number(),
+  examId: z.number(),
+});
+
+export const listStudentMarks = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listStudentMarksSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { studentMarks, examSubjects, students } = await import("@/lib/db/schema");
+
+    return db.select({
+      id: studentMarks.id,
+      studentId: studentMarks.studentId,
+      examSubjectId: studentMarks.examSubjectId,
+      marks: studentMarks.marks,
+      grade: studentMarks.grade,
+      notes: studentMarks.notes,
+      firstName: students.firstName,
+      lastName: students.lastName,
+    })
+      .from(studentMarks)
+      .innerJoin(students, eq(studentMarks.studentId, students.id))
+      .innerJoin(examSubjects, eq(studentMarks.examSubjectId, examSubjects.id))
+      .where(and(eq(examSubjects.examId, data.examId), eq(students.currentClassId, data.classId)))
+      .orderBy(asc(students.firstName));
+  });
+
+// ── HOMEWORK ─────────────────────────────────────────────────────────────────
+
+const manageHomeworkSchema = z.object({
+  id: z.number().optional(),
+  classId: z.number(),
+  subjectId: z.number().optional(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export const manageHomework = createServerFn({ method: "POST" })
+  .validator((i: unknown) => manageHomeworkSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, locationId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { homework } = await import("@/lib/db/schema");
+
+    if (data.id) {
+      await db.update(homework).set({
+        classId: data.classId,
+        subjectId: data.subjectId ?? null,
+        title: data.title,
+        description: data.description,
+        dueDate: data.dueDate as any,
+      }).where(eq(homework.id, data.id));
+      return { id: data.id };
+    }
+
+    const [r] = await db.insert(homework).values({
+      schoolId,
+      locationId,
+      classId: data.classId,
+      subjectId: data.subjectId ?? null,
+      title: data.title,
+      description: data.description,
+      dueDate: data.dueDate as any,
+      createdBy: userId,
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const listHomeworkSchema = z.object({
+  classId: z.number().optional(),
+  studentId: z.number().optional(),
+});
+
+export const listHomework = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listHomeworkSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { homework, subjects, users } = await import("@/lib/db/schema");
+
+    const conditions = [];
+    if (data.classId) conditions.push(eq(homework.classId, data.classId));
+    if (data.studentId) {
+      const { students } = await import("@/lib/db/schema");
+      const [s] = await db.select({ currentClassId: students.currentClassId }).from(students).where(eq(students.id, data.studentId)).limit(1);
+      if (s?.currentClassId) conditions.push(eq(homework.classId, s.currentClassId));
+    }
+
+    return db.select({
+      id: homework.id,
+      classId: homework.classId,
+      subjectId: homework.subjectId,
+      title: homework.title,
+      description: homework.description,
+      dueDate: homework.dueDate,
+      createdAt: homework.createdAt,
+      subjectName: subjects.name,
+      createdByName: users.firstName,
+    })
+      .from(homework)
+      .leftJoin(subjects, eq(homework.subjectId, subjects.id))
+      .leftJoin(users, eq(homework.createdBy, users.id))
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(homework.createdAt));
+  });
+
+const deleteHomeworkSchema = z.object({ id: z.number() });
+export const deleteHomework = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteHomeworkSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { homework } = await import("@/lib/db/schema");
+    await db.delete(homework).where(and(eq(homework.id, data.id), eq(homework.schoolId, schoolId)));
+    return { ok: true };
+  });
+
+// ── SCHOOL ANNOUNCEMENTS ───────────────────────────────────────────────────────
+
+const manageSchoolAnnouncementSchema = z.object({
+  id: z.number().optional(),
+  title: z.string().trim().min(1).max(200),
+  message: z.string().optional(),
+  target: z.enum(["all", "parents", "staff"]).default("all"),
+});
+
+export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
+  .validator((i: unknown) => manageSchoolAnnouncementSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId, locationId, userId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { schoolAnnouncements } = await import("@/lib/db/schema");
+
+    if (data.id) {
+      await db.update(schoolAnnouncements).set({
+        title: data.title,
+        message: data.message,
+        target: data.target,
+      }).where(eq(schoolAnnouncements.id, data.id));
+      return { id: data.id };
+    }
+
+    const [r] = await db.insert(schoolAnnouncements).values({
+      schoolId,
+      locationId,
+      title: data.title,
+      message: data.message,
+      target: data.target,
+      createdBy: userId,
+    });
+    return { id: Number((r as any).insertId) };
+  });
+
+const listSchoolAnnouncementsSchema = z.object({
+  target: z.enum(["all", "parents", "staff"]).optional(),
+});
+
+export const listSchoolAnnouncements = createServerFn({ method: "GET" })
+  .validator((i: unknown) => listSchoolAnnouncementsSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { schoolAnnouncements } = await import("@/lib/db/schema");
+
+    const conditions = [];
+    if (data.target) conditions.push(or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, data.target)));
+
+    return db.select().from(schoolAnnouncements)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(schoolAnnouncements.createdAt));
+  });
+
+const deleteSchoolAnnouncementSchema = z.object({ id: z.number() });
+export const deleteSchoolAnnouncement = createServerFn({ method: "POST" })
+  .validator((i: unknown) => deleteSchoolAnnouncementSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { schoolId } = await requireAuth();
+    const { db } = await import("@/lib/db");
+    const { schoolAnnouncements } = await import("@/lib/db/schema");
+    await db.delete(schoolAnnouncements).where(and(eq(schoolAnnouncements.id, data.id), eq(schoolAnnouncements.schoolId, schoolId)));
+    return { ok: true };
+  });
+
+// ── AUTO-GENERATED REPORT CARD (from marks) ───────────────────────────────────
+
+const getReportCardDataSchema = z.object({
+  studentId: z.number(),
+  academicYear: z.string(),
+  term: z.string(),
+});
+
+export const getReportCardData = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getReportCardDataSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireSession();
+    const { db } = await import("@/lib/db");
+    const { students, studentMarks, examSubjects, exams, subjects, classes } = await import("@/lib/db/schema");
+
+    const [student] = await db.select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      dateOfBirth: students.dateOfBirth,
+      currentClassId: students.currentClassId,
+      gender: students.gender,
+    })
+      .from(students).where(eq(students.id, data.studentId)).limit(1);
+
+    if (!student) throw new Error("Student not found");
+
+    const className = student.currentClassId
+      ? (await db.select({ name: classes.name, ageGroup: classes.ageGroup }).from(classes).where(eq(classes.id, student.currentClassId)).limit(1))[0]?.name
+      : null;
+
+    // Find matching exams
+    const matchingExams = await db.select({ id: exams.id })
+      .from(exams)
+      .where(and(
+        eq(exams.academicYear, data.academicYear),
+        eq(exams.term, data.term),
+        eq(exams.classId, student.currentClassId ?? 0),
+      ));
+
+    const examIds = matchingExams.map((e) => e.id);
+    const marksData = examIds.length
+      ? await db.select({
+          subjectName: subjects.name,
+          maxMarks: examSubjects.maxMarks,
+          marks: studentMarks.marks,
+          grade: studentMarks.grade,
+        })
+        .from(studentMarks)
+        .innerJoin(examSubjects, eq(studentMarks.examSubjectId, examSubjects.id))
+        .innerJoin(subjects, eq(examSubjects.subjectId, subjects.id))
+        .where(and(inArray(examSubjects.examId, examIds), eq(studentMarks.studentId, data.studentId)))
+      : [];
+
+    const totalMax = marksData.reduce((sum, m) => sum + (parseFloat(m.maxMarks as string) || 0), 0);
+    const totalGot = marksData.reduce((sum, m) => sum + (parseFloat(m.marks as string) || 0), 0);
+    const percentage = totalMax > 0 ? Math.round((totalGot / totalMax) * 100) : 0;
+
+    return {
+      student,
+      className,
+      academicYear: data.academicYear,
+      term: data.term,
+      marks: marksData,
+      totalMax,
+      totalGot,
+      percentage,
     };
   });
 

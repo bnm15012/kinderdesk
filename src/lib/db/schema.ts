@@ -334,6 +334,107 @@ export const reportCards = mysqlTable("report_cards", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
+// ── Subjects ──────────────────────────────────────────────────────────────────
+export const subjects = mysqlTable("subjects", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  name: varchar("name", { length: 100 }).notNull(), // e.g. "Mathematics"
+  code: varchar("code", { length: 20 }),             // e.g. "MATH"
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Class-Subject assignments ────────────────────────────────────────────────
+export const classSubjects = mysqlTable("class_subjects", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  subjectId: int("subject_id").notNull().references(() => subjects.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Timetable (periods per class/day) ─────────────────────────────────────────
+export const timetable = mysqlTable("timetable", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  dayOfWeek: int("day_of_week").notNull(), // 1 = Monday ... 7 = Sunday
+  periodNumber: int("period_number").notNull(),
+  startTime: varchar("start_time", { length: 10 }),   // "09:00"
+  endTime: varchar("end_time", { length: 10 }),       // "09:45"
+  subjectId: int("subject_id").references(() => subjects.id),
+  teacherId: int("teacher_id").references(() => staff.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Exams / Assessments ───────────────────────────────────────────────────────
+export const exams = mysqlTable("exams", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  academicYear: varchar("academic_year", { length: 20 }).notNull(),
+  term: varchar("term", { length: 100 }).notNull(), // e.g. "Term 1", "Half-Yearly", "Final"
+  examType: varchar("exam_type", { length: 50 }).default("regular"), // "unit", "term", "final", "assignment"
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  status: mysqlEnum("status", ["draft", "active", "archived"]).default("draft"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Exam-Subject mapping (subjects in an exam with max marks) ─────────────────
+export const examSubjects = mysqlTable("exam_subjects", {
+  id: int("id").primaryKey().autoincrement(),
+  examId: int("exam_id").notNull().references(() => exams.id),
+  subjectId: int("subject_id").notNull().references(() => subjects.id),
+  maxMarks: decimal("max_marks", { precision: 6, scale: 2 }).notNull(),
+  examDate: date("exam_date"),
+  status: mysqlEnum("status", ["active", "cancelled"]).default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Student Marks ─────────────────────────────────────────────────────────────
+export const studentMarks = mysqlTable("student_marks", {
+  id: int("id").primaryKey().autoincrement(),
+  studentId: int("student_id").notNull().references(() => students.id),
+  examSubjectId: int("exam_subject_id").notNull().references(() => examSubjects.id),
+  marks: decimal("marks", { precision: 6, scale: 2 }),
+  grade: varchar("grade", { length: 10 }),
+  notes: text("notes"),
+  markedBy: int("marked_by").references(() => staff.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// ── Homework / Assignments ────────────────────────────────────────────────────
+export const homework = mysqlTable("homework", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  classId: int("class_id").notNull().references(() => classes.id),
+  subjectId: int("subject_id").references(() => subjects.id),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  dueDate: date("due_date"),
+  attachments: text("attachments"), // JSON array of {url, name}
+  createdBy: int("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── School Announcements (school / branch notices) ─────────────────────────────
+export const schoolAnnouncements = mysqlTable("school_announcements", {
+  id: int("id").primaryKey().autoincrement(),
+  schoolId: int("school_id").notNull().references(() => schools.id),
+  locationId: int("location_id").notNull().references(() => locations.id),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message"),
+  target: mysqlEnum("target", ["all", "parents", "staff"]).default("all"),
+  createdBy: int("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ── Documents (birth certificate, immunization, photos) ─────────────────────
 export const documents = mysqlTable("documents", {
   id: int("id").primaryKey().autoincrement(),
