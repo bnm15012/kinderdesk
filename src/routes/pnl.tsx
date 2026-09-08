@@ -88,7 +88,7 @@ function PnLPage() {
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Profit & Loss</h1>
         <button onClick={printPdf} className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg"><Download className="w-4 h-4" /> Download PDF</button>
