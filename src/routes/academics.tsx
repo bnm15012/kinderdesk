@@ -120,9 +120,9 @@ function AcademicsPage() {
           { key: "subjects", label: "Subjects", icon: BookOpen },
           { key: "classes", label: "Class Subjects", icon: GraduationCap },
           { key: "timetable", label: "Timetable", icon: Clock },
-          { key: "grading", label: "Board & Grading", icon: Award },
+          ...((schoolBoard !== "preschool" ? [{ key: "grading", label: "Board & Grading", icon: Award }] : []) as any[]),
           { key: "announcements", label: "Announcements", icon: Megaphone },
-        ] as const).map(({ key, label, icon: Icon }) => (
+        ] as any[]).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -358,6 +358,7 @@ function AcademicsPage() {
             <h2 className="text-base font-bold text-slate-800 mb-3">School Board</h2>
             <div className="flex items-center gap-3">
               <select value={schoolBoard} onChange={(e) => setSchoolBoard(e.target.value)} className={inputCls + " w-48 bg-white"}>
+                <option value="preschool">Preschool (no exams/marks)</option>
                 <option value="generic">Generic</option>
                 <option value="CBSE">CBSE</option>
                 <option value="ICSE">ICSE</option>

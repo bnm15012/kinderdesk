@@ -10,6 +10,7 @@ import {
   upsertExamSubject, listExamSubjects, deleteExamSubject,
   getStudentsForMarks, listStudentMarks, saveStudentMarks,
   listClassesForSchool, listSubjects, getReportCardData,
+  getSchoolBoard,
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
@@ -48,6 +49,8 @@ function ExamsPage() {
   const listStudentMarksFn = useServerFn(listStudentMarks);
   const saveStudentMarksFn = useServerFn(saveStudentMarks);
   const getReportCardDataFn = useServerFn(getReportCardData);
+  const getSchoolBoardFn = useServerFn(getSchoolBoard);
+  const [schoolBoard, setSchoolBoard] = useState<string>("generic");
 
   // Exams
   const [examForm, setExamForm] = useState<{ id?: number; academicYear: string; term: string; examType: string; startDate: string; endDate: string } | null>(null);
@@ -71,6 +74,7 @@ function ExamsPage() {
     listClassesFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } }).then((d) => setClasses(d as ClassRow[]));
     listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
     loadExams();
+    getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoard(d));
   }, [tenant]);
 
   useEffect(() => {
@@ -102,6 +106,19 @@ function ExamsPage() {
   };
 
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
+
+  if (schoolBoard === "preschool") {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-20">
+        <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <FileText className="w-8 h-8 text-amber-500" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Exams & marks not used in preschool mode</h2>
+        <p className="text-sm text-slate-500">This school is configured as a preschool. Grades, exams and report-card marks are not applicable.</p>
+        <p className="text-sm text-slate-500 mt-2">If this is a primary/secondary school, go to <strong>Academics → Board & Grading</strong> and change the board.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">

@@ -34,7 +34,7 @@ import { SchoolLocationSwitcher } from "@/components/school-location-switcher";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { UserMenu } from "@/components/user-menu";
 import { useServerFn } from "@tanstack/react-start";
-import { getSession } from "@/lib/auth";
+import { getSession, getSchoolBoard } from "@/lib/auth";
 
 export const publicPaths = [
   "/", "/about", "/contact", "/pricing", "/refund-policy", "/privacy-policy", "/terms-of-service",
@@ -96,16 +96,21 @@ const ACCOUNTANT_NAV = [
   { to: "/fees",     label: "Fees",      icon: DollarSign },
 ];
 
-function navForRole(role: string | null | undefined) {
+function navForRole(role: string | null | undefined, board?: string | null) {
+  let nav;
   switch (role) {
-    case "super_admin":   return SUPER_ADMIN_NAV;
+    case "super_admin":   nav = SUPER_ADMIN_NAV; break;
     case "teacher":
-    case "staff":         return TEACHER_NAV;
-    case "parent":        return PARENT_NAV;
-    case "accountant":    return ACCOUNTANT_NAV;
-    case "school_admin":  return SCHOOL_ADMIN_NAV;
-    default:              return ADMIN_NAV;
+    case "staff":         nav = TEACHER_NAV; break;
+    case "parent":        nav = PARENT_NAV; break;
+    case "accountant":    nav = ACCOUNTANT_NAV; break;
+    case "school_admin":  nav = SCHOOL_ADMIN_NAV; break;
+    default:              nav = ADMIN_NAV; break;
   }
+  if (board === "preschool") {
+    nav = nav.filter((item) => item.to !== "/exams");
+  }
+  return nav;
 }
 
 function RootShell({ children }: { children: ReactNode }) {
@@ -117,13 +122,13 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-function SidebarContent({ role, onNavClick }: { role: string | null | undefined; onNavClick?: () => void }) {
+function SidebarContent({ role, board, onNavClick }: { role: string | null | undefined; board?: string | null; onNavClick?: () => void }) {
   const { pathname } = useLocation();
   const effectiveRole =
     role === "super_admin" && !pathname.startsWith("/super-admin")
       ? "school_admin"
       : role;
-  const nav = navForRole(effectiveRole);
+  const nav = navForRole(effectiveRole, board);
   const isImpersonating = role === "super_admin" && effectiveRole === "school_admin";
 
   return (
@@ -177,23 +182,23 @@ function SidebarContent({ role, onNavClick }: { role: string | null | undefined;
   );
 }
 
-function Sidebar({ role }: { role: string | null | undefined }) {
+function Sidebar({ role, board }: { role: string | null | undefined; board?: string | null }) {
   return (
     /* Desktop sidebar — always visible, hidden on mobile (bottom tab bar used instead) */
     <aside className="hidden md:flex w-60 shrink-0 flex-col bg-slate-900 border-r border-slate-800">
-      <SidebarContent role={role} />
+      <SidebarContent role={role} board={board} />
     </aside>
   );
 }
 
-function BottomTabBar({ role }: { role: string | null | undefined }) {
+function BottomTabBar({ role, board }: { role: string | null | undefined; board?: string | null }) {
   const { pathname } = useLocation();
   const effectiveRole =
     role === "super_admin" && !pathname.startsWith("/super-admin")
       ? "school_admin"
       : role;
   // Show max 5 tabs — take the first 5 nav items for the role
-  const nav = navForRole(effectiveRole).slice(0, 5);
+  const nav = navForRole(effectiveRole, board).slice(0, 5);
 
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
@@ -245,9 +250,11 @@ function AppShell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const getSessionFn = useServerFn(getSession);
-  const { setTenant } = useTenant();
+  const getSchoolBoardFn = useServerFn(getSchoolBoard);
+  const { setTenant, tenant } = useTenant();
   // undefined = not checked yet, null = not authenticated, string = role
   const [role, setRole] = useState<string | null | undefined>(undefined);
+  const [board, setBoard] = useState<string | null>(null);
   const isPublic = publicPaths.some((p) => pathname === p || pathname.startsWith(p + "?"));
 
   useEffect(() => {
@@ -275,6 +282,9 @@ function AppShell() {
         }
       }
       setRole(user.role);
+      if (user.schoolId) {
+        getSchoolBoardFn({ data: { schoolId: user.schoolId } }).then((d: any) => setBoard(d)).catch(() => setBoard(null));
+      }
       // Role-based redirect
       const home = roleHome(user.role);
       const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum"];
@@ -296,6 +306,12 @@ function AppShell() {
       }
     });
   }, [pathname]);
+
+  useEffect(() => {
+    if (tenant?.schoolId) {
+      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setBoard(d)).catch(() => setBoard(null));
+    }
+  }, [tenant?.schoolId]);
 
   if (isPublic) return <Outlet />;
 
@@ -341,7 +357,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen flex">
-      <Sidebar role={role} />
+      <Sidebar role={role} board={board} />
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
@@ -351,7 +367,7 @@ function AppShell() {
         </main>
       </div>
       {/* Mobile bottom tab bar */}
-      <BottomTabBar role={role} />
+      <BottomTabBar role={role} board={board} />
     </div>
   );
 }

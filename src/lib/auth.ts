@@ -5446,7 +5446,7 @@ export const deleteSchoolAnnouncement = createServerFn({ method: "POST" })
 
 // ── SCHOOL BOARD ──────────────────────────────────────────────────────────────
 
-const setSchoolBoardSchema = z.object({ schoolId: z.number(), board: z.enum(["generic", "CBSE", "ICSE", "IB", "STATE"]) });
+const setSchoolBoardSchema = z.object({ schoolId: z.number(), board: z.enum(["generic", "CBSE", "ICSE", "IB", "STATE", "preschool"]) });
 export const setSchoolBoard = createServerFn({ method: "POST" })
   .validator((i: unknown) => setSchoolBoardSchema.parse(i))
   .handler(async ({ data }) => {
