@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { DollarSign, Plus, Pencil, Trash2, TrendingUp, TrendingDown, Download, FileText } from "lucide-react";
-import { manageExpense, listExpenses, deleteExpense, getPnl } from "@/lib/auth";
+import { DollarSign, TrendingUp, TrendingDown, Download } from "lucide-react";
+import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
-import { useToast } from "@/lib/toast";
 
 export const Route = createFileRoute("/pnl")({
   component: PnLPage,
@@ -21,28 +20,21 @@ type PnL = {
   expenseList: Expense[];
 };
 
-const CATEGORIES = ["salary", "electricity", "rent", "supplies", "transport", "maintenance", "other"];
 const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
 const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function PnLPage() {
   const { tenant } = useTenant();
-  const toast = useToast();
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const manageExpenseFn = useServerFn(manageExpense);
-  const listExpensesFn = useServerFn(listExpenses);
-  const deleteExpenseFn = useServerFn(deleteExpense);
   const getPnlFn = useServerFn(getPnl);
 
-  const today = new Date().toISOString().split("T")[0];
   const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today);
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [pnl, setPnl] = useState<PnL | null>(null);
-  const [form, setForm] = useState<{ id?: number; category: string; description: string; amount: string; expenseDate: string } | null>(null);
 
   useEffect(() => {
     if (!tenant) return;
@@ -52,8 +44,6 @@ function PnLPage() {
 
   const loadData = async () => {
     if (!tenant) return;
-    const e = await listExpensesFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId, from, to } }) as Expense[];
-    setExpenses(e);
     const p = await getPnlFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId, from, to } }) as PnL;
     setPnl(p);
   };
@@ -133,68 +123,18 @@ function PnLPage() {
             <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden mt-4">
               <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2">Category</th><th className="text-left px-4 py-2">Description</th><th className="px-4 py-2 text-right">Amount</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {expenses.map((e) => (
+                {pnl.expenseList.map((e) => (
                   <tr key={e.id}>
                     <td className="px-4 py-2 capitalize">{e.category}</td>
                     <td className="px-4 py-2 text-slate-500">{e.description || "—"}</td>
                     <td className="px-4 py-2 text-right">{money(parseFloat(e.amount))}</td>
                   </tr>
                 ))}
-                {expenses.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400">No expenses in this period</td></tr>}
+                {pnl.expenseList.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400">No expenses in this period</td></tr>}
               </tbody>
             </table>
           </div>
         )}
-      </div>
-
-      {/* Expenses management */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-800">Expenses</h2>
-          <button onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg"><Plus className="w-3.5 h-3.5" /> Add</button>
-        </div>
-
-        {form && (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls + " bg-white"}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} className={inputCls + " bg-white"} />
-              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls} placeholder="Amount" />
-              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls} placeholder="Description" />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={async () => {
-                await manageExpenseFn({ data: { id: form.id, schoolId: tenant.schoolId, locationId: tenant.locationId, category: form.category as any, amount: form.amount, description: form.description, expenseDate: form.expenseDate } });
-                setForm(null);
-                await loadData();
-                toast("Saved", "success");
-              }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-              <button onClick={() => setForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {expenses.map((e) => (
-            <div key={e.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
-              <div className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-slate-400" />
-                <div>
-                  <p className="text-sm font-bold text-slate-800 capitalize">{e.category}</p>
-                  <p className="text-xs text-slate-500">{e.expenseDate} · {e.description || "—"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-slate-800">{money(parseFloat(e.amount))}</span>
-                <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ?? today })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await loadData(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
-          ))}
-          {expenses.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No expenses yet</p>}
-        </div>
       </div>
     </div>
   );
