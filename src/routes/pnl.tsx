@@ -131,11 +131,21 @@ function PnLPage() {
         {/* Report preview */}
         <div className="flex-1 w-full">
           <div className="overflow-x-auto pb-6">
-            <div ref={reportRef} className="print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] bg-slate-50 shadow-lg rounded-none p-8 mx-auto text-sm" style={{ minHeight: "297mm" }}>
+            <div ref={reportRef} className="report-pdf print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] shadow-lg rounded-none p-8 mx-auto text-sm" style={{ minHeight: "297mm" }}>
+              <style>{`
+                .report-pdf { background-color: #f8fafc !important; color: #0f172a !important; }
+                .report-pdf * { color: #0f172a !important; }
+                .report-pdf .report-header { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+                .report-pdf .report-logo { background-color: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; }
+                .report-pdf .report-table { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; border-collapse: collapse !important; }
+                .report-pdf .report-thead { background-color: #f1f5f9 !important; }
+                .report-pdf th, .report-pdf td { border: 1px solid #e2e8f0 !important; padding: 8px !important; }
+                .report-pdf .report-total { background-color: #f1f5f9 !important; }
+              `}</style>
               {/* Header */}
-              <div className="flex items-start justify-between bg-white border border-slate-200 rounded-2xl p-5 mb-6">
+              <div className="report-header flex items-start justify-between rounded-2xl p-5 mb-6">
                 <div className="flex flex-col items-start">
-                  <div className="w-20 h-20 border border-slate-200 bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-500 font-semibold mb-3">LOGO</div>
+                  <div className="report-logo w-20 h-20 rounded-xl flex items-center justify-center text-xs font-semibold mb-3">LOGO</div>
                   <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
                   <p className="text-sm font-semibold text-slate-800 mt-1">Profit & Loss Report</p>
                   <p className="text-xs text-slate-500">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
@@ -153,15 +163,15 @@ function PnLPage() {
                   {/* Income */}
                   <section>
                     <h3 className="text-base font-bold text-slate-900 mb-3">Income</h3>
-                    <table className="w-full border border-slate-200 text-sm bg-white">
-                      <thead className="bg-slate-100">
+                    <table className="report-table w-full text-sm">
+                      <thead className="report-thead">
                         <tr>
-                          <th className="text-left px-3 py-2 border-b border-slate-200 w-12">No.</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Student</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Payment Mode</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Fee</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Date</th>
-                          <th className="text-right px-3 py-2 border-b border-slate-200 w-28">Amount</th>
+                          <th className="text-left w-12">No.</th>
+                          <th className="text-left">Student</th>
+                          <th className="text-left">Payment Mode</th>
+                          <th className="text-left">Fee</th>
+                          <th className="text-left">Date</th>
+                          <th className="text-right w-28">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -186,14 +196,14 @@ function PnLPage() {
                   {/* Expenses */}
                   <section>
                     <h3 className="text-base font-bold text-slate-900 mb-3">Expenses</h3>
-                    <table className="w-full border border-slate-200 text-sm bg-white">
-                      <thead className="bg-slate-100">
+                    <table className="report-table w-full text-sm">
+                      <thead className="report-thead">
                         <tr>
-                          <th className="text-left px-3 py-2 border-b border-slate-200 w-12">No.</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Category</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Description</th>
-                          <th className="text-left px-3 py-2 border-b border-slate-200">Date</th>
-                          <th className="text-right px-3 py-2 border-b border-slate-200 w-28">Amount</th>
+                          <th className="text-left w-12">No.</th>
+                          <th className="text-left">Category</th>
+                          <th className="text-left">Description</th>
+                          <th className="text-left">Date</th>
+                          <th className="text-right w-28">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -217,19 +227,19 @@ function PnLPage() {
                   {/* Summary */}
                   <section className="w-80 ml-auto">
                     <h3 className="text-base font-bold text-slate-900 mb-3">Summary</h3>
-                    <table className="w-full border border-slate-200 text-sm bg-white">
-                      <tbody className="divide-y divide-slate-100">
+                    <table className="report-table w-full text-sm">
+                      <tbody>
                         <tr>
-                          <td className="px-3 py-2 text-slate-600">Total Income</td>
-                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(pnl.income)}</td>
+                          <td>Total Income</td>
+                          <td className="text-right font-semibold">{money(pnl.income)}</td>
                         </tr>
                         <tr>
-                          <td className="px-3 py-2 text-slate-600">Total Expense</td>
-                          <td className="px-3 py-2 text-right font-semibold text-rose-700">{money(pnl.expenses)}</td>
+                          <td>Total Expense</td>
+                          <td className="text-right font-semibold">{money(pnl.expenses)}</td>
                         </tr>
-                        <tr className="bg-slate-100">
-                          <td className="px-3 py-2 font-semibold text-slate-800">Net P&L</td>
-                          <td className={`px-3 py-2 text-right font-bold ${pnl.net >= 0 ? "text-blue-700" : "text-amber-700"}`}>{money(pnl.net)}</td>
+                        <tr className="report-total font-semibold">
+                          <td>Net P&L</td>
+                          <td className="text-right font-bold">{money(pnl.net)}</td>
                         </tr>
                       </tbody>
                     </table>
