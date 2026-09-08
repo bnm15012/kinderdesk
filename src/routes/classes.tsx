@@ -275,8 +275,9 @@ function Classes() {
       {error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 text-sm"><AlertCircle className="w-5 h-5 shrink-0" />{error}</div>}
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-36 bg-white rounded-2xl border border-slate-200 animate-pulse" />)}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="h-12 bg-slate-50 animate-pulse" />
+          {[1,2,3,4].map(i => <div key={i} className="h-14 border-b border-slate-100 animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-14 text-center shadow-sm">
@@ -284,42 +285,51 @@ function Classes() {
           <p className="text-slate-400 text-sm">{rows.length === 0 ? "No classes yet. Add your first class!" : "No classes match your search."}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((c) => {
-            const pct = Math.round((c.enrolledCount / c.capacity) * 100);
-            const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-blue-500";
-            return (
-              <div key={c.id} onClick={() => setSelected(c)}
-                className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md hover:border-blue-300 transition cursor-pointer group">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 transition">{c.name}</h3>
-                      {c.status === "inactive" && <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full">Inactive</span>}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{c.roomName ?? "No room assigned"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">{c.ageGroup}</span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition" />
-                  </div>
-                </div>
-                {c.startTime && (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
-                    <Clock className="w-3.5 h-3.5" /> {c.startTime} – {c.endTime ?? "?"}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
-                  <Users className="w-4 h-4 text-slate-400" />
-                  <span>{c.enrolledCount} of {c.capacity} enrolled</span>
-                  <span className="ml-auto font-semibold text-slate-800">{pct}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className={`${barColor} h-2 rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                </div>
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50"><tr>
+              <th className="text-left px-4 py-3 font-semibold text-slate-700 w-16">S.No</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-700">Class</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-700">Age Group</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-700">Room</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-700">Timing</th>
+              <th className="text-right px-4 py-3 font-semibold text-slate-700">Enrolled</th>
+              <th className="text-left px-4 py-3 font-semibold text-slate-700 w-24">Status</th>
+            </tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((c, i) => {
+                const pct = Math.round((c.enrolledCount / c.capacity) * 100);
+                const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-blue-500";
+                return (
+                  <tr key={c.id} onClick={() => setSelected(c)} className="hover:bg-slate-50 cursor-pointer transition">
+                    <td className="px-4 py-3 text-slate-500 w-16">{i + 1}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-900">{c.name}</p>
+                    </td>
+                    <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">{c.ageGroup}</span></td>
+                    <td className="px-4 py-3 text-slate-500">{c.roomName ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{c.startTime ? `${c.startTime} – ${c.endTime ?? "?"}` : "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-slate-600">{c.enrolledCount}/{c.capacity}</span>
+                        <span className="font-semibold text-slate-800 w-8">{pct}%</span>
+                      </div>
+                      <div className="w-24 h-1.5 bg-slate-100 rounded-full ml-auto mt-1.5">
+                        <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 w-24">
+                      {c.status === "inactive" ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full">Inactive</span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Active</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
