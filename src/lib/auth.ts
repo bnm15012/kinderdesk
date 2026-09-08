@@ -2784,7 +2784,8 @@ export const updateStaffMember = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireSession();
     const { db } = await import("@/lib/db");
-    const { staff } = await import("@/lib/db/schema");
+    const { staff, users } = await import("@/lib/db/schema");
+    const [row] = await db.select({ userId: staff.userId, email: staff.email }).from(staff).where(eq(staff.id, data.staffId)).limit(1);
     await db.update(staff).set({
       firstName: data.firstName, lastName: data.lastName ?? "",
       email: data.email || null, phone: data.phone || null,
@@ -2794,6 +2795,14 @@ export const updateStaffMember = createServerFn({ method: "POST" })
       status: data.status ?? undefined,
       backgroundCheckStatus: data.backgroundCheckStatus ?? undefined,
     }).where(eq(staff.id, data.staffId));
+    // Keep the linked user record in sync so login still works after a staff email change.
+    if (row?.userId) {
+      await db.update(users).set({
+        email: data.email ? normalizeEmail(data.email) : null,
+        firstName: data.firstName,
+        lastName: data.lastName ?? "",
+      }).where(eq(users.id, row.userId));
+    }
     return { ok: true };
   });
 
