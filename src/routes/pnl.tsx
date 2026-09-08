@@ -137,7 +137,7 @@ function PnLPage() {
 
       <div className="flex flex-col lg:flex-row gap-3 items-start no-print">
         {/* Filters */}
-        <div className="w-full lg:w-80 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0 lg:sticky lg:top-5">
+        <div className="w-full lg:w-64 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0 lg:sticky lg:top-5">
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
@@ -157,7 +157,7 @@ function PnLPage() {
           <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2">
             <FileText className="w-4 h-4" /> Generate Report
           </button>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <button onClick={downloadPdf} className="flex items-center justify-center gap-1.5 h-10 px-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition">
               <Download className="w-4 h-4" /> Download
             </button>
