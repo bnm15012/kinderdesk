@@ -27,6 +27,7 @@ import {
   FileText,
   Clipboard,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import appCss from "../styles.css?url";
 import { TenantProvider, useTenant } from "@/lib/tenant";
@@ -65,6 +66,7 @@ const ADMIN_NAV = [
   { to: "/homework",    label: "Homework",    icon: Clipboard },
   { to: "/staff",       label: "Staff",       icon: Briefcase },
   { to: "/classes",     label: "Classes",     icon: DoorOpen },
+  { to: "/expenses",    label: "Expenses",    icon: Wallet },
   { to: "/pnl",         label: "P&L",         icon: TrendingUp },
   { to: "/curriculum",  label: "Activities",  icon: BookOpen },
 ];
@@ -289,7 +291,7 @@ function AppShell() {
       }
       // Role-based redirect
       const home = roleHome(user.role);
-      const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/pnl"];
+      const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/expenses", "/pnl"];
       const accountantRoutes = ["/dashboard", "/fees"];
       const teacherRoutes = ["/teacher", "/teacher/attendance", "/curriculum"];
       const parentRoutes = ["/parent"];
