@@ -112,7 +112,7 @@ function AcademicsPage() {
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Academics</h1>
 
       <div className="flex gap-2 border-b border-slate-200">
