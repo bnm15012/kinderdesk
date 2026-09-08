@@ -121,7 +121,7 @@ function ExamsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Exams & Marks</h1>
       <div className="flex gap-2 border-b border-slate-200">
         {([

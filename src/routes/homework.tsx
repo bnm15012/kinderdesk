@@ -48,7 +48,7 @@ function HomeworkPage() {
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="w-full max-w-none space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Homework & Assignments</h1>
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
