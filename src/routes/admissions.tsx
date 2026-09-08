@@ -453,9 +453,9 @@ function InquiryDrawer({
                       {inviteToken ? (
                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
                           <div className="flex items-center gap-2 text-emerald-700 text-sm font-semibold">
-                            <CheckCircle2 className="w-4 h-4" /> Parent invite sent!
+                            <CheckCircle2 className="w-4 h-4" /> Parent invite created
                           </div>
-                          <p className="text-xs text-emerald-600">Email sent. If it doesn't arrive, share the link manually:</p>
+                          <p className="text-xs text-emerald-600">Email sending is disabled in local mode. Share the link manually:</p>
                           <div className="flex items-center gap-2 bg-emerald-100 rounded-lg px-3 py-2">
                             <span className="text-xs text-emerald-700 flex-1">Invite link (click to copy)</span>
                             <button

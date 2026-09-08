@@ -2852,17 +2852,18 @@ export const addStaffMember = createServerFn({ method: "POST" })
         .setExpirationTime("7d")
         .sign(JWT_SECRET);
 
-      // Send invite email
-      const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
-      const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
-      const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, data.schoolId)).limit(1);
-      const schoolName = schoolRow?.name ?? "Your School";
-      try {
-        const { sendStaffInviteEmail } = await import("@/lib/email");
-        await sendStaffInviteEmail(email, inviteUrl, schoolName);
-      } catch (emailErr) {
-        console.error("Failed to send staff invite email:", emailErr);
-        // Non-fatal — token is still returned so staff can copy link manually
+      // Send invite email unless disabled
+      if (process.env.SKIP_INVITE_EMAIL !== "true") {
+        const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
+        const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
+        const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, data.schoolId)).limit(1);
+        const schoolName = schoolRow?.name ?? "Your School";
+        try {
+          const { sendStaffInviteEmail } = await import("@/lib/email");
+          await sendStaffInviteEmail(email, inviteUrl, schoolName);
+        } catch (emailErr) {
+          console.error("Failed to send staff invite email:", emailErr);
+        }
       }
     }
 
@@ -2964,16 +2965,18 @@ export const sendParentInvite = createServerFn({ method: "POST" })
       .setExpirationTime("7d")
       .sign(JWT_SECRET);
 
-    // Send invite email
-    const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
-    const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
-    const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, inquiry.schoolId)).limit(1);
-    const schoolName = schoolRow?.name ?? "Your School";
-    try {
-      const { sendParentInviteEmail } = await import("@/lib/email");
-      await sendParentInviteEmail(email, inviteUrl, schoolName, inquiry.childName ?? "your child");
-    } catch (emailErr) {
-      console.error("Failed to send parent invite email:", emailErr);
+    // Send invite email unless disabled
+    if (process.env.SKIP_INVITE_EMAIL !== "true") {
+      const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
+      const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
+      const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, inquiry.schoolId)).limit(1);
+      const schoolName = schoolRow?.name ?? "Your School";
+      try {
+        const { sendParentInviteEmail } = await import("@/lib/email");
+        await sendParentInviteEmail(email, inviteUrl, schoolName, inquiry.childName ?? "your child");
+      } catch (emailErr) {
+        console.error("Failed to send parent invite email:", emailErr);
+      }
     }
 
     return { ok: true, inviteToken };
@@ -3024,16 +3027,18 @@ export const resendStaffInvite = createServerFn({ method: "POST" })
       .setExpirationTime("7d")
       .sign(JWT_SECRET);
 
-    // Send invite email
-    const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
-    const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
-    const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, member.schoolId)).limit(1);
-    const schoolName = schoolRow?.name ?? "Your School";
-    try {
-      const { sendStaffInviteEmail } = await import("@/lib/email");
-      await sendStaffInviteEmail(email, inviteUrl, schoolName);
-    } catch (emailErr) {
-      console.error("Failed to send staff invite email:", emailErr);
+    // Send invite email unless disabled
+    if (process.env.SKIP_INVITE_EMAIL !== "true") {
+      const appUrl = process.env.APP_URL ?? process.env.VITE_APP_URL ?? "https://kinderdesk.vercel.app";
+      const inviteUrl = `${appUrl}/invite?token=${inviteToken}`;
+      const [schoolRow] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, member.schoolId)).limit(1);
+      const schoolName = schoolRow?.name ?? "Your School";
+      try {
+        const { sendStaffInviteEmail } = await import("@/lib/email");
+        await sendStaffInviteEmail(email, inviteUrl, schoolName);
+      } catch (emailErr) {
+        console.error("Failed to send staff invite email:", emailErr);
+      }
     }
 
     return { ok: true, inviteToken };

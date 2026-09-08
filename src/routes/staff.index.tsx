@@ -273,8 +273,8 @@ function InviteSuccessDialog({ token, onClose }: { token: string; onClose: () =>
         <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
-        <h3 className="text-lg font-bold text-slate-900 mb-2">Invite sent!</h3>
-        <p className="text-sm text-slate-500 mb-4">An invite email has been sent. You can also share the link manually:</p>
+        <h3 className="text-lg font-bold text-slate-900 mb-2">Invite created</h3>
+        <p className="text-sm text-slate-500 mb-4">Email sending is disabled in local mode. Share the link manually:</p>
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 mb-5">
           <span className="text-xs text-slate-400 font-mono truncate flex-1">Invite link (click to copy)</span>
           <button

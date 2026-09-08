@@ -775,7 +775,8 @@ function StaffDetailPage() {
                 <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                 </div>
-                <p className="text-sm font-semibold text-slate-900">Invite sent!</p>
+                <p className="text-sm font-semibold text-slate-900">Invite created</p>
+                <p className="text-xs text-slate-500">Email sending is disabled in local mode. Share this link:</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left">
                   <p className="text-xs font-mono text-slate-700 break-all leading-relaxed">
                     {typeof window !== "undefined" ? window.location.origin : ""}/invite?token={inviteToken}
