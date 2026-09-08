@@ -14,6 +14,7 @@ export const Route = createFileRoute("/pnl")({
 type Income = { id: number; studentName: string; method: string; feeName: string | null; amount: string; paidAt: string | null };
 type Expense = { id: number; category: string; description: string | null; amount: string; expenseDate: string | null };
 type Location = { name: string; address: string | null; city: string | null; state: string | null; pincode: string | null };
+type School = { name: string; logoUrl: string | null };
 
 type PnL = {
   from: string;
@@ -22,6 +23,7 @@ type PnL = {
   expenses: number;
   net: number;
   location: Location;
+  school: School;
   incomeList: Income[];
   expenseList: Expense[];
 };
@@ -173,6 +175,7 @@ function PnLPage() {
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
                 .report-pdf .report-header { background-color: #ffffff !important; border-bottom: 2px solid #2563eb !important; }
                 .report-pdf .report-logo { background-color: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #64748b !important; }
+                .report-pdf .report-logo-img { background-color: transparent !important; }
                 .report-pdf .report-title { color: #1e40af !important; }
                 .report-pdf .report-muted { color: #64748b !important; }
                 .report-pdf .report-card-income { background-color: #f0fdf4 !important; border: 1px solid #bbf7d0 !important; }
@@ -188,9 +191,15 @@ function PnLPage() {
               {/* Header */}
               <div className="report-header flex items-start justify-between pb-5 mb-6">
                 <div className="flex items-start gap-4">
-                  <div className="report-logo w-20 h-20 rounded-xl flex flex-col items-center justify-center text-xs font-semibold">LOGO</div>
+                  {pnl?.school?.logoUrl ? (
+                    <div className="report-logo-img w-20 h-20 rounded-xl overflow-hidden">
+                      <img src={pnl.school.logoUrl} alt="" className="w-full h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="report-logo w-20 h-20 rounded-xl flex flex-col items-center justify-center text-xs font-semibold">LOGO</div>
+                  )}
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
+                    <h2 className="text-2xl font-bold text-slate-900">{pnl?.school?.name ?? tenant.schoolName}</h2>
                     <p className="text-xs report-muted mt-0.5">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
                   </div>
                 </div>

@@ -5256,7 +5256,7 @@ export const getPnl = createServerFn({ method: "GET" })
   .validator((i: unknown) => getPnlSchema.parse(i))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { expenses, invoices, payments, students, feeStructures, locations } = await import("@/lib/db/schema");
+    const { expenses, invoices, payments, students, feeStructures, locations, schools } = await import("@/lib/db/schema");
     const user = await requireAuth(data.schoolId, data.locationId);
     if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
 
@@ -5325,6 +5325,14 @@ export const getPnl = createServerFn({ method: "GET" })
       .where(eq(locations.id, data.locationId))
       .limit(1);
 
+    const [school] = await db.select({
+      name: schools.name,
+      logoUrl: schools.logoUrl,
+    })
+      .from(schools)
+      .where(eq(schools.id, data.schoolId))
+      .limit(1);
+
     const income = parseFloat((incomeRow.total as any) ?? "0");
     const expenseTotal = parseFloat((expenseRow.total as any) ?? "0");
     const net = income - expenseTotal;
@@ -5336,6 +5344,7 @@ export const getPnl = createServerFn({ method: "GET" })
       expenses: expenseTotal,
       net,
       location: location ?? { name: "", address: null, city: null, state: null, pincode: null },
+      school: school ?? { name: "", logoUrl: null },
       incomeList,
       expenseList,
     };
