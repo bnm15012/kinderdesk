@@ -137,7 +137,7 @@ function PnLPage() {
 
       <div className="flex flex-col lg:flex-row gap-3 items-start no-print">
         {/* Filters */}
-        <div className="w-full lg:w-64 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0 lg:sticky lg:top-5">
+        <div className="w-full lg:w-72 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0 lg:sticky lg:top-5">
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
@@ -169,7 +169,7 @@ function PnLPage() {
 
         {/* Report preview */}
         <div className="flex-1 w-full h-[calc(100vh-200px)] overflow-auto">
-          <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-6 text-sm">
+          <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-5 text-sm">
               <style>{`
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
                 .report-pdf .report-header { background-color: #ffffff !important; border-bottom: 2px solid #2563eb !important; }
@@ -188,7 +188,7 @@ function PnLPage() {
               `}</style>
 
               {/* Header */}
-              <div className="report-header flex items-start justify-between pb-5 mb-6">
+              <div className="report-header flex items-start justify-between pb-4 mb-5">
                 <div className="flex items-start gap-4">
                   {pnl?.school?.logoUrl ? (
                     <div className="report-logo-img w-20 h-20 rounded-xl overflow-hidden">
@@ -213,26 +213,26 @@ function PnLPage() {
               {!pnl ? (
                 <p className="text-slate-400 text-center py-20">Select a date range and click Generate Report</p>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {/* Summary cards */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="report-card-income p-4 rounded-xl">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="report-card-income p-3 rounded-xl">
                       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">Total Income</p>
-                      <p className="text-xl font-bold text-emerald-800">{money(pnl.income)}</p>
+                      <p className="text-lg font-bold text-emerald-800">{money(pnl.income)}</p>
                     </div>
-                    <div className="report-card-expense p-4 rounded-xl">
+                    <div className="report-card-expense p-3 rounded-xl">
                       <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 mb-1">Total Expense</p>
-                      <p className="text-xl font-bold text-rose-800">{money(pnl.expenses)}</p>
+                      <p className="text-lg font-bold text-rose-800">{money(pnl.expenses)}</p>
                     </div>
-                    <div className={`p-4 rounded-xl ${pnl.net >= 0 ? "report-card-net" : "report-card-net-neg"}`}>
+                    <div className={`p-3 rounded-xl ${pnl.net >= 0 ? "report-card-net" : "report-card-net-neg"}`}>
                       <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${pnl.net >= 0 ? "text-blue-700" : "text-amber-700"}`}>Net P&L</p>
-                      <p className={`text-xl font-bold ${pnl.net >= 0 ? "text-blue-800" : "text-amber-800"}`}>{money(pnl.net)}</p>
+                      <p className={`text-lg font-bold ${pnl.net >= 0 ? "text-blue-800" : "text-amber-800"}`}>{money(pnl.net)}</p>
                     </div>
                   </div>
 
                   {/* Income */}
                   <section>
-                    <h3 className="text-base font-bold text-slate-900 mb-2">Income</h3>
+                    <h3 className="text-base font-bold text-slate-900 mb-1.5">Income</h3>
                     <table className="report-table w-full text-sm">
                       <thead className="report-thead">
                         <tr>
@@ -265,7 +265,7 @@ function PnLPage() {
 
                   {/* Expenses */}
                   <section>
-                    <h3 className="text-base font-bold text-slate-900 mb-2">Expenses</h3>
+                    <h3 className="text-base font-bold text-slate-900 mb-1.5">Expenses</h3>
                     <table className="report-table w-full text-sm">
                       <thead className="report-thead">
                         <tr>
