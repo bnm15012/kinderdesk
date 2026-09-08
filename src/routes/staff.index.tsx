@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 // This is the index route for /staff — the list page.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   X, Plus, Search, Mail, CheckCircle2, AlertCircle,
@@ -11,6 +11,8 @@ import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PlanLimitDialog, parsePlanLimitError } from "@/components/plan-limit-dialog";
+import { usePagination } from "@/lib/usePagination";
+import { Pagination } from "@/components/pagination";
 
 export const Route = createFileRoute("/staff/")({
   component: Staff,
@@ -356,6 +358,8 @@ function Staff() {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [inviteSuccessToken, setInviteSuccessToken] = useState<string | null>(null);
+
+  const PAGE_SIZE = 12;
   const [resendTarget, setResendTarget] = useState<StaffRow | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmStaff, setConfirmStaff] = useState<StaffRow | null>(null);
@@ -385,12 +389,16 @@ function Staff() {
     }
   };
 
-  const filtered = rows.filter((s) => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+    return rows.filter((s) =>
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
       s.role.toLowerCase().includes(q) ||
-      s.classes.join(" ").toLowerCase().includes(q);
-  });
+      s.classes.join(" ").toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
+  const { pageItems, currentPage, setCurrentPage, totalPages } = usePagination(filtered, PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -420,6 +428,7 @@ function Staff() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-5 py-3.5 w-16">S.No</th>
                 <th className="px-5 py-3.5">Name</th>
                 <th className="px-5 py-3.5">Job Title</th>
                 <th className="px-5 py-3.5">Classes</th>
@@ -432,18 +441,19 @@ function Staff() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>)}</tr>
+                  <tr key={i}>{Array.from({ length: 8 }).map((__, j) => <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>)}</tr>
                 ))
-              ) : filtered.length === 0 ? (
+              ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-14 text-center">
+                  <td colSpan={8} className="px-5 py-14 text-center">
                     <Briefcase className="w-10 h-10 mx-auto mb-3 text-slate-200" />
                     <p className="text-slate-400 text-sm">{rows.length === 0 ? "No staff yet. Add your first member!" : "No staff match your search."}</p>
                   </td>
                 </tr>
               ) : (
-                filtered.map((s) => (
+                pageItems.map((s, i) => (
                   <tr key={s.id} onClick={() => navigate({ to: "/staff/$staffId", params: { staffId: String(s.id) } })} className="hover:bg-blue-50/40 transition cursor-pointer group">
+                    <td className="px-5 py-4 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
@@ -509,6 +519,14 @@ function Staff() {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+        />
       </div>
 
       {addOpen && (

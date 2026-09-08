@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   X, Plus, Search, AlertCircle, Users, ChevronRight,
@@ -13,6 +13,8 @@ import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PlanLimitDialog, parsePlanLimitError } from "@/components/plan-limit-dialog";
 import { fmtDate } from "@/lib/utils";
+import { usePagination } from "@/lib/usePagination";
+import { Pagination } from "@/components/pagination";
 
 export const Route = createFileRoute("/students/")({
   component: Students,
@@ -322,6 +324,8 @@ function Students() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmStudent, setConfirmStudent] = useState<StudentRow | null>(null);
 
+  const PAGE_SIZE = 12;
+
   const load = () => {
     setLoading(true);
     Promise.all([
@@ -356,14 +360,16 @@ function Students() {
     }
   };
 
-  const filtered = students.filter((s) => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return (
+    return students.filter((s) =>
       `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
       (s.parentName ?? "").toLowerCase().includes(q) ||
       (s.className ?? "").toLowerCase().includes(q)
     );
-  });
+  }, [students, search]);
+
+  const { pageItems, currentPage, setCurrentPage, totalPages } = usePagination(filtered, PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -409,6 +415,7 @@ function Students() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <th className="px-5 py-3.5 w-16">S.No</th>
               <th className="px-5 py-3.5">Name</th>
               <th className="px-5 py-3.5">Age</th>
               <th className="px-5 py-3.5">Class</th>
@@ -423,20 +430,20 @@ function Students() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 8 }).map((__, j) => (
+                  {Array.from({ length: 9 }).map((__, j) => (
                     <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>
                   ))}
                 </tr>
               ))
-            ) : filtered.length === 0 ? (
+            ) : pageItems.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center">
+                <td colSpan={9} className="px-5 py-12 text-center">
                   <Users className="w-10 h-10 mx-auto mb-3 text-slate-200" />
                   <p className="text-slate-400 text-sm">{students.length === 0 ? "No students yet. Add your first student!" : "No students match your search."}</p>
                 </td>
               </tr>
             ) : (
-              filtered.map((s) => {
+              pageItems.map((s, i) => {
                 const age = calcAge(s.dateOfBirth);
                 return (
                   <tr
@@ -444,6 +451,7 @@ function Students() {
                     onClick={() => navigate({ to: "/students/$studentId", params: { studentId: String(s.id) } })}
                     className="hover:bg-blue-50/40 transition cursor-pointer group"
                   >
+                    <td className="px-5 py-4 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
@@ -499,6 +507,14 @@ function Students() {
           </tbody>
         </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+        />
       </div>
 
       {/* Add modal */}
