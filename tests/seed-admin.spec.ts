@@ -24,7 +24,7 @@ test.describe("Admin seed", () => {
       await page.getByPlaceholder("Maharashtra").fill("Karnataka");
       await page.getByPlaceholder("400001").fill("560102");
       await page.getByRole("button", { name: "Add Branch" }).nth(1).click();
-      await expect(page.getByText("HSR Layout").first()).toBeVisible();
+      await expect(page.getByRole("cell", { name: "HSR Layout" }).first()).toBeVisible();
     });
 
     await test.step("Add class", async () => {
