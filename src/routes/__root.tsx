@@ -215,21 +215,23 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
     role === "super_admin" && !pathname.startsWith("/super-admin")
       ? "school_admin"
       : role;
-  // Show max 5 tabs — take the first 5 nav items for the role
-  const nav = navForRole(effectiveRole, board).slice(0, 5);
+  const nav = navForRole(effectiveRole, board);
 
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
-      <div className="flex items-stretch h-16">
+      <div
+        className="flex items-stretch h-16 overflow-x-auto"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
         {nav.map((item) => (
           <Link
             key={item.to}
             to={item.to}
             activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin" }}
-            className="flex-1 flex flex-col items-center justify-center gap-1 text-slate-400 transition [&.active]:text-blue-600"
+            className="shrink-0 flex flex-col items-center justify-center gap-1 text-slate-400 transition [&.active]:text-blue-600 min-w-[64px] px-2"
           >
             <item.icon className="w-5 h-5 shrink-0" />
-            <span className="text-[10px] font-semibold leading-none truncate max-w-[56px] text-center">{item.label}</span>
+            <span className="text-[10px] font-semibold leading-none truncate max-w-[64px] text-center">{item.label}</span>
           </Link>
         ))}
       </div>
