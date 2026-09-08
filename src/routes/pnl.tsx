@@ -149,8 +149,7 @@ function PnLPage() {
                 <div className="flex flex-col items-start">
                   <div className="report-logo w-20 h-20 rounded-xl flex items-center justify-center text-xs font-semibold mb-3">LOGO</div>
                   <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
-                  <p className="text-sm font-semibold text-slate-800 mt-1">Profit & Loss Report</p>
-                  <p className="text-xs text-slate-500">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
+                  <p className="text-xs text-slate-500 mt-1">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-slate-800">{tenant.locationName}</p>
