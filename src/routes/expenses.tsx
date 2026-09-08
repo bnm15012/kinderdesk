@@ -30,7 +30,10 @@ function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState<{ id?: number; category: string; description: string; amount: string; expenseDate: string } | null>(null);
+
+  const PAGE_SIZE = 12;
 
   const filteredExpenses = expenses.filter((e) => {
     const q = search.toLowerCase();
@@ -46,11 +49,18 @@ function ExpensesPage() {
     setExpenses(e);
   };
 
+  const totalPages = Math.ceil(filteredExpenses.length / PAGE_SIZE);
+  const pageItems = filteredExpenses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   useEffect(() => {
     if (!tenant) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, expenses]);
 
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
@@ -109,10 +119,11 @@ function ExpensesPage() {
 
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Category</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Description</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Date</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Amount</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Actions</th></tr></thead>
+            <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2.5 font-semibold text-slate-700 w-16">S.No</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Category</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Description</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Date</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Amount</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Actions</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredExpenses.map((e) => (
+              {pageItems.map((e, i) => (
                 <tr key={e.id} className="hover:bg-slate-50 even:bg-white">
+                  <td className="px-4 py-2.5 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
                   <td className="px-4 py-2.5 capitalize">{e.category}</td>
                   <td className="px-4 py-2.5 text-slate-500">{e.description || "—"}</td>
                   <td className="px-4 py-2.5 text-slate-500">{e.expenseDate ?? "—"}</td>
@@ -123,10 +134,23 @@ function ExpensesPage() {
                   </td>
                 </tr>
               ))}
-              {filteredExpenses.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">{search ? "No matching expenses" : "No expenses found"}</td></tr>}
+              {pageItems.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">{search ? "No matching expenses" : "No expenses found"}</td></tr>}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-slate-500">Showing {pageItems.length} of {filteredExpenses.length} records</p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50">Prev</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button key={p} onClick={() => setCurrentPage(p)} className={`w-9 h-9 text-sm font-semibold rounded-lg ${currentPage === p ? "bg-blue-600 text-white" : "border border-slate-200 hover:bg-slate-50"}`}>{p}</button>
+              ))}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-200 disabled:opacity-50 hover:bg-slate-50">Next</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
