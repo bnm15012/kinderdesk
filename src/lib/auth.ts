@@ -127,7 +127,7 @@ export const signup = createServerFn({ method: "POST" })
   .validator((input: unknown) => signupSchema.parse(input))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { schools, locations, users, subscriptions, otps } = await import("@/lib/db/schema");
+    const { schools, locations, users, subscriptions, plans, otps } = await import("@/lib/db/schema");
 
     const email = normalizeEmail(data.email);
     const now = new Date();
@@ -167,9 +167,12 @@ export const signup = createServerFn({ method: "POST" })
     });
     const locationId = Number((locationResult as any).insertId);
 
+    const [freePlan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.slug, "free")).limit(1);
+
     await db.insert(subscriptions).values({
       schoolId,
       plan: "free",
+      planId: freePlan?.id ?? 1,
       amount: "0",
       currency: "INR",
       billingCycle: "monthly",
@@ -1546,16 +1549,18 @@ export const updateSchoolSubscription = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const userId = await requireSession();
     const { db } = await import("@/lib/db");
-    const { users, schools, subscriptions } = await import("@/lib/db/schema");
+    const { users, schools, subscriptions, plans } = await import("@/lib/db/schema");
 
     const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
     if (!me || me.role !== "super_admin") throw new Error("Not authorized");
 
     // Update or insert subscription
     const [existing] = await db.select({ id: subscriptions.id }).from(subscriptions).where(eq(subscriptions.schoolId, data.schoolId)).limit(1);
+    const [plan] = await db.select({ id: plans.id }).from(plans).where(eq(plans.slug, data.plan)).limit(1);
     if (existing) {
       await db.update(subscriptions).set({
         plan: data.plan,
+        planId: plan?.id ?? 1,
         amount: String(data.amount),
         billingCycle: data.billingCycle,
         status: data.status,
@@ -1564,6 +1569,7 @@ export const updateSchoolSubscription = createServerFn({ method: "POST" })
       await db.insert(subscriptions).values({
         schoolId: data.schoolId,
         plan: data.plan,
+        planId: plan?.id ?? 1,
         amount: String(data.amount),
         billingCycle: data.billingCycle,
         status: data.status,

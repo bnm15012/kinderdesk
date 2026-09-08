@@ -479,6 +479,7 @@ export const subscriptions = mysqlTable("subscriptions", {
   id: int("id").primaryKey().autoincrement(),
   schoolId: int("school_id").notNull().references(() => schools.id),
   plan: varchar("plan", { length: 50 }).notNull().default("free"),
+  planId: int("plan_id").notNull().default(1).references(() => plans.id),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0"),
   currency: varchar("currency", { length: 10 }).default("INR"),
   billingCycle: mysqlEnum("billing_cycle", ["monthly", "yearly", "lifetime"]).default("monthly"),
