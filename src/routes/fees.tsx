@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   X, Plus, Search, AlertCircle, ChevronRight, DollarSign,
@@ -11,6 +11,8 @@ import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { fmtDate, fmtDateShort } from "@/lib/utils";
+import { usePagination } from "@/lib/usePagination";
+import { Pagination } from "@/components/pagination";
 
 export const Route = createFileRoute("/fees")({
   component: Fees,
@@ -364,6 +366,9 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
   const [editing, setEditing] = useState<FeeStructure | null>(null);
   const [confirmFs, setConfirmFs] = useState<FeeStructure | null>(null);
 
+  const PAGE_SIZE = 12;
+  const { pageItems, currentPage, setCurrentPage, totalPages } = usePagination(structures, PAGE_SIZE);
+
   const load = () => {
     setLoading(true);
     listFn({ data: { schoolId, locationId } })
@@ -408,6 +413,7 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-5 py-3.5 w-16">S.No</th>
                 <th className="px-5 py-3.5">Name</th>
                 <th className="px-5 py-3.5">Amount</th>
                 <th className="px-5 py-3.5">Frequency</th>
@@ -417,8 +423,9 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {structures.map((fs) => (
+              {pageItems.map((fs, i) => (
                 <tr key={fs.id} className="hover:bg-slate-50 transition group">
+                  <td className="px-5 py-4 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
                   <td className="px-5 py-4">
                     <p className="font-semibold text-slate-900">{fs.name}</p>
                     {fs.description && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{fs.description}</p>}
@@ -445,6 +452,14 @@ function FeeStructuresTab({ schoolId, locationId, classes }: { schoolId: number;
               ))}
             </tbody>
           </table>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={structures.length}
+            pageSize={PAGE_SIZE}
+          />
         </div>
       )}
 
@@ -556,6 +571,8 @@ function Fees() {
   const [loading, setLoading] = useState(true);
   const [automating, setAutomating] = useState(false);
   const [error, setError] = useState("");
+
+  const PAGE_SIZE = 12;
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
@@ -637,12 +654,16 @@ function Fees() {
     }
   };
 
-  const filtered = invoices.filter((inv) => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const matchSearch = inv.studentName.toLowerCase().includes(q) || inv.status.toLowerCase().includes(q);
-    const matchStatus = filterStatus === "all" || inv.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+    return invoices.filter((inv) => {
+      const matchSearch = inv.studentName.toLowerCase().includes(q) || inv.status.toLowerCase().includes(q);
+      const matchStatus = filterStatus === "all" || inv.status === filterStatus;
+      return matchSearch && matchStatus;
+    });
+  }, [invoices, search, filterStatus]);
+
+  const { pageItems, currentPage, setCurrentPage, totalPages } = usePagination(filtered, PAGE_SIZE);
 
   const totalPaid = invoices.filter(i => i.status === "paid").reduce((a, i) => a + parseFloat(i.amount), 0);
   const totalPending = invoices.filter(i => i.status === "sent" || i.status === "draft").reduce((a, i) => a + parseFloat(i.amount), 0);
@@ -730,6 +751,7 @@ function Fees() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 w-16">S.No</th>
                   <th className="px-5 py-3.5">Student</th>
                   <th className="px-5 py-3.5">Amount</th>
                   <th className="px-5 py-3.5">Due date</th>
@@ -741,20 +763,21 @@ function Fees() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i}>{Array.from({ length: 6 }).map((__, j) => <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>)}</tr>
+                    <tr key={i}>{Array.from({ length: 7 }).map((__, j) => <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>)}</tr>
                   ))
-                ) : filtered.length === 0 ? (
+                ) : pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-14 text-center">
+                    <td colSpan={7} className="px-5 py-14 text-center">
                       <DollarSign className="w-10 h-10 mx-auto mb-3 text-slate-200" />
                       <p className="text-slate-400 text-sm">{invoices.length === 0 ? "No invoices yet. Create your first one!" : "No invoices match your search."}</p>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((inv) => {
+                  pageItems.map((inv, i) => {
                     const isOverdue = inv.dueDate && new Date(inv.dueDate) < new Date() && inv.status !== "paid";
                     return (
                       <tr key={inv.id} onClick={() => setSelected(inv)} className="hover:bg-blue-50/40 transition cursor-pointer group">
+                        <td className="px-5 py-4 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center text-xs font-bold text-emerald-600 shrink-0">
@@ -828,6 +851,14 @@ function Fees() {
               </tbody>
             </table>
             </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filtered.length}
+              pageSize={PAGE_SIZE}
+            />
           </div>
         </>
       )}
