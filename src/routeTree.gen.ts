@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AcademicsRouteImport } from './routes/academics'
 import { Route as AdmissionsRouteImport } from './routes/admissions'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as ClassesRouteImport } from './routes/classes'
@@ -18,8 +19,10 @@ import { Route as ConfirmRouteImport } from './routes/confirm'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CurriculumRouteImport } from './routes/curriculum'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as HomeworkRouteImport } from './routes/homework'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LocationsRouteImport } from './routes/locations'
 import { Route as LoginRouteImport } from './routes/login'
@@ -59,6 +62,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcademicsRoute = AcademicsRouteImport.update({
+  id: '/academics',
+  path: '/academics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdmissionsRoute = AdmissionsRouteImport.update({
   id: '/admissions',
   path: '/admissions',
@@ -94,6 +102,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExamsRoute = ExamsRouteImport.update({
+  id: '/exams',
+  path: '/exams',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FeesRoute = FeesRouteImport.update({
   id: '/fees',
   path: '/fees',
@@ -102,6 +115,11 @@ const FeesRoute = FeesRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeworkRoute = HomeworkRouteImport.update({
+  id: '/homework',
+  path: '/homework',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InviteRoute = InviteRouteImport.update({
@@ -249,6 +267,7 @@ const SuperAdminSchoolsSchoolIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
@@ -256,8 +275,10 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/curriculum': typeof CurriculumRoute
   '/dashboard': typeof DashboardRoute
+  '/exams': typeof ExamsRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
@@ -290,6 +311,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
@@ -297,8 +319,10 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/curriculum': typeof CurriculumRoute
   '/dashboard': typeof DashboardRoute
+  '/exams': typeof ExamsRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
@@ -329,6 +353,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/academics': typeof AcademicsRoute
   '/admissions': typeof AdmissionsRoute
   '/attendance': typeof AttendanceRoute
   '/classes': typeof ClassesRoute
@@ -336,8 +361,10 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/curriculum': typeof CurriculumRoute
   '/dashboard': typeof DashboardRoute
+  '/exams': typeof ExamsRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
@@ -372,6 +399,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/academics'
     | '/admissions'
     | '/attendance'
     | '/classes'
@@ -379,8 +407,10 @@ export interface FileRouteTypes {
     | '/contact'
     | '/curriculum'
     | '/dashboard'
+    | '/exams'
     | '/fees'
     | '/forgot-password'
+    | '/homework'
     | '/invite'
     | '/locations'
     | '/login'
@@ -413,6 +443,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/academics'
     | '/admissions'
     | '/attendance'
     | '/classes'
@@ -420,8 +451,10 @@ export interface FileRouteTypes {
     | '/contact'
     | '/curriculum'
     | '/dashboard'
+    | '/exams'
     | '/fees'
     | '/forgot-password'
+    | '/homework'
     | '/invite'
     | '/locations'
     | '/login'
@@ -451,6 +484,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/academics'
     | '/admissions'
     | '/attendance'
     | '/classes'
@@ -458,8 +492,10 @@ export interface FileRouteTypes {
     | '/contact'
     | '/curriculum'
     | '/dashboard'
+    | '/exams'
     | '/fees'
     | '/forgot-password'
+    | '/homework'
     | '/invite'
     | '/locations'
     | '/login'
@@ -493,6 +529,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AcademicsRoute: typeof AcademicsRoute
   AdmissionsRoute: typeof AdmissionsRoute
   AttendanceRoute: typeof AttendanceRoute
   ClassesRoute: typeof ClassesRoute
@@ -500,8 +537,10 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   CurriculumRoute: typeof CurriculumRoute
   DashboardRoute: typeof DashboardRoute
+  ExamsRoute: typeof ExamsRoute
   FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HomeworkRoute: typeof HomeworkRoute
   InviteRoute: typeof InviteRoute
   LocationsRoute: typeof LocationsRoute
   LoginRoute: typeof LoginRoute
@@ -534,6 +573,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/academics': {
+      id: '/academics'
+      path: '/academics'
+      fullPath: '/academics'
+      preLoaderRoute: typeof AcademicsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admissions': {
@@ -585,6 +631,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exams': {
+      id: '/exams'
+      path: '/exams'
+      fullPath: '/exams'
+      preLoaderRoute: typeof ExamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/fees': {
       id: '/fees'
       path: '/fees'
@@ -597,6 +650,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/homework': {
+      id: '/homework'
+      path: '/homework'
+      fullPath: '/homework'
+      preLoaderRoute: typeof HomeworkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invite': {
@@ -871,6 +931,7 @@ const TeacherRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AcademicsRoute: AcademicsRoute,
   AdmissionsRoute: AdmissionsRoute,
   AttendanceRoute: AttendanceRoute,
   ClassesRoute: ClassesRoute,
@@ -878,8 +939,10 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   CurriculumRoute: CurriculumRoute,
   DashboardRoute: DashboardRoute,
+  ExamsRoute: ExamsRoute,
   FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HomeworkRoute: HomeworkRoute,
   InviteRoute: InviteRoute,
   LocationsRoute: LocationsRoute,
   LoginRoute: LoginRoute,
