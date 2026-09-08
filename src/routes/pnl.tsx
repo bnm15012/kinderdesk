@@ -105,7 +105,7 @@ function PnLPage() {
 
       <div className="flex flex-col lg:flex-row gap-3 items-start no-print">
         {/* Filters */}
-        <div className="w-full lg:w-96 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
+        <div className="w-full lg:w-80 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
@@ -138,7 +138,7 @@ function PnLPage() {
         {/* Report preview */}
         <div className="flex-1 w-full">
           <div className="overflow-x-auto">
-            <div ref={reportRef} className="report-pdf print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] shadow-lg rounded-none p-6 mx-auto text-sm">
+            <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-6 text-sm">
               <style>{`
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
                 .report-pdf .report-header { background-color: #ffffff !important; border-bottom: 2px solid #2563eb !important; }
