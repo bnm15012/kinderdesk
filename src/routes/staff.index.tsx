@@ -96,7 +96,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel, sh
     status: (initial?.status ?? "active") as any,
     backgroundCheckStatus: (initial?.backgroundCheckStatus ?? "pending") as any,
     sendInvite: false,
-    appRole: "teacher" as "teacher" | "staff" | "accountant" | "location_admin",
+    appRole: "teacher" as "teacher" | "staff" | "accountant" | "receptionist" | "location_admin",
   });
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
 
@@ -181,6 +181,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel, sh
                 <option value="teacher">Teacher — dashboard, attendance, homework, classes, exams, activities</option>
                 <option value="staff">Staff — same as Teacher</option>
                 <option value="accountant">Accountant — fees only</option>
+                <option value="receptionist">Receptionist — admissions and fees only</option>
                 <option value="location_admin">Location Admin — full branch access</option>
               </select>
               {!f.email && (
@@ -293,7 +294,7 @@ function InviteSuccessDialog({ token, onClose }: { token: string; onClose: () =>
 
 function ResendInviteModal({ staff, onClose }: { staff: StaffRow; onClose: () => void }) {
   const resendFn = useServerFn(resendStaffInvite);
-  const [appRole, setAppRole] = useState<"teacher" | "staff" | "accountant" | "location_admin">(
+  const [appRole, setAppRole] = useState<"teacher" | "staff" | "accountant" | "receptionist" | "location_admin">(
     (staff.loginRole as any) ?? "teacher"
   );
   const [loading, setLoading] = useState(false);
@@ -328,6 +329,7 @@ function ResendInviteModal({ staff, onClose }: { staff: StaffRow; onClose: () =>
             <option value="teacher">Teacher — dashboard, attendance, homework, classes, exams, activities</option>
             <option value="staff">Staff — same as Teacher</option>
             <option value="accountant">Accountant — fees only</option>
+            <option value="receptionist">Receptionist — admissions and fees only</option>
             <option value="location_admin">Location Admin — full branch access</option>
           </select>
         </div>

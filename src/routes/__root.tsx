@@ -49,6 +49,7 @@ export function roleHome(role: string | null | undefined): string {
     case "super_admin":    return "/super-admin";
     case "teacher":
     case "staff":          return "/teacher";
+    case "receptionist":   return "/admissions";
     case "parent":         return "/parent";
     default:               return "/dashboard"; // school_admin, location_admin, accountant
   }
@@ -103,6 +104,11 @@ const ACCOUNTANT_NAV = [
   { to: "/fees",     label: "Fees",      icon: DollarSign },
 ];
 
+const RECEPTIONIST_NAV = [
+  { to: "/admissions", label: "Admissions", icon: UserPlus },
+  { to: "/fees",       label: "Fees",       icon: DollarSign },
+];
+
 function navForRole(role: string | null | undefined, board?: string | null) {
   let nav;
   switch (role) {
@@ -111,6 +117,7 @@ function navForRole(role: string | null | undefined, board?: string | null) {
     case "staff":         nav = TEACHER_NAV; break;
     case "parent":        nav = PARENT_NAV; break;
     case "accountant":    nav = ACCOUNTANT_NAV; break;
+    case "receptionist":  nav = RECEPTIONIST_NAV; break;
     case "school_admin":  nav = SCHOOL_ADMIN_NAV; break;
     default:              nav = ADMIN_NAV; break;
   }
@@ -296,6 +303,7 @@ function AppShell() {
       const home = roleHome(user.role);
       const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/expenses", "/pnl"];
       const accountantRoutes = ["/dashboard", "/fees"];
+      const receptionistRoutes = ["/admissions", "/fees"];
       const teacherRoutes = ["/teacher", "/teacher/attendance", "/homework", "/classes", "/exams", "/curriculum"];
       const parentRoutes = ["/parent"];
       const superRoutes = ["/super-admin"];
@@ -309,6 +317,9 @@ function AppShell() {
           navigate({ to: home });
       } else if (user.role === "accountant") {
         if (!accountantRoutes.includes(pathname))
+          navigate({ to: home });
+      } else if (user.role === "receptionist") {
+        if (!receptionistRoutes.includes(pathname))
           navigate({ to: home });
       }
     });

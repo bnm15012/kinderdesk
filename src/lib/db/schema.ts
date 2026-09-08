@@ -68,6 +68,7 @@ export const users = mysqlTable("users", {
     "location_admin",
     "teacher",
     "staff",
+    "receptionist",
     "parent",
     "accountant",
   ]).default("staff"),
