@@ -8,6 +8,8 @@ import {
   date,
   mysqlEnum,
   timestamp,
+  uniqueIndex,
+  index,
 } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
@@ -55,7 +57,7 @@ export const users = mysqlTable("users", {
   id: int("id").primaryKey().autoincrement(),
   schoolId: int("school_id").notNull().references(() => schools.id),
   locationId: int("location_id").references(() => locations.id),
-  email: varchar("email", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }),
   firstName: varchar("first_name", { length: 255 }),
   lastName: varchar("last_name", { length: 255 }),
@@ -130,7 +132,9 @@ export const waitlist = mysqlTable("waitlist", {
   position: int("position").default(0),
   status: mysqlEnum("status", ["active", "offered", "joined", "declined", "expired"]).default("active"),
   addedAt: timestamp("added_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueInquiryWaitlist: uniqueIndex("waitlist_inquiry").on(t.inquiryId),
+}));
 
 // ── Students / Children ─────────────────────────────────────────────────────
 export const students = mysqlTable("students", {
@@ -161,7 +165,9 @@ export const parents = mysqlTable("parents", {
   address: text("address"),
   isPrimary: int("is_primary").default(0),
   isEmergency: int("is_emergency").default(0),
-});
+}, (t) => ({
+  uniqueParentStudent: uniqueIndex("parents_student_email").on(t.studentId, t.email),
+}));
 
 export const emergencyContacts = mysqlTable("emergency_contacts", {
   id: int("id").primaryKey().autoincrement(),
@@ -171,7 +177,9 @@ export const emergencyContacts = mysqlTable("emergency_contacts", {
   name: varchar("name", { length: 255 }).notNull(),
   relation: varchar("relation", { length: 100 }).notNull(),
   phone: varchar("phone", { length: 50 }).notNull(),
-});
+}, (t) => ({
+  uniqueEmergencyContact: uniqueIndex("emergency_contacts_student_phone").on(t.studentId, t.phone),
+}));
 
 export const medicalNotes = mysqlTable("medical_notes", {
   id: int("id").primaryKey().autoincrement(),
@@ -214,7 +222,9 @@ export const invoices = mysqlTable("invoices", {
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 255 }),
   generatedMonth: varchar("generated_month", { length: 7 }), // "YYYY-MM" for dedup of auto-generated invoices
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueAutoInvoice: uniqueIndex("invoices_school_student_fee_month").on(t.schoolId, t.studentId, t.feeStructureId, t.generatedMonth),
+}));
 
 export const payments = mysqlTable("payments", {
   id: int("id").primaryKey().autoincrement(),
@@ -225,7 +235,9 @@ export const payments = mysqlTable("payments", {
   method: mysqlEnum("method", ["cash", "bank_transfer", "razorpay", "cheque", "other"]),
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 255 }),
   paidAt: timestamp("paid_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueRazorpayPayment: uniqueIndex("payments_razorpay_id").on(t.razorpayPaymentId),
+}));
 
 // ── Staff / Teachers ────────────────────────────────────────────────────────
 export const staff = mysqlTable("staff", {
@@ -244,7 +256,9 @@ export const staff = mysqlTable("staff", {
   backgroundCheckStatus: mysqlEnum("background_check_status", ["pending", "in_progress", "verified", "rejected", "expired"]).default("pending"),
   backgroundCheckDocUrl: varchar("background_check_doc_url", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueStaffEmail: uniqueIndex("staff_school_email").on(t.schoolId, t.email),
+}));
 
 export const staffAttendance = mysqlTable("staff_attendance", {
   id: int("id").primaryKey().autoincrement(),
@@ -254,7 +268,9 @@ export const staffAttendance = mysqlTable("staff_attendance", {
   date: date("date").notNull(),
   status: mysqlEnum("status", ["present", "absent", "half_day", "leave"]).notNull(),
   notes: text("notes"),
-});
+}, (t) => ({
+  uniqueStaffAttendance: uniqueIndex("staff_attendance_staff_date").on(t.staffId, t.date),
+}));
 
 export const studentAttendance = mysqlTable("student_attendance", {
   id: int("id").primaryKey().autoincrement(),
@@ -267,7 +283,9 @@ export const studentAttendance = mysqlTable("student_attendance", {
   markedBy: int("marked_by").references(() => staff.id),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueStudentAttendance: uniqueIndex("student_attendance_student_date").on(t.studentId, t.date),
+}));
 
 // ── Attendance Sessions ───────────────────────────────────────────────────────
 // One row per class+date where attendance was actually taken.
@@ -281,7 +299,9 @@ export const attendanceSessions = mysqlTable("attendance_sessions", {
   date:       date("date").notNull(),
   markedBy:   int("marked_by").references(() => staff.id),
   createdAt:  timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueAttendanceSession: uniqueIndex("attendance_sessions_class_date").on(t.classId, t.date),
+}));
 
 export const staffClassAssignments = mysqlTable("staff_class_assignments", {
   id: int("id").primaryKey().autoincrement(),
@@ -290,7 +310,9 @@ export const staffClassAssignments = mysqlTable("staff_class_assignments", {
   staffId: int("staff_id").notNull().references(() => staff.id),
   classId: int("class_id").notNull().references(() => classes.id),
   academicYear: varchar("academic_year", { length: 20 }),
-});
+}, (t) => ({
+  uniqueStaffClass: uniqueIndex("staff_class_assignments_staff_class").on(t.staffId, t.classId, t.academicYear),
+}));
 
 // ── Staff Payroll ────────────────────────────────────────────────────────────
 export const staffPayroll = mysqlTable("staff_payroll", {
@@ -307,7 +329,9 @@ export const staffPayroll = mysqlTable("staff_payroll", {
   paidAt: datetime("paid_at"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniquePayroll: uniqueIndex("staff_payroll_staff_month").on(t.staffId, t.month),
+}));
 
 // ── Class Enrollments ───────────────────────────────────────────────────────
 export const classEnrollments = mysqlTable("class_enrollments", {
@@ -319,7 +343,9 @@ export const classEnrollments = mysqlTable("class_enrollments", {
   academicYear: varchar("academic_year", { length: 20 }),
   enrolledAt: timestamp("enrolled_at").defaultNow(),
   status: mysqlEnum("status", ["active", "promoted", "withdrawn"]).default("active"),
-});
+}, (t) => ({
+  uniqueEnrollment: uniqueIndex("class_enrollments_student_class_year").on(t.studentId, t.classId, t.academicYear),
+}));
 
 // ── Report Cards ──────────────────────────────────────────────────────────────
 export const reportCards = mysqlTable("report_cards", {
@@ -333,7 +359,9 @@ export const reportCards = mysqlTable("report_cards", {
   r2Key: varchar("r2_key", { length: 500 }),
   publicUrl: varchar("public_url", { length: 500 }),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueReportCard: uniqueIndex("report_cards_student_year_term").on(t.studentId, t.academicYear, t.term),
+}));
 
 // ── Subjects ──────────────────────────────────────────────────────────────────
 export const subjects = mysqlTable("subjects", {
@@ -353,7 +381,9 @@ export const classSubjects = mysqlTable("class_subjects", {
   classId: int("class_id").notNull().references(() => classes.id),
   subjectId: int("subject_id").notNull().references(() => subjects.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueClassSubject: uniqueIndex("class_subjects_class_subject").on(t.classId, t.subjectId),
+}));
 
 // ── Timetable (periods per class/day) ─────────────────────────────────────────
 export const timetable = mysqlTable("timetable", {
@@ -368,7 +398,9 @@ export const timetable = mysqlTable("timetable", {
   subjectId: int("subject_id").references(() => subjects.id),
   teacherId: int("teacher_id").references(() => staff.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueClassDayPeriod: uniqueIndex("timetable_class_day_period").on(t.classId, t.dayOfWeek, t.periodNumber),
+}));
 
 // ── Exams / Assessments ───────────────────────────────────────────────────────
 export const exams = mysqlTable("exams", {
@@ -394,7 +426,9 @@ export const examSubjects = mysqlTable("exam_subjects", {
   examDate: date("exam_date"),
   status: mysqlEnum("status", ["active", "cancelled"]).default("active"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueExamSubject: uniqueIndex("exam_subjects_exam_subject").on(t.examId, t.subjectId),
+}));
 
 // ── Student Marks ─────────────────────────────────────────────────────────────
 export const studentMarks = mysqlTable("student_marks", {
@@ -407,7 +441,9 @@ export const studentMarks = mysqlTable("student_marks", {
   markedBy: int("marked_by").references(() => staff.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
-});
+}, (t) => ({
+  uniqueStudentExamSubject: uniqueIndex("student_marks_student_exam").on(t.studentId, t.examSubjectId),
+}));
 
 // ── Expenses ─────────────────────────────────────────────────────────────────
 export const expenses = mysqlTable("expenses", {
@@ -432,7 +468,9 @@ export const gradingScales = mysqlTable("grading_scales", {
   maxPercentage: decimal("max_percentage", { precision: 5, scale: 2 }).notNull(),
   gradePoint: decimal("grade_point", { precision: 3, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueGradeScale: uniqueIndex("grading_scales_school_board_name").on(t.schoolId, t.board, t.name),
+}));
 
 // ── Homework / Assignments ────────────────────────────────────────────────────
 export const homework = mysqlTable("homework", {
@@ -549,7 +587,9 @@ export const announcementDismissals = mysqlTable("announcement_dismissals", {
   announcementId: int("announcement_id").notNull().references(() => announcements.id),
   userId:         int("user_id").notNull().references(() => users.id),
   dismissedAt:    timestamp("dismissed_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueDismissal: uniqueIndex("announcement_dismissals_user_announcement").on(t.userId, t.announcementId),
+}));
 
 // ── Relations ───────────────────────────────────────────────────────────────
 export const schoolsRelations = relations(schools, ({ many }) => ({
