@@ -1083,6 +1083,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
           lastName: students.lastName,
           dateOfBirth: students.dateOfBirth,
           gender: students.gender,
+          bloodGroup: students.bloodGroup,
           status: students.status,
           currentClassId: students.currentClassId,
         })
@@ -1124,6 +1125,42 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
     })),
   };
 });
+
+const updateChildPersonalSchema = z.object({
+  studentId: z.number(),
+  bloodGroup: z.string().max(10).optional(),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]).optional(),
+});
+
+export const updateChildPersonal = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateChildPersonalSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, parents, students } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, schoolId: users.schoolId, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user || user.role !== "parent") throw new Error("Not authorized");
+
+    const [link] = await db
+      .select({ studentId: parents.studentId })
+      .from(parents)
+      .where(and(eq(parents.schoolId, user.schoolId), eq(parents.email, user.email ?? ""), eq(parents.studentId, data.studentId)))
+      .limit(1);
+    if (!link) throw new Error("Not authorized");
+
+    await db.update(students)
+      .set({
+        bloodGroup: data.bloodGroup,
+        gender: data.gender,
+      })
+      .where(eq(students.id, data.studentId));
+    return { ok: true };
+  });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLANS / PRICING

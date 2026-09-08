@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getParentPortal, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
+import { getParentPortal, updateChildPersonal, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
 import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Clipboard, Megaphone } from "lucide-react";
 
 export const Route = createFileRoute("/parent")({
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/parent")({
 
 type Child = {
   id: number; firstName: string; lastName: string;
-  dateOfBirth: string | null; gender: string | null; status: string; currentClassId: number | null;
+  dateOfBirth: string | null; gender: string | null; bloodGroup: string | null; status: string; currentClassId: number | null;
 };
 type Fee = {
   id: number; studentId: number; amount: string;
@@ -55,6 +55,7 @@ function loadRazorpayScript(): Promise<boolean> {
 
 function ParentPortal() {
   const getPortalFn         = useServerFn(getParentPortal);
+  const updateChildFn       = useServerFn(updateChildPersonal);
   const getActivitiesFn     = useServerFn(getCurriculumActivities);
   const createOrderFn       = useServerFn(createRazorpayOrder);
   const verifyFn            = useServerFn(verifyRazorpayPayment);
@@ -72,6 +73,9 @@ function ParentPortal() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<number | null>(null);
   const [payError, setPayError] = useState<string>("");
+  const [editing, setEditing]   = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [editForm, setEditForm] = useState<{ bloodGroup: string; gender: string }>({ bloodGroup: "", gender: "" });
 
   // Academic profile state
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
@@ -124,6 +128,24 @@ function ParentPortal() {
       }
     } finally {
       setPayingId(null);
+    }
+  };
+
+  const handleSavePersonal = async () => {
+    if (!child) return;
+    setSaving(true); setError("");
+    try {
+      const payload: any = { studentId: child.id };
+      if (editForm.gender) payload.gender = editForm.gender;
+      if (editForm.bloodGroup) payload.bloodGroup = editForm.bloodGroup;
+      await updateChildFn({ data: payload });
+      const refreshed = await getPortalFn() as PortalData;
+      setData(refreshed);
+      setEditing(false);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to save");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -251,8 +273,31 @@ function ParentPortal() {
                   </div>
                   <div className="flex gap-6 mt-2 text-sm text-slate-500 flex-wrap">
                     {child.dateOfBirth && <span>DOB: <span className="font-medium text-slate-700">{child.dateOfBirth}</span></span>}
-                    {child.gender && <span>Gender: <span className="font-medium text-slate-700 capitalize">{child.gender.replace("_"," ")}</span></span>}
+                    {child.gender && !editing && <span>Gender: <span className="font-medium text-slate-700 capitalize">{child.gender.replace("_"," ")}</span></span>}
+                    {child.bloodGroup && !editing && <span>Blood Group: <span className="font-medium text-slate-700 uppercase">{child.bloodGroup}</span></span>}
+                    {editing && (
+                      <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                        <select value={editForm.gender} onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
+                          <option value="">Select gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                          <option value="prefer_not_to_say">Prefer not to say</option>
+                        </select>
+                        <input type="text" placeholder="Blood group" value={editForm.bloodGroup} onChange={(e) => setEditForm((f) => ({ ...f, bloodGroup: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm w-28" />
+                      </div>
+                    )}
                   </div>
+                </div>
+                <div className="shrink-0">
+                  {editing ? (
+                    <div className="flex gap-2">
+                      <button onClick={handleSavePersonal} disabled={saving} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 disabled:bg-emerald-400 transition">{saving ? "Saving..." : "Save"}</button>
+                      <button onClick={() => setEditing(false)} disabled={saving} className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200 transition">Cancel</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditForm({ bloodGroup: child.bloodGroup ?? "", gender: child.gender ?? "" }); setEditing(true); }} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-100 transition">Edit</button>
+                  )}
                 </div>
               </div>
             </div>
