@@ -154,7 +154,7 @@ function PnLPage() {
               </div>
             </div>
           </div>
-          <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
+          <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer mt-3">
             <FileText className="w-4 h-4" /> Generate Report
           </button>
           <div className="grid grid-cols-1 gap-3">
