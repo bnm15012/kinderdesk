@@ -51,7 +51,9 @@ export const locations = mysqlTable("locations", {
   capacity: int("capacity"),
   status: mysqlEnum("status", ["active", "inactive"]).default("active"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueBranchName: uniqueIndex("locations_school_name").on(t.schoolId, t.name),
+}));
 
 export const users = mysqlTable("users", {
   id: int("id").primaryKey().autoincrement(),

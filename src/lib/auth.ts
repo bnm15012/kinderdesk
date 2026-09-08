@@ -2299,6 +2299,15 @@ export const addBranch = createServerFn({ method: "POST" })
     // Plan limit guard
     if (user.schoolId) await checkPlanLimit(user.schoolId, "locations");
 
+    if (user.schoolId) {
+      const [existing] = await db
+        .select({ id: locations.id })
+        .from(locations)
+        .where(and(eq(locations.schoolId, user.schoolId), eq(locations.name, data.name)))
+        .limit(1);
+      if (existing) throw new Error(`A branch named "${data.name}" already exists`);
+    }
+
     const [res] = await db.insert(locations).values({
       schoolId: user.schoolId,
       name: data.name,
@@ -3328,8 +3337,16 @@ export const updateBranch = createServerFn({ method: "POST" })
     const userId = await requireSession();
     const { db } = await import("@/lib/db");
     const { users, locations } = await import("@/lib/db/schema");
-    const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    const [user] = await db.select({ role: users.role, schoolId: users.schoolId }).from(users).where(eq(users.id, userId)).limit(1);
     if (!["school_admin", "super_admin"].includes(user?.role ?? "")) throw new Error("Not authorized");
+
+    const [existing] = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.schoolId, user.schoolId), eq(locations.name, data.name), ne(locations.id, data.locationId)))
+      .limit(1);
+    if (existing) throw new Error(`A branch named "${data.name}" already exists`);
+
     await db.update(locations).set({
       name: data.name,
       address: data.address || null,
