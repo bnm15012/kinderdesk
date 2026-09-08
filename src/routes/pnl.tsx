@@ -105,7 +105,7 @@ function PnLPage() {
 
       <div className="flex flex-col lg:flex-row gap-3 items-start no-print">
         {/* Filters */}
-        <div className="w-full lg:w-80 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
+        <div className="w-full lg:w-96 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
