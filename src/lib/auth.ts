@@ -1690,6 +1690,13 @@ async function requireSession() {
   return userId;
 }
 
+async function requireNotReceptionist(userId: number) {
+  const { db } = await import("@/lib/db");
+  const { users } = await import("@/lib/db/schema");
+  const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (me?.role === "receptionist") throw new Error("You have view-only access");
+}
+
 /**
  * Authorization matrix:
  *   super_admin      → any school, any location
@@ -1716,7 +1723,7 @@ async function requireAuth(requestedSchoolId?: number, requestedLocationId?: num
     // Location-scoped roles must match exactly
     if (user.locationId !== requestedLocationId) throw new Error("Not authorized");
   }
-  return user;
+  return { ...user, userId: user.id };
 }
 
 const listStudentsSchema = z.object({
@@ -5339,6 +5346,7 @@ export const manageExam = createServerFn({ method: "POST" })
   .validator((i: unknown) => manageExamSchema.parse(i))
   .handler(async ({ data }) => {
     const { schoolId, locationId, userId } = await requireAuth();
+    await requireNotReceptionist(userId);
     const { db } = await import("@/lib/db");
     const { exams } = await import("@/lib/db/schema");
 
@@ -5394,7 +5402,8 @@ const deleteExamSchema = z.object({ id: z.number() });
 export const deleteExam = createServerFn({ method: "POST" })
   .validator((i: unknown) => deleteExamSchema.parse(i))
   .handler(async ({ data }) => {
-    const { schoolId } = await requireAuth();
+    const { schoolId, userId } = await requireAuth();
+    await requireNotReceptionist(userId);
     const { db } = await import("@/lib/db");
     const { exams } = await import("@/lib/db/schema");
     await db.delete(exams).where(and(eq(exams.id, data.id), eq(exams.schoolId, schoolId)));
@@ -5414,7 +5423,8 @@ const upsertExamSubjectSchema = z.object({
 export const upsertExamSubject = createServerFn({ method: "POST" })
   .validator((i: unknown) => upsertExamSubjectSchema.parse(i))
   .handler(async ({ data }) => {
-    const { schoolId } = await requireAuth();
+    const { schoolId, userId } = await requireAuth();
+    await requireNotReceptionist(userId);
     const { db } = await import("@/lib/db");
     const { examSubjects, exams } = await import("@/lib/db/schema");
 
@@ -5466,7 +5476,8 @@ const deleteExamSubjectSchema = z.object({ id: z.number() });
 export const deleteExamSubject = createServerFn({ method: "POST" })
   .validator((i: unknown) => deleteExamSubjectSchema.parse(i))
   .handler(async ({ data }) => {
-    const { schoolId } = await requireAuth();
+    const { schoolId, userId } = await requireAuth();
+    await requireNotReceptionist(userId);
     const { db } = await import("@/lib/db");
     const { examSubjects, exams } = await import("@/lib/db/schema");
     const [es] = await db.select().from(examSubjects).where(eq(examSubjects.id, data.id)).limit(1);
@@ -5512,6 +5523,7 @@ export const saveStudentMarks = createServerFn({ method: "POST" })
   .validator((i: unknown) => saveStudentMarksSchema.parse(i))
   .handler(async ({ data }) => {
     const { schoolId, userId } = await requireAuth();
+    await requireNotReceptionist(userId);
     const { db } = await import("@/lib/db");
     const { studentMarks, examSubjects, exams } = await import("@/lib/db/schema");
 

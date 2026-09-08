@@ -107,6 +107,7 @@ const ACCOUNTANT_NAV = [
 const RECEPTIONIST_NAV = [
   { to: "/admissions", label: "Admissions", icon: UserPlus },
   { to: "/fees",       label: "Fees",       icon: DollarSign },
+  { to: "/exams",      label: "Exams",      icon: ClipboardList },
 ];
 
 function navForRole(role: string | null | undefined, board?: string | null) {
@@ -303,7 +304,7 @@ function AppShell() {
       const home = roleHome(user.role);
       const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/expenses", "/pnl"];
       const accountantRoutes = ["/dashboard", "/fees"];
-      const receptionistRoutes = ["/admissions", "/fees"];
+      const receptionistRoutes = ["/admissions", "/fees", "/exams"];
       const teacherRoutes = ["/teacher", "/teacher/attendance", "/homework", "/classes", "/exams", "/curriculum"];
       const parentRoutes = ["/parent"];
       const superRoutes = ["/super-admin"];
