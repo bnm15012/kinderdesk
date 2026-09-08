@@ -3423,6 +3423,19 @@ export const addFeeStructure = createServerFn({ method: "POST" })
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
     const { feeStructures } = await import("@/lib/db/schema");
+
+    const [dup] = await db
+      .select({ id: feeStructures.id })
+      .from(feeStructures)
+      .where(and(
+        eq(feeStructures.schoolId, data.schoolId),
+        eq(feeStructures.locationId, data.locationId),
+        eq(feeStructures.name, data.name),
+        data.classId ? eq(feeStructures.classId, data.classId) : isNull(feeStructures.classId)
+      ))
+      .limit(1);
+    if (dup) throw new Error(`A fee structure named "${data.name}" already exists`);
+
     const [r] = await db.insert(feeStructures).values({
       schoolId: data.schoolId, locationId: data.locationId,
       name: data.name, amount: data.amount, frequency: data.frequency,
@@ -3447,6 +3460,23 @@ export const updateFeeStructure = createServerFn({ method: "POST" })
     await requireSession();
     const { db } = await import("@/lib/db");
     const { feeStructures } = await import("@/lib/db/schema");
+
+    const [fs] = await db.select({ id: feeStructures.id, schoolId: feeStructures.schoolId, locationId: feeStructures.locationId }).from(feeStructures).where(eq(feeStructures.id, data.feeStructureId)).limit(1);
+    if (!fs) throw new Error("Fee structure not found");
+
+    const [dup] = await db
+      .select({ id: feeStructures.id })
+      .from(feeStructures)
+      .where(and(
+        eq(feeStructures.schoolId, fs.schoolId),
+        eq(feeStructures.locationId, fs.locationId),
+        eq(feeStructures.name, data.name),
+        data.classId ? eq(feeStructures.classId, data.classId) : isNull(feeStructures.classId),
+        ne(feeStructures.id, data.feeStructureId)
+      ))
+      .limit(1);
+    if (dup) throw new Error(`A fee structure named "${data.name}" already exists`);
+
     await db.update(feeStructures).set({
       name: data.name, amount: data.amount, frequency: data.frequency,
       dueDay: data.dueDay ?? 1, classId: data.classId ?? null,
@@ -5297,6 +5327,16 @@ export const manageSubject = createServerFn({ method: "POST" })
     const { schoolId, locationId, userId } = await requireAuth();
     const { db } = await import("@/lib/db");
     const { subjects } = await import("@/lib/db/schema");
+
+    const [dup] = await db
+      .select({ id: subjects.id })
+      .from(subjects)
+      .where(data.id
+        ? and(eq(subjects.schoolId, schoolId), eq(subjects.name, data.name), ne(subjects.id, data.id))
+        : and(eq(subjects.schoolId, schoolId), eq(subjects.name, data.name))
+      )
+      .limit(1);
+    if (dup) throw new Error(`A subject named "${data.name}" already exists`);
 
     if (data.id) {
       const [existing] = await db.select().from(subjects).where(eq(subjects.id, data.id)).limit(1);

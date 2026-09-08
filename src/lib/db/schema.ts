@@ -209,7 +209,9 @@ export const feeStructures = mysqlTable("fee_structures", {
   dueDay: int("due_day").default(1),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueFeeName: uniqueIndex("fee_structures_school_location_class_name").on(t.schoolId, t.locationId, t.classId, t.name),
+}));
 
 export const invoices = mysqlTable("invoices", {
   id: int("id").primaryKey().autoincrement(),
@@ -376,7 +378,9 @@ export const subjects = mysqlTable("subjects", {
   code: varchar("code", { length: 20 }),             // e.g. "MATH"
   status: mysqlEnum("status", ["active", "inactive"]).default("active"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueSubjectName: uniqueIndex("subjects_school_name").on(t.schoolId, t.name),
+}));
 
 // ── Class-Subject assignments ────────────────────────────────────────────────
 export const classSubjects = mysqlTable("class_subjects", {
