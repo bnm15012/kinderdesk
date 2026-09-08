@@ -2688,6 +2688,19 @@ export const addClass = createServerFn({ method: "POST" })
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
     const { classes } = await import("@/lib/db/schema");
+
+    const [existing] = await db
+      .select({ id: classes.id })
+      .from(classes)
+      .where(and(
+        eq(classes.schoolId, data.schoolId),
+        eq(classes.locationId, data.locationId),
+        eq(classes.name, data.name),
+        data.academicYear ? eq(classes.academicYear, data.academicYear) : isNull(classes.academicYear)
+      ))
+      .limit(1);
+    if (existing) throw new Error(`A class named "${data.name}" already exists at this branch`);
+
     const [res] = await db.insert(classes).values({
       schoolId: data.schoolId, locationId: data.locationId,
       name: data.name, ageGroup: data.ageGroup,
@@ -2716,6 +2729,27 @@ export const updateClass = createServerFn({ method: "POST" })
     await requireSession();
     const { db } = await import("@/lib/db");
     const { classes } = await import("@/lib/db/schema");
+
+    const [cls] = await db
+      .select({ id: classes.id, schoolId: classes.schoolId, locationId: classes.locationId })
+      .from(classes)
+      .where(eq(classes.id, data.classId))
+      .limit(1);
+    if (!cls) throw new Error("Class not found");
+
+    const [existing] = await db
+      .select({ id: classes.id })
+      .from(classes)
+      .where(and(
+        eq(classes.schoolId, cls.schoolId),
+        eq(classes.locationId, cls.locationId),
+        eq(classes.name, data.name),
+        data.academicYear ? eq(classes.academicYear, data.academicYear) : isNull(classes.academicYear),
+        ne(classes.id, data.classId)
+      ))
+      .limit(1);
+    if (existing) throw new Error(`A class named "${data.name}" already exists at this branch`);
+
     await db.update(classes).set({
       name: data.name, ageGroup: data.ageGroup,
       roomName: data.roomName || null, capacity: data.capacity,

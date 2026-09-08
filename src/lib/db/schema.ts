@@ -104,7 +104,9 @@ export const classes = mysqlTable("classes", {
   status: mysqlEnum("status", ["active", "inactive"]).default("active"),
   academicYear: varchar("academic_year", { length: 20 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  uniqueClassName: uniqueIndex("classes_school_location_name").on(t.schoolId, t.locationId, t.name),
+}));
 
 // ── Admissions & Enrollment ─────────────────────────────────────────────────
 export const inquiries = mysqlTable("inquiries", {
