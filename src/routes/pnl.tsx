@@ -138,7 +138,7 @@ function PnLPage() {
         {/* Report preview */}
         <div className="flex-1 w-full">
           <div className="overflow-x-auto">
-            <div ref={reportRef} className="report-pdf print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] shadow-lg rounded-none p-6 text-sm">
+            <div ref={reportRef} className="report-pdf print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] shadow-lg rounded-none p-6 mx-auto text-sm">
               <style>{`
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
                 .report-pdf .report-header { background-color: #ffffff !important; border-bottom: 2px solid #2563eb !important; }
