@@ -160,12 +160,13 @@ export const signup = createServerFn({ method: "POST" })
       });
       const locationId = Number((locationResult as any).insertId);
 
-      const [freePlan] = await tx.select({ id: plans.id, name: plans.name }).from(plans).where(eq(plans.id, 1)).limit(1);
+      const [freePlan] = await tx.select({ id: plans.id, name: plans.name }).from(plans).where(eq(plans.name, "Free")).limit(1);
+      if (!freePlan) throw new Error("Free plan not found. Please seed plans.");
 
       await tx.insert(subscriptions).values({
         schoolId,
-        plan: freePlan?.name.toLowerCase() ?? "free",
-        planId: freePlan?.id ?? 1,
+        plan: freePlan.name.toLowerCase(),
+        planId: freePlan.id,
         amount: "0",
         currency: "INR",
         billingCycle: "monthly",
