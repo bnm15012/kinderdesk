@@ -145,38 +145,38 @@ function AcademicsPage() {
             </button>
           </div>
 
-          {subjectForm && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+          <div className="space-y-2">
+            {subjectForm && (
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex-1 min-w-0">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Name *</label>
                   <input value={subjectForm.name} onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })} className={inputCls} placeholder="e.g. Mathematics" />
                 </div>
-                <div>
+                <div className="w-32">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Code</label>
                   <input value={subjectForm.code} onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })} className={inputCls} placeholder="e.g. MATH" />
                 </div>
+                <div className="flex items-center gap-2 self-end">
+                  <button onClick={() => setSubjectForm(null)} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 text-xs font-semibold transition hover:bg-red-100">
+                    <X className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                  <button disabled={savingSubject || !subjectForm.name} onClick={async () => {
+                    setSavingSubject(true);
+                    try {
+                      await manageSubjectFn({ data: { id: subjectForm.id, name: subjectForm.name, code: subjectForm.code } });
+                      setSubjectForm(null);
+                      const d = await listSubjectsFn({ data: { schoolId: tenant.schoolId } });
+                      setSubjects(d as Subject[]);
+                      toast("Subject saved", "success");
+                    } catch (err: any) { toast(err?.message ?? "Save failed", "error"); }
+                    finally { setSavingSubject(false); }
+                  }} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-xs font-semibold transition">
+                    <Save className="w-3.5 h-3.5" /> {savingSubject ? "Saving…" : "Save"}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button disabled={savingSubject || !subjectForm.name} onClick={async () => {
-                  setSavingSubject(true);
-                  try {
-                    await manageSubjectFn({ data: { id: subjectForm.id, name: subjectForm.name, code: subjectForm.code } });
-                    setSubjectForm(null);
-                    const d = await listSubjectsFn({ data: { schoolId: tenant.schoolId } });
-                    setSubjects(d as Subject[]);
-                    toast("Subject saved", "success");
-                  } catch (err: any) { toast(err?.message ?? "Save failed", "error"); }
-                  finally { setSavingSubject(false); }
-                }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">
-                  {savingSubject ? "Saving…" : "Save"}
-                </button>
-                <button onClick={() => setSubjectForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
-              </div>
-            </div>
-          )}
+            )}
 
-          <div className="space-y-2">
             {subjects.map((s) => (
               <div key={s.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <div>
@@ -193,7 +193,7 @@ function AcademicsPage() {
                 </div>
               </div>
             ))}
-            {subjects.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No subjects yet</p>}
+            {subjects.length === 0 && !subjectForm && <p className="text-sm text-slate-400 text-center py-8">No subjects yet</p>}
           </div>
         </div>
       )}
