@@ -98,9 +98,9 @@ function PnLPage() {
         <h1 className="text-2xl font-bold text-slate-900">Profit & Loss</h1>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 items-start no-print">
+      <div className="flex flex-col lg:flex-row gap-4 items-start no-print">
         {/* Filters */}
-        <div className="w-full lg:w-72 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 shrink-0">
+        <div className="w-full lg:w-64 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 shrink-0">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
             <div className="relative">
@@ -131,9 +131,9 @@ function PnLPage() {
         {/* Report preview */}
         <div className="flex-1 w-full">
           <div className="overflow-x-auto pb-6">
-            <div ref={reportRef} className="print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] bg-white shadow-lg rounded-none p-10 mx-auto text-sm" style={{ minHeight: "297mm" }}>
+            <div ref={reportRef} className="print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] bg-slate-50 shadow-lg rounded-none p-8 mx-auto text-sm" style={{ minHeight: "297mm" }}>
               {/* Header */}
-              <div className="flex items-start justify-between border-b border-slate-200 pb-6 mb-6">
+              <div className="flex items-start justify-between bg-white border border-slate-200 rounded-2xl p-5 mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
                   <p className="text-sm text-slate-500">{tenant.locationName}</p>
@@ -141,7 +141,7 @@ function PnLPage() {
                   <p className="text-xs text-slate-500">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
                 </div>
                 <div className="text-right">
-                  <div className="w-20 h-20 border border-slate-200 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 font-semibold mb-2 ml-auto">LOGO</div>
+                  <div className="w-20 h-20 border border-slate-200 bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-500 font-semibold mb-2 ml-auto">LOGO</div>
                   <p className="text-xs text-slate-500">Generated on: {generatedOn}</p>
                 </div>
               </div>
@@ -153,8 +153,8 @@ function PnLPage() {
                   {/* Income */}
                   <section>
                     <h3 className="text-base font-bold text-slate-900 mb-3">Income</h3>
-                    <table className="w-full border border-slate-200 text-sm">
-                      <thead className="bg-slate-50">
+                    <table className="w-full border border-slate-200 text-sm bg-white">
+                      <thead className="bg-slate-100">
                         <tr>
                           <th className="text-left px-3 py-2 border-b border-slate-200 w-12">No.</th>
                           <th className="text-left px-3 py-2 border-b border-slate-200">Student</th>
@@ -186,8 +186,8 @@ function PnLPage() {
                   {/* Expenses */}
                   <section>
                     <h3 className="text-base font-bold text-slate-900 mb-3">Expenses</h3>
-                    <table className="w-full border border-slate-200 text-sm">
-                      <thead className="bg-slate-50">
+                    <table className="w-full border border-slate-200 text-sm bg-white">
+                      <thead className="bg-slate-100">
                         <tr>
                           <th className="text-left px-3 py-2 border-b border-slate-200 w-12">No.</th>
                           <th className="text-left px-3 py-2 border-b border-slate-200">Category</th>
@@ -217,7 +217,7 @@ function PnLPage() {
                   {/* Summary */}
                   <section className="w-80 ml-auto">
                     <h3 className="text-base font-bold text-slate-900 mb-3">Summary</h3>
-                    <table className="w-full border border-slate-200 text-sm">
+                    <table className="w-full border border-slate-200 text-sm bg-white">
                       <tbody className="divide-y divide-slate-100">
                         <tr>
                           <td className="px-3 py-2 text-slate-600">Total Income</td>
@@ -227,7 +227,7 @@ function PnLPage() {
                           <td className="px-3 py-2 text-slate-600">Total Expense</td>
                           <td className="px-3 py-2 text-right font-semibold text-rose-700">{money(pnl.expenses)}</td>
                         </tr>
-                        <tr className="bg-slate-50">
+                        <tr className="bg-slate-100">
                           <td className="px-3 py-2 font-semibold text-slate-800">Net P&L</td>
                           <td className={`px-3 py-2 text-right font-bold ${pnl.net >= 0 ? "text-blue-700" : "text-amber-700"}`}>{money(pnl.net)}</td>
                         </tr>
