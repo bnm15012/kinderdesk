@@ -28,7 +28,7 @@ const FEATURES = [
 
 function StepIndicator({ current }: { current: number }) {
   return (
-    <div className="flex items-center gap-0 mb-8">
+    <div className="flex items-center gap-0 mb-5 sm:mb-8">
       {STEPS.map((label, i) => (
         <div key={label} className="flex items-center">
           <div className="flex flex-col items-center">
@@ -43,12 +43,12 @@ function StepIndicator({ current }: { current: number }) {
             >
               {i < current ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
             </div>
-            <div className={`text-xs mt-1.5 font-medium whitespace-nowrap ${i <= current ? "text-blue-700" : "text-slate-400"}`}>
+            <div className={`text-[10px] sm:text-xs mt-1.5 font-medium text-center sm:whitespace-nowrap ${i <= current ? "text-blue-700" : "text-slate-400"}`}>
               {label}
             </div>
           </div>
           {i < STEPS.length - 1 && (
-            <div className={`w-16 h-0.5 mx-1 mb-4 transition-all ${i < current ? "bg-blue-600" : "bg-slate-200"}`} />
+            <div className={`w-10 h-0.5 mx-1 mb-2 sm:w-16 sm:mb-4 transition-all ${i < current ? "bg-blue-600" : "bg-slate-200"}`} />
           )}
         </div>
       ))}
@@ -180,7 +180,7 @@ function Signup() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className={`flex-1 flex ${step === 2 && needsEmailConfirm ? "items-center" : "items-start"} justify-center bg-slate-50 px-6 py-10 overflow-y-auto relative`}>
+      <div className={`flex-1 flex ${step === 2 && needsEmailConfirm ? "items-center" : "items-start"} justify-center bg-slate-50 px-4 py-6 sm:px-6 sm:py-10 overflow-y-auto relative`}>
         {/* Mobile gradient + decorative blobs — hidden on desktop */}
         <div className="lg:hidden absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_#6366f1_0%,_#3b82f6_35%,_#0ea5e9_65%,_#06b6d4_100%)] pointer-events-none" />
         <div className="lg:hidden absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-500/40 blur-3xl pointer-events-none" />
@@ -204,7 +204,7 @@ function Signup() {
           </Link>
 
           {/* Form card */}
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 sm:p-8">
 
             {step < 2 && (
               <div className="mb-7">
@@ -412,7 +412,7 @@ function Signup() {
           </div>
 
           {/* Trust badges */}
-          <div className="flex items-center justify-center gap-5 mt-5">
+          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-5 mt-5">
             {[
               { icon: ShieldCheck, label: "256-bit SSL" },
               { icon: ShieldCheck, label: "DPDP Act ready" },
