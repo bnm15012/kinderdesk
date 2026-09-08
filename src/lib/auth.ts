@@ -190,6 +190,7 @@ export const signup = createServerFn({ method: "POST" })
     }
 
     // Production: send confirmation email
+    const now = new Date();
     const confirmToken = randomHex(32);
     await db.insert(otps).values({
       email,
