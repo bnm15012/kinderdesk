@@ -5,6 +5,7 @@ import { Calendar, Download, Printer } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
+import { useToast } from "@/lib/toast";
 
 export const Route = createFileRoute("/pnl")({
   component: PnLPage,
@@ -34,6 +35,7 @@ const fmtDate = (d: string | null | Date) => {
 
 function PnLPage() {
   const { tenant } = useTenant();
+  const toast = useToast();
   const reportRef = useRef<HTMLDivElement>(null);
   const getPnlFn = useServerFn(getPnl);
 
@@ -52,22 +54,28 @@ function PnLPage() {
 
   const loadData = async () => {
     if (!tenant) return;
-    const p = await getPnlFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId, from, to } }) as PnL;
-    setPnl(p);
+    try {
+      const p = await getPnlFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId, from, to } }) as PnL;
+      setPnl(p);
+    } catch (err: any) {
+      toast(err?.message ?? "Failed to load report", "error");
+    }
   };
 
   const downloadPdf = () => {
     if (!reportRef.current) return;
-    html2pdf()
-      .from(reportRef.current)
-      .set({
-        margin: 12,
-        filename: `pnl-${from}-to-${to}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
-      })
-      .save();
+    const opt = {
+      margin: 12,
+      filename: `pnl-${from}-to-${to}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+    };
+    try {
+      html2pdf().set(opt).from(reportRef.current).save();
+    } catch (err: any) {
+      toast(err?.message ?? "PDF download failed", "error");
+    }
   };
 
   const printPdf = () => {
