@@ -68,6 +68,7 @@ function ParentPortal() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [activeChild, setActiveChild] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<"profile" | "fees" | "academics" | "report" | "homework" | "activities" | "announcements">("profile");
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<number | null>(null);
   const [payError, setPayError] = useState<string>("");
@@ -212,6 +213,27 @@ function ParentPortal() {
 
       {child && (
         <>
+          {/* Tabs */}
+          <div className="flex gap-2 border-b border-slate-200 overflow-x-auto">
+            {[
+              { key: "profile", label: "Profile" },
+              { key: "fees", label: "Fees" },
+              { key: "academics", label: "Academics" },
+              { key: "homework", label: "Homework" },
+              { key: "activities", label: "Activities" },
+              { key: "announcements", label: "Announcements" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key as any)}
+                className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${activeTab === t.key ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "profile" && (<>
           {/* Child profile card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="h-1.5 bg-gradient-to-r from-blue-500 to-violet-600" />
@@ -234,8 +256,9 @@ function ParentPortal() {
                 </div>
               </div>
             </div>
-          </div>
+          </div></>)}
 
+          {activeTab === "fees" && (<>
           {/* Fee summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
@@ -373,6 +396,9 @@ function ParentPortal() {
             </div>
           )}
 
+          </>)}
+
+          {activeTab === "academics" && (<>
           {/* Academic Profile */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
@@ -470,6 +496,9 @@ function ParentPortal() {
             )}
           </div>
 
+          </>)}
+
+          {activeTab === "homework" && (<>
           {/* Homework */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
@@ -500,6 +529,9 @@ function ParentPortal() {
             )}
           </div>
 
+          </>)}
+
+          {activeTab === "announcements" && (<>
           {/* Announcements */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
@@ -524,8 +556,9 @@ function ParentPortal() {
                 ))}
               </div>
             )}
-          </div>
+          </div></>)}
 
+          {activeTab === "activities" && (<>
           {/* Curriculum Activity Feed */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
@@ -580,7 +613,7 @@ function ParentPortal() {
                 ))}
               </div>
             )}
-          </div>
+          </div></>)}
         </>
       )}
 
