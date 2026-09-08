@@ -5256,7 +5256,7 @@ export const getPnl = createServerFn({ method: "GET" })
   .validator((i: unknown) => getPnlSchema.parse(i))
   .handler(async ({ data }) => {
     const { db } = await import("@/lib/db");
-    const { expenses, invoices, payments } = await import("@/lib/db/schema");
+    const { expenses, invoices, payments, students, feeStructures } = await import("@/lib/db/schema");
     const user = await requireAuth(data.schoolId, data.locationId);
     if (!["super_admin", "school_admin", "location_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
 
@@ -5294,6 +5294,26 @@ export const getPnl = createServerFn({ method: "GET" })
       ))
       .orderBy(desc(expenses.expenseDate));
 
+    const incomeList = await db.select({
+      id: payments.id,
+      studentName: sql<string>`concat(${students.firstName}, ' ', ${students.lastName})`,
+      method: payments.method,
+      feeName: feeStructures.name,
+      amount: payments.amount,
+      paidAt: payments.paidAt,
+    })
+      .from(payments)
+      .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
+      .innerJoin(students, eq(invoices.studentId, students.id))
+      .leftJoin(feeStructures, eq(invoices.feeStructureId, feeStructures.id))
+      .where(and(
+        eq(payments.schoolId, data.schoolId),
+        eq(payments.locationId, data.locationId),
+        gte(payments.paidAt, new Date(data.from + "T00:00:00")),
+        lte(payments.paidAt, new Date(data.to + "T23:59:59")),
+      ))
+      .orderBy(desc(payments.paidAt));
+
     const income = parseFloat((incomeRow.total as any) ?? "0");
     const expenseTotal = parseFloat((expenseRow.total as any) ?? "0");
     const net = income - expenseTotal;
@@ -5304,6 +5324,7 @@ export const getPnl = createServerFn({ method: "GET" })
       income,
       expenses: expenseTotal,
       net,
+      incomeList,
       expenseList,
     };
   });

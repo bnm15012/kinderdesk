@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { DollarSign, TrendingUp, TrendingDown, Download } from "lucide-react";
+import { Calendar, Download, Printer } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/pnl")({
   component: PnLPage,
 });
 
+type Income = { id: number; studentName: string; method: string; feeName: string | null; amount: string; paidAt: string | null };
 type Expense = { id: number; category: string; description: string | null; amount: string; expenseDate: string | null };
 
 type PnL = {
@@ -18,20 +19,26 @@ type PnL = {
   income: number;
   expenses: number;
   net: number;
+  incomeList: Income[];
   expenseList: Expense[];
 };
 
-const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
+const inputCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
 const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const fmtDate = (d: string | null | Date) => {
+  if (!d) return "—";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
 
 function PnLPage() {
   const { tenant } = useTenant();
   const reportRef = useRef<HTMLDivElement>(null);
-
   const getPnlFn = useServerFn(getPnl);
 
-  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
+  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today);
 
@@ -51,12 +58,11 @@ function PnLPage() {
 
   const downloadPdf = () => {
     if (!reportRef.current) return;
-    const filename = `pnl-${from}-to-${to}.pdf`;
     html2pdf()
       .from(reportRef.current)
       .set({
         margin: 12,
-        filename,
+        filename: `pnl-${from}-to-${to}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
@@ -64,72 +70,167 @@ function PnLPage() {
       .save();
   };
 
+  const printPdf = () => {
+    window.print();
+  };
+
+  const generatedOn = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="w-full max-w-none space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full max-w-none h-full space-y-6 print:space-y-0">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; }
+        }
+      `}</style>
+      <div className="flex items-center justify-between no-print">
         <h1 className="text-2xl font-bold text-slate-900">Profit & Loss</h1>
-        <button onClick={downloadPdf} className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg"><Download className="w-4 h-4" /> Download PDF</button>
       </div>
 
-      {/* Date filter */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-wrap items-end gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls + " bg-white"} />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white"} />
-        </div>
-        <button onClick={loadData} className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><TrendingUp className="w-4 h-4 inline-block mr-1.5" /> View Report</button>
-      </div>
-
-      {/* P&L Report */}
-      <div ref={reportRef} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-        <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col lg:flex-row gap-6 items-start no-print">
+        {/* Filters */}
+        <div className="w-full lg:w-72 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">{tenant.schoolName}</h2>
-            <p className="text-sm text-slate-500">{tenant.locationName}</p>
-            <p className="text-sm font-semibold text-slate-700 mt-2">Profit & Loss Statement</p>
-            <p className="text-xs text-slate-400">{from} to {to}</p>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${inputCls} pl-10`} />
+            </div>
           </div>
-          <div className="w-20 h-20 border border-slate-200 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 font-semibold">LOGO</div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={`${inputCls} pl-10`} />
+            </div>
+          </div>
+          <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition">
+            Generate Report
+          </button>
+          <div className="flex gap-3">
+            <button onClick={downloadPdf} className="flex-1 flex items-center justify-center gap-1.5 h-10 px-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition">
+              <Download className="w-4 h-4" /> Download
+            </button>
+            <button onClick={printPdf} className="flex-1 flex items-center justify-center gap-1.5 h-10 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl transition">
+              <Printer className="w-4 h-4" /> Print
+            </button>
+          </div>
         </div>
 
-        {pnl && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-                <div className="flex items-center gap-2 mb-1"><TrendingUp className="w-4 h-4 text-emerald-600" /><span className="text-xs font-semibold text-emerald-700 uppercase">Income</span></div>
-                <p className="text-xl font-bold text-emerald-800">{money(pnl.income)}</p>
+        {/* Report preview */}
+        <div className="flex-1 w-full">
+          <div className="overflow-x-auto pb-6">
+            <div ref={reportRef} className="print-container min-w-[210mm] lg:min-w-0 lg:max-w-[210mm] bg-white shadow-lg rounded-none p-10 mx-auto text-sm" style={{ minHeight: "297mm" }}>
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-slate-200 pb-6 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">{tenant.schoolName}</h2>
+                  <p className="text-sm text-slate-500">{tenant.locationName}</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-3">Profit & Loss Report</p>
+                  <p className="text-xs text-slate-500">{pnl ? `${pnl.from} to ${pnl.to}` : `${from} to ${to}`}</p>
+                </div>
+                <div className="text-right">
+                  <div className="w-20 h-20 border border-slate-200 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 font-semibold mb-2 ml-auto">LOGO</div>
+                  <p className="text-xs text-slate-500">Generated on: {generatedOn}</p>
+                </div>
               </div>
-              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200">
-                <div className="flex items-center gap-2 mb-1"><TrendingDown className="w-4 h-4 text-rose-600" /><span className="text-xs font-semibold text-rose-700 uppercase">Expenses</span></div>
-                <p className="text-xl font-bold text-rose-800">{money(pnl.expenses)}</p>
-              </div>
-              <div className={`p-4 rounded-2xl border ${pnl.net >= 0 ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"}`}>
-                <div className="flex items-center gap-2 mb-1"><DollarSign className={`w-4 h-4 ${pnl.net >= 0 ? "text-blue-600" : "text-amber-600"}`} /><span className={`text-xs font-semibold uppercase ${pnl.net >= 0 ? "text-blue-700" : "text-amber-700"}`}>Net P&L</span></div>
-                <p className={`text-xl font-bold ${pnl.net >= 0 ? "text-blue-800" : "text-amber-800"}`}>{money(pnl.net)}</p>
-              </div>
-            </div>
 
-            <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden mt-4">
-              <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2">Category</th><th className="text-left px-4 py-2">Description</th><th className="px-4 py-2 text-right">Amount</th></tr></thead>
-              <tbody className="divide-y divide-slate-100">
-                {pnl.expenseList.map((e) => (
-                  <tr key={e.id}>
-                    <td className="px-4 py-2 capitalize">{e.category}</td>
-                    <td className="px-4 py-2 text-slate-500">{e.description || "—"}</td>
-                    <td className="px-4 py-2 text-right">{money(parseFloat(e.amount))}</td>
-                  </tr>
-                ))}
-                {pnl.expenseList.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400">No expenses in this period</td></tr>}
-              </tbody>
-            </table>
+              {!pnl ? (
+                <p className="text-slate-400 text-center py-20">Select a date range and click Generate Report</p>
+              ) : (
+                <div className="space-y-8">
+                  {/* Income */}
+                  <section>
+                    <h3 className="text-base font-bold text-slate-900 mb-3">Income</h3>
+                    <table className="w-full border border-slate-200 text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 border-b border-slate-200 w-12">No.</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Student</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Payment Mode</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Fee</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Date</th>
+                          <th className="text-right px-3 py-2 border-b border-slate-200 w-28">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pnl.incomeList.length === 0 ? (
+                          <tr><td colSpan={6} className="px-3 py-4 text-center text-slate-400">No income in this period</td></tr>
+                        ) : (
+                          pnl.incomeList.map((income, i) => (
+                            <tr key={income.id}>
+                              <td className="px-3 py-2 text-slate-500">{i + 1}</td>
+                              <td className="px-3 py-2 font-medium text-slate-800">{income.studentName}</td>
+                              <td className="px-3 py-2 text-slate-600 capitalize">{income.method.replace(/_/g, " ")}</td>
+                              <td className="px-3 py-2 text-slate-500">{income.feeName ?? "—"}</td>
+                              <td className="px-3 py-2 text-slate-500">{fmtDate(income.paidAt)}</td>
+                              <td className="px-3 py-2 text-right font-medium text-slate-800">{money(parseFloat(income.amount))}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </section>
+
+                  {/* Expenses */}
+                  <section>
+                    <h3 className="text-base font-bold text-slate-900 mb-3">Expenses</h3>
+                    <table className="w-full border border-slate-200 text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 border-b border-slate-200 w-12">No.</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Category</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Description</th>
+                          <th className="text-left px-3 py-2 border-b border-slate-200">Date</th>
+                          <th className="text-right px-3 py-2 border-b border-slate-200 w-28">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pnl.expenseList.length === 0 ? (
+                          <tr><td colSpan={5} className="px-3 py-4 text-center text-slate-400">No expenses in this period</td></tr>
+                        ) : (
+                          pnl.expenseList.map((e, i) => (
+                            <tr key={e.id}>
+                              <td className="px-3 py-2 text-slate-500">{i + 1}</td>
+                              <td className="px-3 py-2 font-medium text-slate-800 capitalize">{e.category}</td>
+                              <td className="px-3 py-2 text-slate-500">{e.description || "—"}</td>
+                              <td className="px-3 py-2 text-slate-500">{fmtDate(e.expenseDate)}</td>
+                              <td className="px-3 py-2 text-right font-medium text-slate-800">{money(parseFloat(e.amount))}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </section>
+
+                  {/* Summary */}
+                  <section className="w-80 ml-auto">
+                    <h3 className="text-base font-bold text-slate-900 mb-3">Summary</h3>
+                    <table className="w-full border border-slate-200 text-sm">
+                      <tbody className="divide-y divide-slate-100">
+                        <tr>
+                          <td className="px-3 py-2 text-slate-600">Total Income</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{money(pnl.income)}</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2 text-slate-600">Total Expense</td>
+                          <td className="px-3 py-2 text-right font-semibold text-rose-700">{money(pnl.expenses)}</td>
+                        </tr>
+                        <tr className="bg-slate-50">
+                          <td className="px-3 py-2 font-semibold text-slate-800">Net P&L</td>
+                          <td className={`px-3 py-2 text-right font-bold ${pnl.net >= 0 ? "text-blue-700" : "text-amber-700"}`}>{money(pnl.net)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </section>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
