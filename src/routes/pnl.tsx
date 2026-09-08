@@ -47,7 +47,8 @@ function PnLPage() {
   useEffect(() => {
     if (!tenant) return;
     loadData();
-  }, [tenant, from, to]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant]);
 
   const loadData = async () => {
     if (!tenant) return;
@@ -104,6 +105,7 @@ function PnLPage() {
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white"} />
         </div>
+        <button onClick={loadData} className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><TrendingUp className="w-4 h-4 inline-block mr-1.5" /> View Report</button>
       </div>
 
       {/* P&L Report */}
