@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { z } from "zod";
-import { eq, and, count, desc, asc, inArray, notInArray, gte, lte, or, sql, gt, ne } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, notInArray, gte, lte, or, sql, gt, ne, isNull } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -3023,6 +3023,145 @@ export const updateInvoice = createServerFn({ method: "POST" })
       paidAt: data.paidAt ? new Date(data.paidAt) : (data.status === "paid" ? new Date() : undefined),
     }).where(eq(invoices.id, data.invoiceId));
     return { ok: true };
+  });
+
+// ── INVOICE GENERATION ───────────────────────────────────────────────────────
+
+const generateStudentInvoiceSchema = z.object({
+  schoolId: z.number(),
+  locationId: z.number(),
+  studentId: z.number(),
+  month: z.string().regex(/^\d{4}-\d{2}$/), // "2025-04"
+});
+
+export const generateStudentInvoice = createServerFn({ method: "POST" })
+  .validator((i: unknown) => generateStudentInvoiceSchema.parse(i))
+  .handler(async ({ data }) => {
+    await requireAuth(data.schoolId, data.locationId);
+    const { db } = await import("@/lib/db");
+    const { invoices, feeStructures, students } = await import("@/lib/db/schema");
+
+    // Idempotency: if an invoice already exists for this student+month, return it unchanged.
+    const [existing] = await db.select({ id: invoices.id })
+      .from(invoices)
+      .where(and(
+        eq(invoices.studentId, data.studentId),
+        eq(invoices.generatedMonth, data.month),
+        notInArray(invoices.status, ["cancelled", "refunded"]),
+      ))
+      .limit(1);
+    if (existing) return { invoiceId: existing.id, isExisting: true };
+
+    // Fetch student and applicable fee structures
+    const [student] = await db.select({ currentClassId: students.currentClassId })
+      .from(students)
+      .where(eq(students.id, data.studentId))
+      .limit(1);
+
+    const fees = await db.select({ id: feeStructures.id, amount: feeStructures.amount, dueDay: feeStructures.dueDay, name: feeStructures.name })
+      .from(feeStructures)
+      .where(and(
+        eq(feeStructures.schoolId, data.schoolId),
+        eq(feeStructures.locationId, data.locationId),
+        or(
+          eq(feeStructures.classId, student?.currentClassId ?? 0),
+          isNull(feeStructures.classId),
+        ),
+      ));
+
+    const total = fees.reduce((sum, f) => sum + parseFloat(f.amount as any), 0);
+    const dueDay = fees[0]?.dueDay ?? 1;
+    const dueDate = `${data.month}-${String(dueDay).padStart(2, "0")}`;
+
+    const [res] = await db.insert(invoices).values({
+      schoolId: data.schoolId,
+      locationId: data.locationId,
+      studentId: data.studentId,
+      amount: String(total),
+      dueDate: new Date(dueDate) as any,
+      status: "draft",
+      generatedMonth: data.month,
+    });
+    return { invoiceId: Number((res as any).insertId), isExisting: false };
+  });
+
+const getInvoicePrintDataSchema = z.object({ invoiceId: z.number() });
+export const getInvoicePrintData = createServerFn({ method: "GET" })
+  .validator((i: unknown) => getInvoicePrintDataSchema.parse(i))
+  .handler(async ({ data }) => {
+    const { db } = await import("@/lib/db");
+    const { invoices, students, parents, schools, locations, payments, classes } = await import("@/lib/db/schema");
+
+    const [inv] = await db.select().from(invoices).where(eq(invoices.id, data.invoiceId)).limit(1);
+    if (!inv) throw new Error("Invoice not found");
+
+    await requireAuth(inv.schoolId, inv.locationId);
+
+    const [student] = await db.select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      className: classes.name,
+    })
+      .from(students)
+      .leftJoin(classes, eq(students.currentClassId, classes.id))
+      .where(eq(students.id, inv.studentId))
+      .limit(1);
+
+    const parentRows = await db.select({ name: parents.name, phone: parents.phone })
+      .from(parents)
+      .where(eq(parents.studentId, inv.studentId))
+      .orderBy(parents.isPrimary);
+
+    const [school] = await db.select({
+      name: schools.name,
+      email: schools.email,
+      phone: schools.phone,
+      logoUrl: schools.logoUrl,
+      address: schools.address,
+      city: schools.city,
+      state: schools.state,
+      pincode: schools.pincode,
+    })
+      .from(schools)
+      .where(eq(schools.id, inv.schoolId))
+      .limit(1);
+
+    const [location] = await db.select({
+      name: locations.name,
+      address: locations.address,
+      city: locations.city,
+      state: locations.state,
+      pincode: locations.pincode,
+      phone: locations.phone,
+    })
+      .from(locations)
+      .where(eq(locations.id, inv.locationId))
+      .limit(1);
+
+    const [paidRow] = await db.select({ total: sql`coalesce(sum(${payments.amount}), 0)` })
+      .from(payments)
+      .where(eq(payments.invoiceId, inv.id));
+
+    const paid = parseFloat((paidRow.total as any) ?? "0");
+    const due = parseFloat(inv.amount as any) - paid;
+
+    return {
+      invoice: {
+        id: inv.id,
+        month: inv.generatedMonth,
+        amount: parseFloat(inv.amount as any),
+        dueDate: inv.dueDate ? inv.dueDate.toLocaleDateString("en-IN") : null,
+        status: inv.status,
+        paid,
+        due,
+        createdAt: inv.createdAt ? inv.createdAt.toISOString() : null,
+      },
+      student,
+      parents: parentRows,
+      school,
+      location,
+    };
   });
 
 // ─────────────────────────────────────────────────────────────────────────────

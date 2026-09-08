@@ -24,6 +24,7 @@ import { Route as FeesRouteImport } from './routes/fees'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as HomeworkRouteImport } from './routes/homework'
 import { Route as InviteRouteImport } from './routes/invite'
+import { Route as InvoicePrintRouteImport } from './routes/invoice-print'
 import { Route as LocationsRouteImport } from './routes/locations'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ParentRouteImport } from './routes/parent'
@@ -40,6 +41,7 @@ import { Route as StudentsRouteImport } from './routes/students'
 import { Route as SuperAdminRouteImport } from './routes/super-admin'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as TermsOfServiceRouteImport } from './routes/terms-of-service'
+import { Route as InvoicesGenerateRouteImport } from './routes/invoices.generate'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as StaffStaffIdRouteImport } from './routes/staff.$staffId'
 import { Route as StudentsIndexRouteImport } from './routes/students.index'
@@ -128,6 +130,11 @@ const InviteRoute = InviteRouteImport.update({
   path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoicePrintRoute = InvoicePrintRouteImport.update({
+  id: '/invoice-print',
+  path: '/invoice-print',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LocationsRoute = LocationsRouteImport.update({
   id: '/locations',
   path: '/locations',
@@ -208,6 +215,11 @@ const TermsOfServiceRoute = TermsOfServiceRouteImport.update({
   path: '/terms-of-service',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoicesGenerateRoute = InvoicesGenerateRouteImport.update({
+  id: '/invoices/generate',
+  path: '/invoices/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -286,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
+  '/invoice-print': typeof InvoicePrintRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/parent': typeof ParentRoute
@@ -302,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/super-admin': typeof SuperAdminRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
+  '/invoices/generate': typeof InvoicesGenerateRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
   '/super-admin/announcements': typeof SuperAdminAnnouncementsRoute
@@ -331,6 +345,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
+  '/invoice-print': typeof InvoicePrintRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/parent': typeof ParentRoute
@@ -344,6 +359,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/super-admin': typeof SuperAdminRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
+  '/invoices/generate': typeof InvoicesGenerateRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
   '/super-admin/announcements': typeof SuperAdminAnnouncementsRoute
@@ -374,6 +390,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
+  '/invoice-print': typeof InvoicePrintRoute
   '/locations': typeof LocationsRoute
   '/login': typeof LoginRoute
   '/parent': typeof ParentRoute
@@ -390,6 +407,7 @@ export interface FileRoutesById {
   '/super-admin': typeof SuperAdminRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
   '/terms-of-service': typeof TermsOfServiceRoute
+  '/invoices/generate': typeof InvoicesGenerateRoute
   '/staff/$staffId': typeof StaffStaffIdRoute
   '/students/$studentId': typeof StudentsStudentIdRoute
   '/super-admin/announcements': typeof SuperAdminAnnouncementsRoute
@@ -421,6 +439,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/homework'
     | '/invite'
+    | '/invoice-print'
     | '/locations'
     | '/login'
     | '/parent'
@@ -437,6 +456,7 @@ export interface FileRouteTypes {
     | '/super-admin'
     | '/teacher'
     | '/terms-of-service'
+    | '/invoices/generate'
     | '/staff/$staffId'
     | '/students/$studentId'
     | '/super-admin/announcements'
@@ -466,6 +486,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/homework'
     | '/invite'
+    | '/invoice-print'
     | '/locations'
     | '/login'
     | '/parent'
@@ -479,6 +500,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/super-admin'
     | '/terms-of-service'
+    | '/invoices/generate'
     | '/staff/$staffId'
     | '/students/$studentId'
     | '/super-admin/announcements'
@@ -508,6 +530,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/homework'
     | '/invite'
+    | '/invoice-print'
     | '/locations'
     | '/login'
     | '/parent'
@@ -524,6 +547,7 @@ export interface FileRouteTypes {
     | '/super-admin'
     | '/teacher'
     | '/terms-of-service'
+    | '/invoices/generate'
     | '/staff/$staffId'
     | '/students/$studentId'
     | '/super-admin/announcements'
@@ -554,6 +578,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HomeworkRoute: typeof HomeworkRoute
   InviteRoute: typeof InviteRoute
+  InvoicePrintRoute: typeof InvoicePrintRoute
   LocationsRoute: typeof LocationsRoute
   LoginRoute: typeof LoginRoute
   ParentRoute: typeof ParentRoute
@@ -570,6 +595,7 @@ export interface RootRouteChildren {
   SuperAdminRoute: typeof SuperAdminRouteWithChildren
   TeacherRoute: typeof TeacherRouteWithChildren
   TermsOfServiceRoute: typeof TermsOfServiceRoute
+  InvoicesGenerateRoute: typeof InvoicesGenerateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -677,6 +703,13 @@ declare module '@tanstack/react-router' {
       path: '/invite'
       fullPath: '/invite'
       preLoaderRoute: typeof InviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoice-print': {
+      id: '/invoice-print'
+      path: '/invoice-print'
+      fullPath: '/invoice-print'
+      preLoaderRoute: typeof InvoicePrintRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/locations': {
@@ -789,6 +822,13 @@ declare module '@tanstack/react-router' {
       path: '/terms-of-service'
       fullPath: '/terms-of-service'
       preLoaderRoute: typeof TermsOfServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/generate': {
+      id: '/invoices/generate'
+      path: '/invoices/generate'
+      fullPath: '/invoices/generate'
+      preLoaderRoute: typeof InvoicesGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/staff/': {
@@ -964,6 +1004,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   HomeworkRoute: HomeworkRoute,
   InviteRoute: InviteRoute,
+  InvoicePrintRoute: InvoicePrintRoute,
   LocationsRoute: LocationsRoute,
   LoginRoute: LoginRoute,
   ParentRoute: ParentRoute,
@@ -980,6 +1021,7 @@ const rootRouteChildren: RootRouteChildren = {
   SuperAdminRoute: SuperAdminRouteWithChildren,
   TeacherRoute: TeacherRouteWithChildren,
   TermsOfServiceRoute: TermsOfServiceRoute,
+  InvoicesGenerateRoute: InvoicesGenerateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
