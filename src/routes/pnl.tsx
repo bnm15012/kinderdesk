@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Calendar, Download, Printer, FileText } from "lucide-react";
+import { Calendar, Download, Printer, FileText, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
@@ -28,6 +28,29 @@ type PnL = {
 
 const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
 const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+const toneStyles: Record<string, { bg: string; icon: string; text: string }> = {
+  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600", text: "text-emerald-700" },
+  rose: { bg: "bg-rose-50", icon: "text-rose-600", text: "text-rose-700" },
+  blue: { bg: "bg-blue-50", icon: "text-blue-600", text: "text-blue-700" },
+  amber: { bg: "bg-amber-50", icon: "text-amber-600", text: "text-amber-700" },
+};
+
+function SummaryCard({ label, value, icon: Icon, tone }: { label: string; value: number; icon: React.ElementType; tone: string }) {
+  const t = toneStyles[tone];
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between">
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
+        <p className={`text-2xl font-bold ${t.text} mt-1`}>{money(value)}</p>
+      </div>
+      <div className={`w-12 h-12 rounded-full ${t.bg} flex items-center justify-center`}>
+        <Icon className={`w-6 h-6 ${t.icon}`} />
+      </div>
+    </div>
+  );
+}
+
 const fmtDate = (d: string | null | Date) => {
   if (!d) return "—";
   const date = new Date(d);
@@ -101,6 +124,13 @@ function PnLPage() {
 
       <div className="flex items-center justify-between no-print">
         <h1 className="text-2xl font-bold text-slate-900">Profit & Loss</h1>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
+        <SummaryCard label="Total Income" value={pnl?.income ?? 0} icon={TrendingUp} tone="emerald" />
+        <SummaryCard label="Total Expense" value={pnl?.expenses ?? 0} icon={TrendingDown} tone="rose" />
+        <SummaryCard label="Net P&L" value={pnl?.net ?? 0} icon={(pnl?.net ?? 0) >= 0 ? TrendingUp : TrendingDown} tone={(pnl?.net ?? 0) >= 0 ? "blue" : "amber"} />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-3 items-start no-print">
