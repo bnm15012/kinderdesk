@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { DollarSign, TrendingUp, TrendingDown, Download } from "lucide-react";
+import html2pdf from "html2pdf.js";
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 
@@ -48,32 +49,19 @@ function PnLPage() {
     setPnl(p);
   };
 
-  const printPdf = () => {
-    const w = window.open("", "_blank");
-    if (!w) return;
-    const html = `
-      <html><head><title>P&L Report</title>
-      <style>
-        body { font-family: sans-serif; padding: 40px; color: #1e293b; }
-        h1 { font-size: 24px; margin-bottom: 8px; }
-        .meta { color: #64748b; margin-bottom: 24px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
-        th { background: #f1f5f9; }
-        .summary { margin-top: 24px; }
-        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
-        .total { font-weight: bold; font-size: 16px; }
-      </style></head>
-      <body>
-        <h1>Profit & Loss Report</h1>
-        <div class="meta">${pnl ? `${pnl.from} to ${pnl.to}` : ""}</div>
-        ${reportRef.current ? reportRef.current.innerHTML : ""}
-      </body></html>
-    `;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.print();
+  const downloadPdf = () => {
+    if (!reportRef.current) return;
+    const filename = `pnl-${from}-to-${to}.pdf`;
+    html2pdf()
+      .from(reportRef.current)
+      .set({
+        margin: 12,
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+      })
+      .save();
   };
 
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
@@ -82,7 +70,7 @@ function PnLPage() {
     <div className="w-full max-w-none space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Profit & Loss</h1>
-        <button onClick={printPdf} className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg"><Download className="w-4 h-4" /> Download PDF</button>
+        <button onClick={downloadPdf} className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg"><Download className="w-4 h-4" /> Download PDF</button>
       </div>
 
       {/* Date filter */}
@@ -100,8 +88,15 @@ function PnLPage() {
 
       {/* P&L Report */}
       <div ref={reportRef} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-800 mb-2">P&L Statement</h2>
-        <p className="text-sm text-slate-500 mb-6">{from} to {to}</p>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">{tenant.schoolName}</h2>
+            <p className="text-sm text-slate-500">{tenant.locationName}</p>
+            <p className="text-sm font-semibold text-slate-700 mt-2">Profit & Loss Statement</p>
+            <p className="text-xs text-slate-400">{from} to {to}</p>
+          </div>
+          <div className="w-20 h-20 border border-slate-200 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 font-semibold">LOGO</div>
+        </div>
 
         {pnl && (
           <div className="space-y-4">

@@ -57,6 +57,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.6.0",
+    "html2pdf.js": "^0.14.0",
     "input-otp": "^1.4.2",
     "jose": "5.9.6",
     "lucide-react": "^0.575.0",
