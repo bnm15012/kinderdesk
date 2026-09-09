@@ -99,7 +99,7 @@ function PnLPage() {
   const downloadPdf = async () => {
     if (!reportRef.current) return;
     try {
-      const dataUrl = await toPng(reportRef.current, { width: 794, pixelRatio: 2, backgroundColor: "#ffffff", style: { overflow: "hidden" } });
+      const dataUrl = await toPng(reportRef.current, { pixelRatio: 2, backgroundColor: "#ffffff", style: { width: "794px", maxWidth: "794px", overflow: "hidden" } });
       const img = new Image();
       img.src = dataUrl;
       await new Promise((resolve) => { img.onload = resolve; });
