@@ -65,7 +65,9 @@ function ExpensesPage() {
     <div className="w-full max-w-none space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">Expenses</h1>
-        <button onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today })} className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"><Plus className="w-4 h-4" /> Add Expense</button>
+        {!form && (
+          <button type="button" onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today })} className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"><Plus className="w-4 h-4" /> Add Expense</button>
+        )}
       </div>
 
       {/* Filters */}
@@ -86,9 +88,52 @@ function ExpensesPage() {
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white h-10 w-full"} />
           </div>
-          <button onClick={load} className="w-full sm:w-auto mt-auto h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
+          <button type="button" onClick={load} className="w-full sm:w-auto mt-auto h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
         </div>
       </div>
+
+      {/* Add/Edit form */}
+      {form && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-800">{form.id ? "Edit Expense" : "Add Expense"}</h3>
+            <button type="button" onClick={() => setForm(null)} className="p-1.5 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Category</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls + " bg-white w-full"}>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Amount</label>
+              <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls + " w-full"} placeholder="Amount" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Date</label>
+              <input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} className={inputCls + " bg-white w-full"} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Description</label>
+              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls + " w-full"} placeholder="Description" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setForm(null)} className="px-4 py-2 rounded-lg border border-red-200 text-red-600 bg-red-50 text-sm font-semibold transition hover:bg-red-100">
+              Cancel
+            </button>
+            <button type="button" onClick={async () => {
+              await manageExpenseFn({ data: { id: form.id, schoolId: tenant.schoolId, locationId: tenant.locationId, category: form.category as any, amount: form.amount, description: form.description, expenseDate: form.expenseDate } });
+              setForm(null);
+              await load();
+              toast("Saved", "success");
+            }} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition">
+              Save
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Expenses list */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
@@ -96,32 +141,6 @@ function ExpensesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50"><tr><th className="text-left px-4 py-2.5 font-semibold text-slate-700 w-16">S.No</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Category</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Description</th><th className="text-left px-4 py-2.5 font-semibold text-slate-700">Date</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Amount</th><th className="px-4 py-2.5 text-right font-semibold text-slate-700">Actions</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {form && (
-                <tr className="bg-slate-50">
-                  <td className="px-4 py-2.5 text-slate-400 w-16 text-center font-semibold">—</td>
-                  <td className="px-4 py-2.5"><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls + " bg-white w-full"}>
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                  </select></td>
-                  <td className="px-4 py-2.5"><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls + " w-full"} placeholder="Description" /></td>
-                  <td className="px-4 py-2.5"><input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} className={inputCls + " bg-white w-full"} /></td>
-                  <td className="px-4 py-2.5"><input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls + " w-full"} placeholder="Amount" /></td>
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setForm(null)} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 text-xs font-semibold transition hover:bg-red-100">
-                        <X className="w-3.5 h-3.5" /> Cancel
-                      </button>
-                      <button onClick={async () => {
-                        await manageExpenseFn({ data: { id: form.id, schoolId: tenant.schoolId, locationId: tenant.locationId, category: form.category as any, amount: form.amount, description: form.description, expenseDate: form.expenseDate } });
-                        setForm(null);
-                        await load();
-                        toast("Saved", "success");
-                      }} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition">
-                        <Save className="w-3.5 h-3.5" /> Save
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
               {pageItems.map((e, i) => (
                 <tr key={e.id} className="hover:bg-slate-50 even:bg-white">
                   <td className="px-4 py-2.5 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
@@ -130,8 +149,8 @@ function ExpensesPage() {
                   <td className="px-4 py-2.5 text-slate-500">{e.expenseDate ? new Date(e.expenseDate).toLocaleDateString("en-IN") : "—"}</td>
                   <td className="px-4 py-2.5 text-right font-medium text-slate-800">{money(parseFloat(e.amount))}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString().slice(0, 10) : today })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString().slice(0, 10) : today })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
               ))}
