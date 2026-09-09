@@ -358,6 +358,7 @@ function Staff() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"active" | "archived">("active");
   const [addOpen, setAddOpen] = useState(false);
   const [inviteSuccessToken, setInviteSuccessToken] = useState<string | null>(null);
 
@@ -391,14 +392,18 @@ function Staff() {
     }
   };
 
+  const activeRows = useMemo(() => rows.filter((s) => s.status !== "terminated"), [rows]);
+  const archivedRows = useMemo(() => rows.filter((s) => s.status === "terminated"), [rows]);
+
   const filtered = useMemo(() => {
+    const base = view === "active" ? activeRows : archivedRows;
     const q = search.toLowerCase();
-    return rows.filter((s) =>
+    return base.filter((s) =>
       `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
       s.role.toLowerCase().includes(q) ||
       s.classes.join(" ").toLowerCase().includes(q)
     );
-  }, [rows, search]);
+  }, [view, activeRows, archivedRows, search]);
 
   const { pageItems, currentPage, setCurrentPage, totalPages } = usePagination(filtered, PAGE_SIZE);
 
@@ -409,11 +414,28 @@ function Staff() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Staff & Teachers</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {loading ? "Loading…" : `${rows.length} staff member${rows.length !== 1 ? "s" : ""}`}
+            {loading ? "Loading…" : `${view === "active" ? activeRows.length : archivedRows.length} ${view} staff member${(view === "active" ? activeRows.length : archivedRows.length) !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
-          <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Staff</span>
+        {view === "active" && (
+          <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
+            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Staff</span>
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setView("active"); setCurrentPage(1); setSearch(""); }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${view === "active" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+        >
+          Active ({activeRows.length})
+        </button>
+        <button
+          onClick={() => { setView("archived"); setCurrentPage(1); setSearch(""); }}
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${view === "archived" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+        >
+          Archived ({archivedRows.length})
         </button>
       </div>
 
@@ -449,7 +471,15 @@ function Staff() {
                 <tr>
                   <td colSpan={8} className="px-5 py-14 text-center">
                     <Briefcase className="w-10 h-10 mx-auto mb-3 text-slate-200" />
-                    <p className="text-slate-400 text-sm">{rows.length === 0 ? "No staff yet. Add your first member!" : "No staff match your search."}</p>
+                    <p className="text-slate-400 text-sm">
+                      {rows.length === 0
+                        ? "No staff yet. Add your first member!"
+                        : search
+                          ? "No staff match your search."
+                          : view === "active"
+                            ? "No active staff."
+                            : "No archived staff."}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -504,14 +534,16 @@ function Staff() {
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setConfirmStaff(s); }}
-                          disabled={deletingId === s.id}
-                          className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-40"
-                          title="Terminate"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {view === "active" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmStaff(s); }}
+                            disabled={deletingId === s.id}
+                            className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-40"
+                            title="Terminate"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition ml-1" />
                       </div>
                     </td>
