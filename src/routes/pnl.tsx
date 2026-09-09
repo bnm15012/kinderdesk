@@ -312,7 +312,7 @@ function PnLPage() {
                         <tr>
                           <th className="text-left w-10">No.</th>
                           <th className="text-left w-20">Category</th>
-                          <th className="text-left">Description</th>
+                          <th className="text-left w-1/2">Description</th>
                           <th className="text-left w-20">Date</th>
                           <th className="text-right w-24">Amount</th>
                         </tr>
