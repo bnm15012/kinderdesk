@@ -63,30 +63,30 @@ function ExpensesPage() {
 
   return (
     <div className="w-full max-w-none space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">Expenses</h1>
-        <button onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today })} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"><Plus className="w-4 h-4" /> Add Expense</button>
+        <button onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today })} className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"><Plus className="w-4 h-4" /> Add Expense</button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row flex-wrap items-end sm:items-end gap-4">
-        <div className="w-full sm:flex-1 sm:min-w-[260px]">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm flex flex-col gap-4">
+        <div className="w-full">
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">Search</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} className={inputCls + " bg-white pl-9 h-10 w-full"} placeholder="Search by category, description, amount, date" />
           </div>
         </div>
-        <div className="flex items-end gap-2">
-          <div>
+        <div className="flex flex-col sm:flex-row gap-2 w-full">
+          <div className="w-full sm:w-auto">
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">From</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls + " bg-white h-10"} />
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls + " bg-white h-10 w-full"} />
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">To</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white h-10"} />
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls + " bg-white h-10 w-full"} />
           </div>
-          <button onClick={load} className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
+          <button onClick={load} className="w-full sm:w-auto mt-auto h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl"><Wallet className="w-4 h-4 inline-block mr-1.5" /> View</button>
         </div>
       </div>
 
