@@ -2641,7 +2641,7 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { inquiries, students, parents, classEnrollments } = await import("@/lib/db/schema");
+    const { inquiries, students, parents, classEnrollments, users } = await import("@/lib/db/schema");
 
     await checkPlanLimit(data.schoolId, "students");
 
@@ -2689,7 +2689,8 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
       }).where(eq(students.id, studentId));
 
       // Update or create the primary parent record
-      const [existingParent] = await db.select({ id: parents.id })
+      const [existingParent] = await db
+        .select({ id: parents.id, email: parents.email })
         .from(parents)
         .where(eq(parents.studentId, studentId))
         .limit(1);
@@ -2699,6 +2700,13 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
           email: data.parentEmail || null,
           phone: data.parentPhone || null,
         }).where(eq(parents.id, existingParent.id));
+
+        // Keep the parent user login email in sync
+        if (existingParent.email && data.parentEmail && data.parentEmail !== existingParent.email) {
+          await db.update(users)
+            .set({ email: data.parentEmail })
+            .where(eq(users.email, existingParent.email));
+        }
       } else {
         await db.insert(parents).values({
           schoolId: data.schoolId,
