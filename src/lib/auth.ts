@@ -3015,7 +3015,11 @@ export const listStaff = createServerFn({ method: "GET" })
       })
       .from(staff)
       .leftJoin(users, eq(staff.userId, users.id))
-      .where(and(eq(staff.schoolId, data.schoolId), eq(staff.locationId, data.locationId)))
+      .where(and(
+        eq(staff.schoolId, data.schoolId),
+        eq(staff.locationId, data.locationId),
+        not(eq(staff.status, "terminated")),
+      ))
       .orderBy(asc(staff.firstName));
 
     return Promise.all(rows.map(async (s) => {

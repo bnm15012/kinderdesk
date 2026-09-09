@@ -409,7 +409,7 @@ function Staff() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Staff & Teachers</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {loading ? "Loading…" : `${rows.filter(r => r.status === "active").length} active staff member${rows.filter(r => r.status === "active").length !== 1 ? "s" : ""}`}
+            {loading ? "Loading…" : `${rows.length} staff member${rows.length !== 1 ? "s" : ""}`}
           </p>
         </div>
         <button onClick={() => setAddOpen(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
