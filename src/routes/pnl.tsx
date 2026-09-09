@@ -89,8 +89,26 @@ function PnLPage() {
     }
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (!reportRef.current) return;
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;left:-9999px;top:0;width:0;height:0;overflow:hidden;";
+    document.body.appendChild(container);
+
+    // Clone and flatten computed styles so html2canvas doesn't hit Tailwind oklch values
+    const clone = reportRef.current.cloneNode(true) as HTMLDivElement;
+    const origEls = Array.from(reportRef.current.querySelectorAll("*"));
+    const cloneEls = Array.from(clone.querySelectorAll("*"));
+    origEls.forEach((orig, i) => {
+      const cloneEl = cloneEls[i] as HTMLElement;
+      const computed = window.getComputedStyle(orig as Element);
+      cloneEl.style.cssText = computed.cssText;
+      cloneEl.removeAttribute("class");
+    });
+    clone.style.cssText = window.getComputedStyle(reportRef.current).cssText;
+    clone.removeAttribute("class");
+    container.appendChild(clone);
+
     const opt = {
       margin: 12,
       filename: `pnl-${from}-to-${to}.pdf`,
@@ -98,10 +116,13 @@ function PnLPage() {
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
     };
+
     try {
-      html2pdf().set(opt).from(reportRef.current).save();
+      await html2pdf().set(opt).from(clone).save();
     } catch (err: any) {
       toast(err?.message ?? "PDF download failed", "error");
+    } finally {
+      document.body.removeChild(container);
     }
   };
 
