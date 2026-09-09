@@ -29,6 +29,8 @@ import {
   TrendingUp,
   Wallet,
   Megaphone,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 import appCss from "../styles.css?url";
 import { TenantProvider, useTenant } from "@/lib/tenant";
@@ -211,31 +213,88 @@ function Sidebar({ role, board }: { role: string | null | undefined; board?: str
 
 function BottomTabBar({ role, board }: { role: string | null | undefined; board?: string | null }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [moreOpen, setMoreOpen] = useState(false);
   const effectiveRole =
     role === "super_admin" && !pathname.startsWith("/super-admin")
       ? "school_admin"
       : role;
   const nav = navForRole(effectiveRole, board);
 
+  const isExact = (to: string) =>
+    to === "/dashboard" || to === "/teacher" || to === "/parent" || to === "/super-admin";
+  const isActive = (to: string) => (isExact(to) ? pathname === to : pathname.startsWith(to));
+
+  const MAX_VISIBLE = 4;
+  const visible = nav.slice(0, MAX_VISIBLE);
+  const hidden = nav.slice(MAX_VISIBLE);
+  const hiddenActive = hidden.some((i) => isActive(i.to));
+
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-5 px-3">
-      <div
-        className="h-14 flex items-stretch overflow-x-auto bg-white/95 backdrop-blur border border-slate-200/80 rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-      >
-        {nav.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin" }}
-            className="shrink-0 flex flex-col items-center justify-center gap-1.5 py-2 px-3 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 min-w-[70px] rounded-xl"
-          >
-            <item.icon className="w-5 h-5 shrink-0" />
-            <span className="text-[10px] font-medium leading-tight truncate max-w-[60px] text-center">{item.label}</span>
-          </Link>
-        ))}
-      </div>
-    </nav>
+    <>
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-5 px-3">
+        <div className="h-14 flex items-stretch bg-white/95 backdrop-blur border border-slate-200/80 rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          {visible.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              activeOptions={{ exact: isExact(item.to) }}
+              className="shrink-0 flex flex-col items-center justify-center gap-1.5 py-2 px-3 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 min-w-[70px] rounded-xl"
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              <span className="text-[10px] font-medium leading-tight truncate max-w-[60px] text-center">{item.label}</span>
+            </Link>
+          ))}
+          {hidden.length > 0 && (
+            <button
+              onClick={() => setMoreOpen(true)}
+              className={`shrink-0 flex flex-col items-center justify-center gap-1.5 py-2 px-3 min-w-[70px] rounded-xl transition ${
+                hiddenActive || moreOpen ? "bg-blue-50 text-blue-600" : "text-slate-400"
+              }`}
+            >
+              <MoreHorizontal className="w-5 h-5 shrink-0" />
+              <span className="text-[10px] font-medium leading-tight">More</span>
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {moreOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          <div className="absolute inset-0 bg-slate-950/50" onClick={() => setMoreOpen(false)} />
+          <div className="absolute bottom-0 inset-x-0 pb-5 px-3">
+            <div className="bg-white rounded-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.12)] p-3 pb-5 max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-3 px-2">
+                <span className="text-sm font-bold text-slate-800">Menu</span>
+                <button onClick={() => setMoreOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {hidden.map((item) => {
+                  const active = isActive(item.to);
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => {
+                        navigate({ to: item.to });
+                        setMoreOpen(false);
+                      }}
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm font-semibold transition ${
+                        active ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5 shrink-0" />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
