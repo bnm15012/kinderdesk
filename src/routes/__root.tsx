@@ -149,13 +149,21 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function SidebarContent({ role, board, onNavClick }: { role: string | null | undefined; board?: string | null; onNavClick?: () => void }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const effectiveRole =
     role === "super_admin" && !pathname.startsWith("/super-admin")
       ? "school_admin"
       : role;
   const nav = navForRole(effectiveRole, board);
   const isImpersonating = role === "super_admin" && effectiveRole === "school_admin";
+  const searchParams = new URLSearchParams(search);
+
+  const isActive = (item: any) => {
+    const exact = item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin";
+    const pathMatch = exact ? pathname === item.to : pathname.startsWith(item.to);
+    if (!item.search) return pathMatch;
+    return pathMatch && searchParams.get("tab") === item.search.tab;
+  };
 
   return (
     <>
@@ -177,19 +185,25 @@ function SidebarContent({ role, board, onNavClick }: { role: string | null | und
       )}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">Menu</p>
-        {nav.map((item) => (
-          <Link
-            key={item.label}
-            to={item.to}
-            search={item.search}
-            onClick={onNavClick}
-            activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin", includeSearch: !!item.search }}
-            className="flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition [&.active]:bg-blue-600 [&.active]:text-white [&.active]:shadow-sm"
-          >
-            <item.icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
-            <span className="font-medium">{item.label}</span>
-          </Link>
-        ))}
+        {nav.map((item) => {
+          const active = isActive(item);
+          return (
+            <Link
+              key={item.label}
+              to={item.to}
+              search={item.search}
+              onClick={onNavClick}
+              className={`flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm transition ${
+                active
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800"
+              }`}
+            >
+              <item.icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
+              <span className="font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
       {isImpersonating && (
         <div className="px-3 pb-3 shrink-0">
@@ -247,18 +261,22 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
     <>
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-14 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
         <div className="h-14 flex items-stretch">
-          {visible.map((item) => (
-            <Link
-              key={item.label}
-              to={item.to}
-              search={item.search}
-              activeOptions={{ exact: isExact(item.to), includeSearch: !!item.search }}
-              className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2 px-1 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 rounded-lg"
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              <span className="text-[10px] font-medium leading-tight truncate max-w-[70px] text-center">{item.label}</span>
-            </Link>
-          ))}
+          {visible.map((item) => {
+            const active = isActive(item);
+            return (
+              <Link
+                key={item.label}
+                to={item.to}
+                search={item.search}
+                className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 px-1 transition rounded-lg ${
+                  active ? "bg-blue-50 text-blue-600" : "text-slate-400"
+                }`}
+              >
+                <item.icon className="w-5 h-5 shrink-0" />
+                <span className="text-[10px] font-medium leading-tight truncate max-w-[70px] text-center">{item.label}</span>
+              </Link>
+            );
+          })}
           {hidden.length > 0 && (
             <button
               onClick={() => setMoreOpen(true)}
