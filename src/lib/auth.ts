@@ -1119,7 +1119,11 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
     user: { firstName: user.firstName, lastName: user.lastName, email: user.email },
     children: children.map((c) => ({
       ...c,
-      dateOfBirth: c.dateOfBirth ? fmtDate(c.dateOfBirth) : null,
+      dateOfBirth: c.dateOfBirth
+        ? (typeof c.dateOfBirth === "string"
+            ? c.dateOfBirth.slice(0, 10)
+            : (c.dateOfBirth as Date).toISOString().slice(0, 10))
+        : null,
     })),
     parentContacts: parentRecords,
     emergencyContacts: emergency,

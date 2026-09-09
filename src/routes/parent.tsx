@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
 import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Clipboard, Megaphone } from "lucide-react";
-import { fmtDateTime } from "@/lib/utils";
+import { fmtDate, fmtDateTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/parent")({
   component: ParentPortal,
@@ -303,7 +303,7 @@ function ParentPortal() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 text-sm">
-                      <ProfileItem label="Date of birth" value={child.dateOfBirth} />
+                      <ProfileItem label="Date of birth" value={child.dateOfBirth ? fmtDate(child.dateOfBirth) : null} />
                       <ProfileItem label="Gender" value={child.gender ? child.gender.replace("_", " ") : null} capitalize />
                       <ProfileItem label="Blood group" value={child.bloodGroup} upper />
                       <ProfileItem label="Class" value={child.className} />
