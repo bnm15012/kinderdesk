@@ -122,6 +122,7 @@ export const inquiries = mysqlTable("inquiries", {
   programInterest: varchar("program_interest", { length: 100 }),
   source: varchar("source", { length: 100 }),
   status: mysqlEnum("status", ["new", "contacted", "tour_scheduled", "applied", "waitlisted", "rejected", "enrolled"]).default("new"),
+  studentId: int("student_id").references(() => students.id),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),

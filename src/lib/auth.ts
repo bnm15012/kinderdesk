@@ -2476,14 +2476,14 @@ export const listInquiries = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { inquiries } = await import("@/lib/db/schema");
+    const { inquiries, students, parents } = await import("@/lib/db/schema");
 
     return db
       .select({
         id: inquiries.id,
-        parentName: inquiries.parentName,
-        email: inquiries.email,
-        phone: inquiries.phone,
+        parentName: sql<string | null>`COALESCE(${parents.name}, ${inquiries.parentName})`,
+        email: sql<string | null>`COALESCE(${parents.email}, ${inquiries.email})`,
+        phone: sql<string | null>`COALESCE(${parents.phone}, ${inquiries.phone})`,
         childName: inquiries.childName,
         childDob: inquiries.childDob,
         programInterest: inquiries.programInterest,
@@ -2494,6 +2494,8 @@ export const listInquiries = createServerFn({ method: "GET" })
         updatedAt: inquiries.updatedAt,
       })
       .from(inquiries)
+      .leftJoin(students, eq(inquiries.studentId, students.id))
+      .leftJoin(parents, and(eq(parents.studentId, students.id), eq(parents.isPrimary, 1)))
       .where(and(eq(inquiries.schoolId, data.schoolId), eq(inquiries.locationId, data.locationId)))
       .orderBy(desc(inquiries.createdAt));
   });
@@ -2729,8 +2731,16 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
       }
     }
 
-    // Mark inquiry as enrolled
-    await db.update(inquiries).set({ status: "enrolled" }).where(eq(inquiries.id, data.inquiryId));
+    // Mark inquiry as enrolled and copy final details from the enrollment form
+    await db.update(inquiries).set({
+      status: "enrolled",
+      studentId,
+      parentName: data.parentName,
+      email: data.parentEmail || null,
+      phone: data.parentPhone || null,
+      childName: `${firstName} ${lastName}`.trim(),
+      childDob: dateOfBirth,
+    }).where(eq(inquiries.id, data.inquiryId));
 
     return { ok: true, studentId };
   });
