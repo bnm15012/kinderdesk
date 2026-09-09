@@ -1047,7 +1047,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
   if (!userId) throw new Error("Not authenticated");
 
   const { db } = await import("@/lib/db");
-  const { users, parents, students, invoices, emergencyContacts } = await import("@/lib/db/schema");
+  const { users, parents, students, invoices, emergencyContacts, classes } = await import("@/lib/db/schema");
 
   const [user] = await db
     .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
@@ -1058,7 +1058,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
   if (user.role !== "parent") throw new Error("Not authorized");
 
   const parentRecords = await db
-    .select({ id: parents.id, studentId: parents.studentId, relation: parents.relation, phone: parents.phone, address: parents.address })
+    .select({ id: parents.id, studentId: parents.studentId, name: parents.name, relation: parents.relation, phone: parents.phone, address: parents.address })
     .from(parents)
     .where(and(eq(parents.schoolId, user.schoolId), eq(parents.email, user.email ?? "")));
 
@@ -1075,8 +1075,10 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
           bloodGroup: students.bloodGroup,
           status: students.status,
           currentClassId: students.currentClassId,
+          className: classes.name,
         })
         .from(students)
+        .leftJoin(classes, eq(students.currentClassId, classes.id))
         .where(inArray(students.id, childIds))
     : [];
 

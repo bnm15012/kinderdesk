@@ -440,16 +440,16 @@ function AppShell() {
 
   return (
     <div className="min-h-screen flex">
-      <Sidebar role={role} board={board} />
+      {role !== "parent" && <Sidebar role={role} board={board} />}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
         {role && role !== "super_admin" && <AnnouncementBanner />}
-        <main className="flex-1 p-4 pb-14 md:p-8 overflow-auto">
+        <main className={`flex-1 p-4 overflow-auto ${role === "parent" ? "md:p-6" : "pb-14 md:p-8"}`}>
           <Outlet />
         </main>
         {/* Mobile bottom tab bar */}
-        <BottomTabBar role={role} board={board} />
+        {role !== "parent" && <BottomTabBar role={role} board={board} />}
       </div>
     </div>
   );

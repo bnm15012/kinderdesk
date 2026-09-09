@@ -11,7 +11,7 @@ export const Route = createFileRoute("/parent")({
 
 type Child = {
   id: number; firstName: string; lastName: string;
-  dateOfBirth: string | null; gender: string | null; bloodGroup: string | null; status: string; currentClassId: number | null;
+  dateOfBirth: string | null; gender: string | null; bloodGroup: string | null; status: string; currentClassId: number | null; className: string | null;
 };
 type Fee = {
   id: number; studentId: number; amount: string;
@@ -19,7 +19,7 @@ type Fee = {
   paidAt: string | null; paidMethod: string | null;
 };
 type ParentContact = {
-  id: number; studentId: number; relation: string; phone: string | null; address: string | null;
+  id: number; studentId: number; name: string; relation: string; phone: string | null; address: string | null;
 };
 type EmergencyContact = {
   id: number; studentId: number; name: string; relation: string; phone: string;
@@ -49,6 +49,24 @@ const FEE_BADGE: Record<string, string> = {
   sent:    "bg-blue-50 text-blue-700",
   draft:   "bg-slate-100 text-slate-600",
 };
+
+function ProfileItem({ label, value, capitalize, upper }: { label: string; value: string | null; capitalize?: boolean; upper?: boolean }) {
+  if (!value) return (
+    <div>
+      <span className="text-xs text-slate-400 uppercase tracking-wide">{label}</span>
+      <span className="block font-semibold text-slate-900">—</span>
+    </div>
+  );
+  let display = value;
+  if (capitalize) display = display.charAt(0).toUpperCase() + display.slice(1);
+  if (upper) display = display.toUpperCase();
+  return (
+    <div>
+      <span className="text-xs text-slate-400 uppercase tracking-wide">{label}</span>
+      <span className="block font-semibold text-slate-900">{display}</span>
+    </div>
+  );
+}
 
 // Load Razorpay checkout.js script
 function loadRazorpayScript(): Promise<boolean> {
@@ -267,11 +285,11 @@ function ParentPortal() {
           </div>
 
           {activeTab === "profile" && (<>
-          {/* Child profile card */}
+          {/* Child full profile card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="h-1.5 bg-gradient-to-r from-blue-500 to-violet-600" />
             <div className="p-6">
-              <div className="flex items-center gap-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                 <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl font-extrabold text-blue-600 shrink-0">
                   {child.firstName[0]}
                 </div>
@@ -282,24 +300,26 @@ function ParentPortal() {
                       {child.status}
                     </span>
                   </div>
-                  <div className="flex gap-6 mt-2 text-sm text-slate-500 flex-wrap">
-                    {child.dateOfBirth && <span>DOB: <span className="font-medium text-slate-700">{child.dateOfBirth}</span></span>}
-                    {child.gender && !editing && <span>Gender: <span className="font-medium text-slate-700 capitalize">{child.gender.replace("_"," ")}</span></span>}
-                    {child.bloodGroup && !editing && <span>Blood Group: <span className="font-medium text-slate-700 uppercase">{child.bloodGroup}</span></span>}
-                    {editing && (
-                      <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                        <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
-                        <select value={editForm.gender} onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
-                          <option value="">Select gender</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                          <option value="other">Other</option>
-                          <option value="prefer_not_to_say">Prefer not to say</option>
-                        </select>
-                        <input type="text" placeholder="Blood group" value={editForm.bloodGroup} onChange={(e) => setEditForm((f) => ({ ...f, bloodGroup: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm w-28" />
-                      </div>
-                    )}
-                  </div>
+                  {editing ? (
+                    <div className="flex flex-col sm:flex-row gap-3 mt-3">
+                      <input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm((f) => ({ ...f, dateOfBirth: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm" />
+                      <select value={editForm.gender} onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm">
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                      </select>
+                      <input type="text" placeholder="Blood group" value={editForm.bloodGroup} onChange={(e) => setEditForm((f) => ({ ...f, bloodGroup: e.target.value }))} className="px-2 py-1.5 rounded-lg border border-slate-200 text-sm w-28" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 text-sm">
+                      <ProfileItem label="Date of birth" value={child.dateOfBirth} />
+                      <ProfileItem label="Gender" value={child.gender ? child.gender.replace("_", " ") : null} capitalize />
+                      <ProfileItem label="Blood group" value={child.bloodGroup} upper />
+                      <ProfileItem label="Class" value={child.className} />
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0">
                   {editing ? (
@@ -313,7 +333,51 @@ function ParentPortal() {
                 </div>
               </div>
             </div>
-          </div></>)}
+          </div>
+
+          {/* Parent / Guardian contacts */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-slate-100 bg-violet-50 text-violet-700">
+              <Users className="w-4 h-4" />
+              <h3 className="text-sm font-bold">Parents / Guardians</h3>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {data.parentContacts.filter((p) => p.studentId === child.id).length === 0 ? (
+                <p className="text-sm text-slate-400 col-span-2">No parent contacts on record.</p>
+              ) : data.parentContacts.filter((p) => p.studentId === child.id).map((p) => (
+                <div key={p.id} className="rounded-xl border border-slate-200 p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-800">{p.name}</span>
+                    <span className="text-xs text-slate-500 capitalize">({p.relation})</span>
+                  </div>
+                  {p.phone ? <div className="text-sm text-slate-600"><span className="text-slate-400 text-xs uppercase tracking-wide">Phone</span> <span className="block font-medium">{p.phone}</span></div> : null}
+                  {p.address ? <div className="text-sm text-slate-600"><span className="text-slate-400 text-xs uppercase tracking-wide">Address</span> <span className="block font-medium">{p.address}</span></div> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Emergency contacts */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-slate-100 bg-rose-50 text-rose-700">
+              <AlertCircle className="w-4 h-4" />
+              <h3 className="text-sm font-bold">Emergency Contacts</h3>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {data.emergencyContacts.filter((e) => e.studentId === child.id).length === 0 ? (
+                <p className="text-sm text-slate-400 col-span-2">No emergency contacts on record.</p>
+              ) : data.emergencyContacts.filter((e) => e.studentId === child.id).map((e) => (
+                <div key={e.id} className="rounded-xl border border-slate-200 p-4 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-800">{e.name}</span>
+                    <span className="text-xs text-slate-500 capitalize">({e.relation})</span>
+                  </div>
+                  <div className="text-sm text-slate-600"><span className="text-slate-400 text-xs uppercase tracking-wide">Phone</span> <span className="block font-medium">{e.phone}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          </>)}
 
           {activeTab === "fees" && (<>
           {/* Fee summary */}
