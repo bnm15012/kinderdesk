@@ -232,23 +232,23 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
 
   return (
     <>
-      <nav className="md:hidden relative w-full p-3 z-50">
-        <div className="h-14 flex items-stretch bg-white border border-slate-200 rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-14 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+        <div className="h-14 flex items-stretch">
           {visible.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               activeOptions={{ exact: isExact(item.to) }}
-              className="shrink-0 flex flex-col items-center justify-center gap-1.5 py-2 px-3 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 min-w-[70px] rounded-xl"
+              className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2 px-1 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 rounded-lg"
             >
               <item.icon className="w-5 h-5 shrink-0" />
-              <span className="text-[10px] font-medium leading-tight truncate max-w-[60px] text-center">{item.label}</span>
+              <span className="text-[10px] font-medium leading-tight truncate max-w-[70px] text-center">{item.label}</span>
             </Link>
           ))}
           {hidden.length > 0 && (
             <button
               onClick={() => setMoreOpen(true)}
-              className={`shrink-0 flex flex-col items-center justify-center gap-1.5 py-2 px-3 min-w-[70px] rounded-xl transition ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 px-1 rounded-lg transition ${
                 hiddenActive || moreOpen ? "bg-blue-50 text-blue-600" : "text-slate-400"
               }`}
             >
@@ -262,8 +262,8 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
       {moreOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           <div className="absolute inset-0 bg-slate-950/50" onClick={() => setMoreOpen(false)} />
-          <div className="absolute bottom-3 left-3 right-3">
-            <div className="bg-white rounded-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.12)] p-3 pb-5 max-h-[60vh] overflow-y-auto">
+          <div className="absolute bottom-14 left-0 right-0">
+            <div className="bg-white rounded-t-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.12)] p-3 pb-5 max-h-[60vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-3 px-2">
                 <span className="text-sm font-bold text-slate-800">Menu</span>
                 <button onClick={() => setMoreOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600">
@@ -445,7 +445,7 @@ function AppShell() {
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
         {role && role !== "super_admin" && <AnnouncementBanner />}
-        <main className="flex-1 p-4 md:p-8 overflow-auto">
+        <main className="flex-1 p-4 pb-14 md:p-8 overflow-auto">
           <Outlet />
         </main>
         {/* Mobile bottom tab bar */}
