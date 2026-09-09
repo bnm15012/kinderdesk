@@ -31,6 +31,7 @@ import {
   Megaphone,
   MoreHorizontal,
   X,
+  Calendar,
 } from "lucide-react";
 import appCss from "../styles.css?url";
 import { TenantProvider, useTenant } from "@/lib/tenant";
@@ -92,7 +93,12 @@ const TEACHER_NAV = [
 ];
 
 const PARENT_NAV = [
-  { to: "/parent", label: "My Child",      icon: Users },
+  { to: "/parent", label: "Profile",       icon: Users,        search: { tab: "profile" } },
+  { to: "/parent", label: "Fees",          icon: DollarSign,   search: { tab: "fees" } },
+  { to: "/parent", label: "Academics",     icon: GraduationCap, search: { tab: "academics" } },
+  { to: "/parent", label: "Homework",      icon: BookOpen,     search: { tab: "homework" } },
+  { to: "/parent", label: "Activities",    icon: Calendar,     search: { tab: "activities" } },
+  { to: "/parent", label: "Announcements", icon: Megaphone,    search: { tab: "announcements" } },
 ];
 
 const SUPER_ADMIN_NAV = [
@@ -173,10 +179,11 @@ function SidebarContent({ role, board, onNavClick }: { role: string | null | und
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">Menu</p>
         {nav.map((item) => (
           <Link
-            key={item.to}
+            key={item.label}
             to={item.to}
+            search={item.search}
             onClick={onNavClick}
-            activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin" }}
+            activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin", includeSearch: !!item.search }}
             className="flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm text-slate-400 hover:text-white hover:bg-slate-800 transition [&.active]:bg-blue-600 [&.active]:text-white [&.active]:shadow-sm"
           >
             <item.icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
@@ -212,7 +219,7 @@ function Sidebar({ role, board }: { role: string | null | undefined; board?: str
 }
 
 function BottomTabBar({ role, board }: { role: string | null | undefined; board?: string | null }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const effectiveRole =
@@ -223,12 +230,18 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
 
   const isExact = (to: string) =>
     to === "/dashboard" || to === "/teacher" || to === "/parent" || to === "/super-admin";
-  const isActive = (to: string) => (isExact(to) ? pathname === to : pathname.startsWith(to));
+  const isActive = (item: any) => {
+    const exact = isExact(item.to);
+    const pathMatch = exact ? pathname === item.to : pathname.startsWith(item.to);
+    if (!item.search || !pathMatch) return pathMatch;
+    const tab = new URLSearchParams(search).get("tab");
+    return tab === item.search.tab;
+  };
+  const hiddenActive = hidden.some((i) => isActive(i));
 
   const MAX_VISIBLE = 4;
   const visible = nav.slice(0, MAX_VISIBLE);
   const hidden = nav.slice(MAX_VISIBLE);
-  const hiddenActive = hidden.some((i) => isActive(i.to));
 
   return (
     <>
@@ -236,9 +249,10 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
         <div className="h-14 flex items-stretch">
           {visible.map((item) => (
             <Link
-              key={item.to}
+              key={item.label}
               to={item.to}
-              activeOptions={{ exact: isExact(item.to) }}
+              search={item.search}
+              activeOptions={{ exact: isExact(item.to), includeSearch: !!item.search }}
               className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2 px-1 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 rounded-lg"
             >
               <item.icon className="w-5 h-5 shrink-0" />
@@ -272,12 +286,12 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
               </div>
               <div className="grid grid-cols-1 gap-1">
                 {hidden.map((item) => {
-                  const active = isActive(item.to);
+                  const active = isActive(item);
                   return (
                     <button
-                      key={item.to}
+                      key={item.label}
                       onClick={() => {
-                        navigate({ to: item.to });
+                        navigate({ to: item.to, search: item.search });
                         setMoreOpen(false);
                       }}
                       className={`flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm font-semibold transition ${
@@ -440,16 +454,16 @@ function AppShell() {
 
   return (
     <div className="min-h-screen flex">
-      {role !== "parent" && <Sidebar role={role} board={board} />}
+      <Sidebar role={role} board={board} />
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
         {role && role !== "super_admin" && <AnnouncementBanner />}
-        <main className={`flex-1 p-4 overflow-auto ${role === "parent" ? "md:p-6" : "pb-14 md:p-8"}`}>
+        <main className="flex-1 p-4 pb-14 md:p-8 overflow-auto">
           <Outlet />
         </main>
         {/* Mobile bottom tab bar */}
-        {role !== "parent" && <BottomTabBar role={role} board={board} />}
+        <BottomTabBar role={role} board={board} />
       </div>
     </div>
   );

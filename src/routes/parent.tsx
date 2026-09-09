@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
@@ -7,6 +7,7 @@ import { fmtDateTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/parent")({
   component: ParentPortal,
+  validateSearch: (search: any) => ({ tab: search?.tab }),
 });
 
 type Child = {
@@ -92,12 +93,15 @@ function ParentPortal() {
   const listHomeworkFn      = useServerFn(listHomework);
   const listAnnouncementsFn = useServerFn(listSchoolAnnouncements);
 
+  const { tab } = useSearch({ from: "/parent" }) as { tab?: "profile" | "fees" | "academics" | "report" | "homework" | "activities" | "announcements" };
+  const navigate = useNavigate();
+  const activeTab = tab ?? "profile";
+
   const [data, setData]         = useState<PortalData | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [activeChild, setActiveChild] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"profile" | "fees" | "academics" | "report" | "homework" | "activities" | "announcements">("profile");
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<number | null>(null);
   const [payError, setPayError] = useState<string>("");
@@ -111,6 +115,11 @@ function ParentPortal() {
   const [homeworkList, setHomeworkList] = useState<any[]>([]);
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
   const [academicLoading, setAcademicLoading] = useState(false);
+
+  // Default to the profile tab in the URL if none is set
+  useEffect(() => {
+    if (!tab) navigate({ to: "/parent", search: { tab: "profile" }, replace: true });
+  }, [tab, navigate]);
 
   const handlePayNow = async (fee: Fee) => {
     setPayingId(fee.id); setPayError("");
@@ -264,30 +273,6 @@ function ParentPortal() {
 
       {child && (
         <>
-          {/* Tabs */}
-          <div className="grid grid-cols-3 sm:flex gap-2 sm:border-b border-slate-200">
-            {[
-              { key: "profile", label: "Profile" },
-              { key: "fees", label: "Fees" },
-              { key: "academics", label: "Academics" },
-              { key: "homework", label: "Homework" },
-              { key: "activities", label: "Activities" },
-              { key: "announcements", label: "Announcements" },
-            ].map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key as any)}
-                className={`px-2 sm:px-4 py-2.5 text-[13px] sm:text-sm font-semibold transition rounded-lg sm:rounded-none sm:border-b-2 whitespace-nowrap ${
-                  activeTab === t.key
-                    ? "bg-blue-50 text-blue-600 sm:bg-transparent sm:border-blue-600"
-                    : "text-slate-500 hover:bg-slate-100 sm:hover:bg-transparent sm:border-transparent sm:hover:text-slate-700"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
           {activeTab === "profile" && (<>
           {/* Child full profile card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
