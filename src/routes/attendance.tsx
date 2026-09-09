@@ -212,7 +212,7 @@ function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; sc
         ) : (
           <div className="divide-y divide-slate-100">
             {students.map((s, idx) => {
-              const initials = `${s.firstName[0]}${s.lastName[0]}`.toUpperCase();
+              const initials = `${s.firstName?.[0] ?? ""}${s.lastName?.[0] ?? ""}`.toUpperCase();
               return (
                 <div key={s.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 transition">
                   <span className="text-xs text-slate-300 w-5 text-right font-mono">{idx + 1}</span>
@@ -347,7 +347,7 @@ function HistoryTab({ classes, schoolId, locationId }: { classes: ClassOption[];
                   {dayRows.map((r) => (
                     <div key={r.id} className="flex items-center gap-4 px-6 py-2.5">
                       <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">
-                        {r.firstName[0]}{r.lastName[0]}
+                        {r.firstName?.[0] ?? ""}{r.lastName?.[0] ?? ""}
                       </div>
                       <span className="flex-1 text-sm text-slate-700 font-medium">{r.firstName} {r.lastName}</span>
                       <span className="text-xs text-slate-400">{r.className}</span>

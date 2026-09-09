@@ -223,7 +223,7 @@ function StudentAttendancePanel({
               <div key={s.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 transition">
                 <span className="text-xs text-slate-300 w-5 text-right font-mono">{i + 1}</span>
                 <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
-                  {s.firstName[0]}{s.lastName[0]}
+                  {s.firstName?.[0] ?? ""}{s.lastName?.[0] ?? ""}
                 </div>
                 <span className="flex-1 text-sm font-semibold text-slate-800">{s.firstName} {s.lastName}</span>
                 <div className="flex gap-1.5">
