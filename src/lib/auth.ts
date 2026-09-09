@@ -2151,7 +2151,7 @@ export const updateStudent = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireSession();
     const { db } = await import("@/lib/db");
-    const { students, parents, medicalNotes } = await import("@/lib/db/schema");
+    const { students, parents, medicalNotes, users } = await import("@/lib/db/schema");
 
     // Capacity guard when changing class
     if (data.currentClassId) {
@@ -2215,12 +2215,25 @@ export const updateStudent = createServerFn({ method: "POST" })
     }
 
     if (data.parentId && data.parentName) {
+      const [oldParent] = await db
+        .select({ email: parents.email, schoolId: parents.schoolId })
+        .from(parents)
+        .where(eq(parents.id, data.parentId))
+        .limit(1);
+
       await db.update(parents).set({
         name: data.parentName,
         email: data.parentEmail || null,
         phone: data.parentPhone || null,
         relation: data.parentRelation ?? undefined,
       }).where(eq(parents.id, data.parentId));
+
+      // Keep the parent user login email in sync
+      if (oldParent?.email && data.parentEmail && data.parentEmail !== oldParent.email) {
+        await db.update(users)
+          .set({ email: data.parentEmail })
+          .where(eq(users.email, oldParent.email));
+      }
     }
 
     if (data.medicalId) {
