@@ -1969,7 +1969,21 @@ export const getStudent = createServerFn({ method: "GET" })
       currentClassName = cls?.name ?? null;
     }
 
-    return { student, parents: studentParents, emergency, medical: medical ?? null, enrollments, currentClassName };
+    return {
+      student: {
+        ...student,
+        dateOfBirth: student.dateOfBirth
+          ? (typeof student.dateOfBirth === "string"
+              ? student.dateOfBirth.slice(0, 10)
+              : (student.dateOfBirth as Date).toISOString().slice(0, 10))
+          : null,
+      },
+      parents: studentParents,
+      emergency,
+      medical: medical ?? null,
+      enrollments,
+      currentClassName,
+    };
   });
 
 const addStudentSchema = z.object({
