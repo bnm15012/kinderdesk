@@ -3018,7 +3018,7 @@ export const listStaff = createServerFn({ method: "GET" })
       .where(and(
         eq(staff.schoolId, data.schoolId),
         eq(staff.locationId, data.locationId),
-        not(eq(staff.status, "terminated")),
+        ne(staff.status, "terminated"),
       ))
       .orderBy(asc(staff.firstName));
 
