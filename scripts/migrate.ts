@@ -18,7 +18,7 @@ async function main() {
     database,
     user,
     password,
-    ...(isTiDB && { ssl: { rejectUnauthorized: true } }),
+    ...(isTiDB && { ssl: { rejectUnauthorized: false } }),
   });
 
   const db = drizzle(connection);
