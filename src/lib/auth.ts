@@ -2010,12 +2010,29 @@ export const addStudent = createServerFn({ method: "POST" })
       }
     }
 
+    const dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+
+    // Duplicate guard: a student with the same name + DOB at this school/branch already exists
+    const [duplicate] = await db.select({ id: students.id })
+      .from(students)
+      .where(
+        and(
+          eq(students.schoolId, data.schoolId),
+          eq(students.locationId, data.locationId),
+          eq(students.firstName, data.firstName),
+          eq(students.lastName, data.lastName),
+          dateOfBirth ? eq(students.dateOfBirth, dateOfBirth) : isNull(students.dateOfBirth)
+        )
+      )
+      .limit(1);
+    if (duplicate) throw new Error("A student with this name and date of birth already exists.");
+
     const [studentRes] = await db.insert(students).values({
       schoolId: data.schoolId,
       locationId: data.locationId,
       firstName: data.firstName,
       lastName: data.lastName,
-      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+      dateOfBirth,
       gender: data.gender ?? null,
       bloodGroup: data.bloodGroup || null,
       currentClassId: data.currentClassId ?? null,
@@ -2071,6 +2088,7 @@ export const addStudent = createServerFn({ method: "POST" })
           locationId: data.locationId,
           studentId,
           classId: data.currentClassId,
+          academicYear: "",
           enrolledAt: new Date(),
           status: "active",
         });
@@ -2121,9 +2139,17 @@ export const updateStudent = createServerFn({ method: "POST" })
       }
     }
 
-    // Get old class before updating
-    const [oldStudent] = await db.select({ schoolId: students.schoolId, locationId: students.locationId, currentClassId: students.currentClassId })
+    // Get old student before updating
+    const [oldStudent] = await db.select({ schoolId: students.schoolId, locationId: students.locationId, currentClassId: students.currentClassId, status: students.status })
       .from(students).where(eq(students.id, data.studentId)).limit(1);
+
+    // Prevent backwards status transitions (e.g. enrolled -> applied)
+    const statusOrder = ["inquiry", "applied", "waitlisted", "enrolled", "graduated", "withdrawn"];
+    const oldIndex = oldStudent ? statusOrder.indexOf(oldStudent.status ?? "inquiry") : -1;
+    const newIndex = data.status ? statusOrder.indexOf(data.status) : -1;
+    if (oldStudent && data.status && newIndex < oldIndex) {
+      throw new Error(`Cannot move student status from ${oldStudent.status} to ${data.status}.`);
+    }
 
     await db.update(students).set({
       firstName: data.firstName,
@@ -2156,6 +2182,7 @@ export const updateStudent = createServerFn({ method: "POST" })
           locationId: oldStudent.locationId,
           studentId: data.studentId,
           classId: data.currentClassId,
+          academicYear: "",
           enrolledAt: new Date(),
           status: "active",
         });
@@ -2523,6 +2550,16 @@ export const updateInquiry = createServerFn({ method: "POST" })
     const { db } = await import("@/lib/db");
     const { inquiries } = await import("@/lib/db/schema");
 
+    const [oldInquiry] = await db.select({ status: inquiries.status }).from(inquiries).where(eq(inquiries.id, data.inquiryId)).limit(1);
+
+    // Prevent backwards status transitions (e.g. enrolled -> applied)
+    const inquiryStatusOrder = ["new", "contacted", "tour_scheduled", "applied", "waitlisted", "rejected", "enrolled"];
+    const oldIndex = oldInquiry ? inquiryStatusOrder.indexOf(oldInquiry.status ?? "new") : -1;
+    const newIndex = data.status ? inquiryStatusOrder.indexOf(data.status) : -1;
+    if (oldInquiry && data.status && newIndex < oldIndex) {
+      throw new Error(`Cannot move inquiry status from ${oldInquiry.status} to ${data.status}.`);
+    }
+
     await db.update(inquiries).set({
       parentName: data.parentName,
       email: data.email || null,
@@ -2583,43 +2620,103 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
     const nameParts = data.firstName.trim().split(" ");
     const firstName = nameParts[0];
     const lastName = data.lastName || nameParts.slice(1).join(" ") || "";
+    const dateOfBirth = data.childDob ? new Date(data.childDob) : null;
 
-    // Create student
-    const [studentRes] = await db.insert(students).values({
-      schoolId: data.schoolId,
-      locationId: data.locationId,
-      firstName,
-      lastName,
-      dateOfBirth: data.childDob ? new Date(data.childDob) : null,
-      gender: data.gender ?? null,
-      currentClassId: data.classId ?? null,
-      status: "enrolled",
-    });
-    const studentId = Number((studentRes as any).insertId);
+    // Idempotent: re-enrolling the same inquiry must not create a duplicate student
+    let [existingStudent] = await db.select({ id: students.id })
+      .from(students)
+      .where(
+        and(
+          eq(students.schoolId, data.schoolId),
+          eq(students.locationId, data.locationId),
+          eq(students.firstName, firstName),
+          eq(students.lastName, lastName),
+          dateOfBirth ? eq(students.dateOfBirth, dateOfBirth) : isNull(students.dateOfBirth)
+        )
+      )
+      .limit(1);
 
-    // Create parent record
-    await db.insert(parents).values({
-      schoolId: data.schoolId,
-      locationId: data.locationId,
-      studentId,
-      name: data.parentName,
-      email: data.parentEmail || null,
-      phone: data.parentPhone || null,
-      relation: "guardian",
-      isPrimary: 1,
-      isEmergency: 0,
-    });
+    let studentId: number;
+    if (existingStudent) {
+      studentId = existingStudent.id;
+      await db.update(students).set({
+        firstName,
+        lastName,
+        dateOfBirth,
+        gender: data.gender ?? null,
+        currentClassId: data.classId ?? null,
+        status: "enrolled",
+      }).where(eq(students.id, studentId));
 
-    // Enroll in class
-    if (data.classId) {
-      await db.insert(classEnrollments).values({
+      // Update or create the primary parent record
+      const [existingParent] = await db.select({ id: parents.id })
+        .from(parents)
+        .where(eq(parents.studentId, studentId))
+        .limit(1);
+      if (existingParent) {
+        await db.update(parents).set({
+          name: data.parentName,
+          email: data.parentEmail || null,
+          phone: data.parentPhone || null,
+        }).where(eq(parents.id, existingParent.id));
+      } else {
+        await db.insert(parents).values({
+          schoolId: data.schoolId,
+          locationId: data.locationId,
+          studentId,
+          name: data.parentName,
+          email: data.parentEmail || null,
+          phone: data.parentPhone || null,
+          relation: "guardian",
+          isPrimary: 1,
+          isEmergency: 0,
+        });
+      }
+    } else {
+      const [studentRes] = await db.insert(students).values({
+        schoolId: data.schoolId,
+        locationId: data.locationId,
+        firstName,
+        lastName,
+        dateOfBirth,
+        gender: data.gender ?? null,
+        currentClassId: data.classId ?? null,
+        status: "enrolled",
+      });
+      studentId = Number((studentRes as any).insertId);
+
+      await db.insert(parents).values({
         schoolId: data.schoolId,
         locationId: data.locationId,
         studentId,
-        classId: data.classId,
-        enrolledAt: data.startDate ? new Date(data.startDate) : new Date(),
-        status: "active",
+        name: data.parentName,
+        email: data.parentEmail || null,
+        phone: data.parentPhone || null,
+        relation: "guardian",
+        isPrimary: 1,
+        isEmergency: 0,
       });
+    }
+
+    // Upsert class enrollment to avoid duplicates
+    if (data.classId) {
+      const [existingEnrollment] = await db.select({ id: classEnrollments.id })
+        .from(classEnrollments)
+        .where(and(eq(classEnrollments.studentId, studentId), eq(classEnrollments.classId, data.classId)))
+        .limit(1);
+      if (existingEnrollment) {
+        await db.update(classEnrollments).set({ status: "active" }).where(eq(classEnrollments.id, existingEnrollment.id));
+      } else {
+        await db.insert(classEnrollments).values({
+          schoolId: data.schoolId,
+          locationId: data.locationId,
+          studentId,
+          classId: data.classId,
+          academicYear: "",
+          enrolledAt: data.startDate ? new Date(data.startDate) : new Date(),
+          status: "active",
+        });
+      }
     }
 
     // Mark inquiry as enrolled
