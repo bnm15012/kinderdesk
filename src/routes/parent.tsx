@@ -222,11 +222,11 @@ function ParentPortal() {
   const paidFees = childFees.filter((f) => f.status === "paid");
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-4 md:space-y-7">
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">
           Welcome, {data?.user.firstName ?? "Parent"}!
         </h1>
         <p className="text-sm text-slate-500 mt-0.5">Your child's school portal</p>
@@ -265,7 +265,7 @@ function ParentPortal() {
       {child && (
         <>
           {/* Tabs */}
-          <div className="flex gap-2 border-b border-slate-200 overflow-x-auto">
+          <div className="grid grid-cols-3 sm:flex gap-2 sm:border-b border-slate-200">
             {[
               { key: "profile", label: "Profile" },
               { key: "fees", label: "Fees" },
@@ -277,7 +277,11 @@ function ParentPortal() {
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key as any)}
-                className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${activeTab === t.key ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+                className={`px-2 sm:px-4 py-2.5 text-[13px] sm:text-sm font-semibold transition rounded-lg sm:rounded-none sm:border-b-2 whitespace-nowrap ${
+                  activeTab === t.key
+                    ? "bg-blue-50 text-blue-600 sm:bg-transparent sm:border-blue-600"
+                    : "text-slate-500 hover:bg-slate-100 sm:hover:bg-transparent sm:border-transparent sm:hover:text-slate-700"
+                }`}
               >
                 {t.label}
               </button>
@@ -288,9 +292,9 @@ function ParentPortal() {
           {/* Child full profile card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="h-1.5 bg-gradient-to-r from-blue-500 to-violet-600" />
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl font-extrabold text-blue-600 shrink-0">
+            <div className="p-5 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-xl sm:text-2xl font-extrabold text-blue-600 shrink-0">
                   {child.firstName[0]}
                 </div>
                 <div className="flex-1">
@@ -341,7 +345,7 @@ function ParentPortal() {
               <Users className="w-4 h-4" />
               <h3 className="text-sm font-bold">Parents / Guardians</h3>
             </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {data.parentContacts.filter((p) => p.studentId === child.id).length === 0 ? (
                 <p className="text-sm text-slate-400 col-span-2">No parent contacts on record.</p>
               ) : data.parentContacts.filter((p) => p.studentId === child.id).map((p) => (
@@ -363,7 +367,7 @@ function ParentPortal() {
               <AlertCircle className="w-4 h-4" />
               <h3 className="text-sm font-bold">Emergency Contacts</h3>
             </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {data.emergencyContacts.filter((e) => e.studentId === child.id).length === 0 ? (
                 <p className="text-sm text-slate-400 col-span-2">No emergency contacts on record.</p>
               ) : data.emergencyContacts.filter((e) => e.studentId === child.id).map((e) => (
