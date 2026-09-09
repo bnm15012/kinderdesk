@@ -92,12 +92,12 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
     : user?.email ?? "";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="relative bg-white shadow-2xl w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[92vh] sm:rounded-2xl overflow-hidden flex flex-col">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
 
         {/* ── Gradient header ── */}
         <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 px-5 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
