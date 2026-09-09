@@ -23,7 +23,7 @@ export const Route = createFileRoute("/students/")({
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type StudentRow = {
-  id: number; firstName: string; lastName: string;
+  id: number; admissionNumber: string | null; firstName: string; lastName: string;
   dateOfBirth: string | null; gender: string | null; status: string;
   currentClassId: number | null; parentName: string | null;
   parentPhone: string | null; className: string | null; allergies: string | null;
@@ -416,6 +416,7 @@ function Students() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <th className="px-5 py-3.5 w-16">S.No</th>
+              <th className="px-5 py-3.5">Adm. No</th>
               <th className="px-5 py-3.5">Name</th>
               <th className="px-5 py-3.5">Age</th>
               <th className="px-5 py-3.5">Class</th>
@@ -430,14 +431,14 @@ function Students() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>
-                  {Array.from({ length: 9 }).map((__, j) => (
+                  {Array.from({ length: 10 }).map((__, j) => (
                     <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded animate-pulse" /></td>
                   ))}
                 </tr>
               ))
             ) : pageItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-5 py-12 text-center">
+                <td colSpan={10} className="px-5 py-12 text-center">
                   <Users className="w-10 h-10 mx-auto mb-3 text-slate-200" />
                   <p className="text-slate-400 text-sm">{students.length === 0 ? "No students yet. Add your first student!" : "No students match your search."}</p>
                 </td>
@@ -452,6 +453,7 @@ function Students() {
                     className="hover:bg-blue-50/40 transition cursor-pointer group"
                   >
                     <td className="px-5 py-4 text-slate-500 w-16">{(currentPage - 1) * PAGE_SIZE + i + 1}</td>
+                    <td className="px-5 py-4 text-slate-600 font-mono text-xs">{s.admissionNumber ?? "—"}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">

@@ -1819,6 +1819,7 @@ export const listStudents = createServerFn({ method: "GET" })
     const rows = await db
       .select({
         id: students.id,
+        admissionNumber: students.admissionNumber,
         firstName: students.firstName,
         lastName: students.lastName,
         dateOfBirth: students.dateOfBirth,
@@ -1888,6 +1889,7 @@ export const getStudent = createServerFn({ method: "GET" })
     const [student] = await db
       .select({
         id: students.id,
+        admissionNumber: students.admissionNumber,
         firstName: students.firstName,
         lastName: students.lastName,
         dateOfBirth: students.dateOfBirth,
@@ -2039,6 +2041,9 @@ export const addStudent = createServerFn({ method: "POST" })
       status: "enrolled",
     });
     const studentId = Number((studentRes as any).insertId);
+
+    // Generate and save the unique admission number
+    await db.update(students).set({ admissionNumber: `KDS-${studentId}` }).where(eq(students.id, studentId));
 
     await db.insert(parents).values({
       schoolId: data.schoolId,
@@ -2623,7 +2628,7 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
     const dateOfBirth = data.childDob ? new Date(data.childDob) : null;
 
     // Idempotent: re-enrolling the same inquiry must not create a duplicate student
-    let [existingStudent] = await db.select({ id: students.id })
+    let [existingStudent] = await db.select({ id: students.id, admissionNumber: students.admissionNumber })
       .from(students)
       .where(
         and(
@@ -2696,6 +2701,11 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
         isPrimary: 1,
         isEmergency: 0,
       });
+    }
+
+    // Ensure admission number is generated (for new or pre-existing students without one)
+    if (!existingStudent?.admissionNumber) {
+      await db.update(students).set({ admissionNumber: `KDS-${studentId}` }).where(eq(students.id, studentId));
     }
 
     // Upsert class enrollment to avoid duplicates

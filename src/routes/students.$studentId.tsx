@@ -38,7 +38,7 @@ type Enrollment = {
 };
 type DetailData = {
   student: {
-    id: number; firstName: string; lastName: string; dateOfBirth: string | null;
+    id: number; admissionNumber: string | null; firstName: string; lastName: string; dateOfBirth: string | null;
     gender: string | null; status: string; currentClassId: number | null; photoUrl: string | null;
   };
   parents: ParentRecord[];
@@ -436,6 +436,7 @@ function StudentDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    <InfoRow label="Admission No" value={s?.admissionNumber ?? null} />
                     <InfoRow label="Full name" value={`${s?.firstName} ${s?.lastName ?? ""}`.trim()} />
                     <InfoRow label="Date of birth" value={fmtDate(s?.dateOfBirth)} />
                     <InfoRow label="Age" value={age != null ? `${age} years old` : null} />

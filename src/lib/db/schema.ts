@@ -145,6 +145,7 @@ export const students = mysqlTable("students", {
   id: int("id").primaryKey().autoincrement(),
   schoolId: int("school_id").notNull().references(() => schools.id),
   locationId: int("location_id").notNull().references(() => locations.id),
+  admissionNumber: varchar("admission_number", { length: 50 }),
   firstName: varchar("first_name", { length: 255 }).notNull(),
   lastName: varchar("last_name", { length: 255 }).notNull(),
   dateOfBirth: date("date_of_birth"),
@@ -155,7 +156,9 @@ export const students = mysqlTable("students", {
   currentClassId: int("current_class_id").references(() => classes.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
-});
+}, (t) => ({
+  uniqueAdmissionNumber: uniqueIndex("students_school_admission_number").on(t.schoolId, t.admissionNumber),
+}));
 
 export const parents = mysqlTable("parents", {
   id: int("id").primaryKey().autoincrement(),
