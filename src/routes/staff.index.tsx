@@ -424,25 +424,26 @@ function Staff() {
         )}
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => { setView("active"); setCurrentPage(1); setSearch(""); }}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${view === "active" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-        >
-          Active ({activeRows.length})
-        </button>
-        <button
-          onClick={() => { setView("archived"); setCurrentPage(1); setSearch(""); }}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${view === "archived" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-        >
-          Archived ({archivedRows.length})
-        </button>
-      </div>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input type="text" placeholder="Search by name, role or class…" value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition" />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+        <div className="relative max-w-sm w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input type="text" placeholder="Search by name, role or class…" value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition" />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setView("active"); setCurrentPage(1); }}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${view === "active" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+          >
+            Active ({activeRows.length})
+          </button>
+          <button
+            onClick={() => { setView("archived"); setCurrentPage(1); }}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${view === "archived" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+          >
+            Archived ({archivedRows.length})
+          </button>
+        </div>
       </div>
 
       {error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 text-sm"><AlertCircle className="w-5 h-5 shrink-0" />{error}</div>}
