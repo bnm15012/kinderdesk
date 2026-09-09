@@ -251,11 +251,11 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
     const tab = new URLSearchParams(search).get("tab");
     return tab === item.search.tab;
   };
-  const hiddenActive = hidden.some((i) => isActive(i));
 
   const MAX_VISIBLE = 4;
   const visible = nav.slice(0, MAX_VISIBLE);
   const hidden = nav.slice(MAX_VISIBLE);
+  const hiddenActive = hidden.some((i) => isActive(i));
 
   return (
     <>
