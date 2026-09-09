@@ -117,11 +117,18 @@ function PnLPage() {
       html2canvas: {
         scale: 2,
         useCORS: true,
+        width: 794,
         onclone: (doc: any) => {
           doc.querySelectorAll("style, link[rel='stylesheet']").forEach((s: any) => s.remove());
           doc.querySelectorAll("[data-pdf-idx]").forEach((el: any) => {
             const idx = Number(el.getAttribute("data-pdf-idx"));
             if (originalStyles[idx]) el.style.cssText = originalStyles[idx];
+            if (idx === 0) {
+              el.style.width = "794px";
+              el.style.minWidth = "0";
+              el.style.maxWidth = "794px";
+              el.style.boxSizing = "border-box";
+            }
             el.removeAttribute("data-pdf-idx");
           });
         },
