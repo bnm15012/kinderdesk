@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Calendar, Download, Printer, FileText, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
+import html2pdf from "html2pdf.js";
 
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
@@ -94,15 +95,45 @@ function PnLPage() {
     }
   };
 
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
+    if (!reportRef.current) return;
+    const reportEls = [reportRef.current, ...Array.from(reportRef.current.querySelectorAll("*"))];
+    const originalStyles = reportEls.map((el) => window.getComputedStyle(el).cssText);
+    reportEls.forEach((el, i) => el.setAttribute("data-pdf-idx", i.toString()));
+
+    const opt = {
+      margin: 12,
+      filename: `pnl-${from}-to-${to}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        onclone: (doc: any) => {
+          doc.querySelectorAll("style, link[rel='stylesheet']").forEach((s: any) => s.remove());
+          doc.querySelectorAll("[data-pdf-idx]").forEach((el: any) => {
+            const idx = Number(el.getAttribute("data-pdf-idx"));
+            if (originalStyles[idx]) el.style.cssText = originalStyles[idx];
+            el.removeAttribute("data-pdf-idx");
+          });
+        },
+      },
+      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
+    };
+
+    try {
+      await html2pdf().set(opt).from(reportRef.current).save();
+    } catch (err: any) {
+      toast(err?.message ?? "PDF download failed", "error");
+    } finally {
+      reportEls.forEach((el) => el.removeAttribute("data-pdf-idx"));
+    }
+  };
+
+  const printPdf = () => {
     const originalTitle = document.title;
     document.title = `pnl-${from}-to-${to}`;
     window.print();
     document.title = originalTitle;
-  };
-
-  const printPdf = () => {
-    window.print();
   };
 
   const generatedOn = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -169,6 +200,22 @@ function PnLPage() {
           <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-5 text-sm">
               <style>{`
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
+                .report-pdf * { color: #0f172a !important; background-color: transparent !important; border-color: #e2e8f0 !important; }
+                .report-pdf .text-slate-900 { color: #0f172a !important; }
+                .report-pdf .text-slate-800 { color: #1e293b !important; }
+                .report-pdf .text-slate-700 { color: #334155 !important; }
+                .report-pdf .text-slate-600 { color: #475569 !important; }
+                .report-pdf .text-slate-500 { color: #64748b !important; }
+                .report-pdf .text-slate-400 { color: #94a3b8 !important; }
+                .report-pdf .text-emerald-700 { color: #047857 !important; }
+                .report-pdf .text-emerald-800 { color: #166534 !important; }
+                .report-pdf .text-rose-700 { color: #be123c !important; }
+                .report-pdf .text-rose-800 { color: #9f1239 !important; }
+                .report-pdf .text-blue-700 { color: #1d4ed8 !important; }
+                .report-pdf .text-blue-800 { color: #1e40af !important; }
+                .report-pdf .text-amber-700 { color: #b45309 !important; }
+                .report-pdf .text-amber-800 { color: #92400e !important; }
+                .report-pdf .bg-white { background-color: #ffffff !important; }
                 .report-pdf .report-header { background-color: #ffffff !important; border-bottom: 2px solid #2563eb !important; }
                 .report-pdf .report-logo { background-color: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #64748b !important; }
                 .report-pdf .report-logo-img { background-color: transparent !important; }
@@ -216,16 +263,16 @@ function PnLPage() {
               ) : (
                 <div className="space-y-5">
                   {/* Summary cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="report-card-income p-3 rounded-xl">
+                  <div className="flex gap-3">
+                    <div className="w-1/3 report-card-income p-3 rounded-xl">
                       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">Total Income</p>
                       <p className="text-lg font-bold text-emerald-800">{money(pnl.income)}</p>
                     </div>
-                    <div className="report-card-expense p-3 rounded-xl">
+                    <div className="w-1/3 report-card-expense p-3 rounded-xl">
                       <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 mb-1">Total Expense</p>
                       <p className="text-lg font-bold text-rose-800">{money(pnl.expenses)}</p>
                     </div>
-                    <div className={`p-3 rounded-xl ${pnl.net >= 0 ? "report-card-net" : "report-card-net-neg"}`}>
+                    <div className={`w-1/3 p-3 rounded-xl ${pnl.net >= 0 ? "report-card-net" : "report-card-net-neg"}`}>
                       <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${pnl.net >= 0 ? "text-blue-700" : "text-amber-700"}`}>Net P&L</p>
                       <p className={`text-lg font-bold ${pnl.net >= 0 ? "text-blue-800" : "text-amber-800"}`}>{money(pnl.net)}</p>
                     </div>
