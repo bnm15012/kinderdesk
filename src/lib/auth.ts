@@ -1151,7 +1151,7 @@ export const updateChildPersonal = createServerFn({ method: "POST" })
     const { users, parents, students } = await import("@/lib/db/schema");
 
     const [user] = await db
-      .select({ id: users.id, schoolId: users.schoolId, email: users.email })
+      .select({ id: users.id, role: users.role, schoolId: users.schoolId, email: users.email })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
