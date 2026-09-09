@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Calendar, Download, Printer, FileText, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Calendar, Download, Printer, FileText, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
@@ -72,6 +72,7 @@ function PnLPage() {
   const [to, setTo] = useState(today);
 
   const [pnl, setPnl] = useState<PnL | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!tenant) return;
@@ -81,11 +82,15 @@ function PnLPage() {
 
   const loadData = async () => {
     if (!tenant) return;
+    setLoading(true);
+    setPnl(null);
     try {
       const p = await getPnlFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId, from, to } }) as PnL;
       setPnl(p);
     } catch (err: any) {
       toast(err?.message ?? "Failed to load report", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -175,8 +180,9 @@ function PnLPage() {
               </div>
             </div>
           </div>
-          <button onClick={loadData} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer mt-3">
-            <FileText className="w-4 h-4" /> Generate Report
+          <button onClick={loadData} disabled={loading} className="w-full h-10 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer mt-3">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            {loading ? "Loading..." : "Generate Report"}
           </button>
           <div className="grid grid-cols-1 gap-3">
             <button onClick={downloadPdf} className="flex items-center justify-center gap-1.5 h-10 px-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition cursor-pointer">
@@ -231,7 +237,11 @@ function PnLPage() {
                 </div>
               </div>
 
-              {!pnl ? (
+              {loading ? (
+                <p className="text-slate-400 text-center py-20 flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading report...
+                </p>
+              ) : !pnl ? (
                 <p className="text-slate-400 text-center py-20">Select a date range and click Generate Report</p>
               ) : (
                 <div className="space-y-5">
