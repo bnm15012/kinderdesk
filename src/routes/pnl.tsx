@@ -278,7 +278,7 @@ function PnLPage() {
                       <thead className="report-thead">
                         <tr>
                           <th className="text-left w-10">No.</th>
-                          <th className="text-left">Student</th>
+                          <th className="text-left w-32">Student</th>
                           <th className="text-left w-24">Payment Mode</th>
                           <th className="text-left w-20">Fee</th>
                           <th className="text-left w-20">Date</th>
