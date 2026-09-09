@@ -232,8 +232,8 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-5 px-3">
-        <div className="h-14 flex items-stretch bg-white/95 backdrop-blur border border-slate-200/80 rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <nav className="md:hidden relative w-full p-3 z-50">
+        <div className="h-14 flex items-stretch bg-white border border-slate-200 rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
           {visible.map((item) => (
             <Link
               key={item.to}
@@ -262,7 +262,7 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
       {moreOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           <div className="absolute inset-0 bg-slate-950/50" onClick={() => setMoreOpen(false)} />
-          <div className="absolute bottom-0 inset-x-0 pb-5 px-3">
+          <div className="absolute bottom-3 left-3 right-3">
             <div className="bg-white rounded-2xl shadow-[0_-8px_24px_rgba(0,0,0,0.12)] p-3 pb-5 max-h-[60vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-3 px-2">
                 <span className="text-sm font-bold text-slate-800">Menu</span>
@@ -445,12 +445,12 @@ function AppShell() {
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
         {role && role !== "super_admin" && <AnnouncementBanner />}
-        <main className="flex-1 p-4 md:p-8 overflow-auto pb-28 md:pb-8">
+        <main className="flex-1 p-4 md:p-8 overflow-auto">
           <Outlet />
         </main>
+        {/* Mobile bottom tab bar */}
+        <BottomTabBar role={role} board={board} />
       </div>
-      {/* Mobile bottom tab bar */}
-      <BottomTabBar role={role} board={board} />
     </div>
   );
 }
