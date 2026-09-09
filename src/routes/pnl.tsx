@@ -99,7 +99,7 @@ function PnLPage() {
   const downloadPdf = async () => {
     if (!reportRef.current) return;
     try {
-      const dataUrl = await toPng(reportRef.current, { width: 794, pixelRatio: 2, backgroundColor: "#ffffff" });
+      const dataUrl = await toPng(reportRef.current, { width: 794, pixelRatio: 2, backgroundColor: "#ffffff", style: { overflow: "hidden" } });
       const img = new Image();
       img.src = dataUrl;
       await new Promise((resolve) => { img.onload = resolve; });
@@ -218,9 +218,9 @@ function PnLPage() {
                 .report-pdf .report-card-expense { background-color: #fff1f2 !important; border: 1px solid #fecdd3 !important; }
                 .report-pdf .report-card-net { background-color: #eff6ff !important; border: 1px solid #bfdbfe !important; }
                 .report-pdf .report-card-net-neg { background-color: #fffbeb !important; border: 1px solid #fde68a !important; }
-                .report-pdf .report-table { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; border-collapse: collapse !important; }
+                .report-pdf .report-table { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; border-collapse: collapse !important; table-layout: fixed !important; width: 100% !important; }
                 .report-pdf .report-thead { background-color: #f8fafc !important; }
-                .report-pdf th, .report-pdf td { border: 1px solid #e2e8f0 !important; padding: 8px !important; }
+                .report-pdf th, .report-pdf td { border: 1px solid #e2e8f0 !important; padding: 8px !important; white-space: normal !important; overflow-wrap: break-word !important; }
                 .report-pdf .report-total { background-color: #f8fafc !important; }
               `}</style>
 
