@@ -471,12 +471,16 @@ function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       <Sidebar role={role} board={board} />
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
-        {role && role !== "super_admin" && <AnnouncementBanner />}
+        {role && role !== "super_admin" && (
+          <div className="shrink-0">
+            <AnnouncementBanner />
+          </div>
+        )}
         <main className="flex-1 p-4 pb-14 md:p-8 overflow-auto">
           <Outlet />
         </main>
