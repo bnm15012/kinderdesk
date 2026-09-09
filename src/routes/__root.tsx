@@ -218,9 +218,9 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
   const nav = navForRole(effectiveRole, board);
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-5 px-3">
       <div
-        className="flex items-stretch h-16 overflow-x-auto"
+        className="h-14 flex items-stretch overflow-x-auto bg-white/95 backdrop-blur border border-slate-200/80 rounded-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {nav.map((item) => (
@@ -228,10 +228,10 @@ function BottomTabBar({ role, board }: { role: string | null | undefined; board?
             key={item.to}
             to={item.to}
             activeOptions={{ exact: item.to === "/dashboard" || item.to === "/teacher" || item.to === "/parent" || item.to === "/super-admin" }}
-            className="shrink-0 flex flex-col items-center justify-center gap-1 text-slate-400 transition [&.active]:text-blue-600 min-w-[64px] px-2"
+            className="shrink-0 flex flex-col items-center justify-center gap-1.5 py-2 px-3 text-slate-400 transition [&.active]:bg-blue-50 [&.active]:text-blue-600 min-w-[70px] rounded-xl"
           >
             <item.icon className="w-5 h-5 shrink-0" />
-            <span className="text-[10px] font-semibold leading-none truncate max-w-[64px] text-center">{item.label}</span>
+            <span className="text-[10px] font-medium leading-tight truncate max-w-[60px] text-center">{item.label}</span>
           </Link>
         ))}
       </div>
@@ -386,7 +386,7 @@ function AppShell() {
         <TopBar role={role} />
         {/* Announcement banner — shown to all non-super-admin roles */}
         {role && role !== "super_admin" && <AnnouncementBanner />}
-        <main className="flex-1 p-4 md:p-8 overflow-auto pb-20 md:pb-8">
+        <main className="flex-1 p-4 md:p-8 overflow-auto pb-28 md:pb-8">
           <Outlet />
         </main>
       </div>

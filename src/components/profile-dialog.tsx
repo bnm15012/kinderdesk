@@ -92,15 +92,15 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
     : user?.email ?? "";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative bg-white shadow-2xl w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[92vh] sm:rounded-2xl overflow-hidden flex flex-col">
 
         {/* ── Gradient header ── */}
-        <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 px-8 pt-8 pb-6">
+        <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 px-5 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
           {/* Dot texture */}
           <div
             className="absolute inset-0 opacity-[0.06]"
@@ -174,7 +174,7 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
         </div>
 
         {/* ── Body ── */}
-        <div className="overflow-y-auto flex-1 px-8 py-6">
+        <div className="overflow-y-auto flex-1 px-5 py-5 sm:px-8 sm:py-6">
           {message && (
             <div className="flex items-center gap-2.5 mb-5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -190,7 +190,7 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
           {tab === "profile" ? (
             <form id="profile-form" onSubmit={handleProfileSave} className="space-y-5">
               {/* Editable fields */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>First name</label>
                   <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputCls} placeholder="First name" />
@@ -206,7 +206,7 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
               </div>
 
               {/* Read-only info cards */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 {[
                   { icon: Mail, label: "Email", value: user?.email ?? "—" },
                   { icon: Shield, label: "Role", value: user?.role?.replace("_", " ") ?? "—", capitalize: true },
