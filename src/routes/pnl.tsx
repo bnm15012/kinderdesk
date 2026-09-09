@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Calendar, Download, Printer, FileText, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
-import html2pdf from "html2pdf.js";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
@@ -97,51 +98,27 @@ function PnLPage() {
 
   const downloadPdf = async () => {
     if (!reportRef.current) return;
-    const reportEls = [reportRef.current, ...Array.from(reportRef.current.querySelectorAll("*"))];
-    const originalStyles = reportEls.map((el) => {
-      const c = window.getComputedStyle(el);
-      let s = "";
-      for (let i = 0; i < c.length; i++) {
-        const p = c.item(i);
-        const v = c.getPropertyValue(p);
-        if (v) s += `${p}:${v};`;
-      }
-      return s;
-    });
-    reportEls.forEach((el, i) => el.setAttribute("data-pdf-idx", i.toString()));
-
-    const opt = {
-      margin: 12,
-      filename: `pnl-${from}-to-${to}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        width: 794,
-        onclone: (doc: any) => {
-          doc.querySelectorAll("style, link[rel='stylesheet']").forEach((s: any) => s.remove());
-          doc.querySelectorAll("[data-pdf-idx]").forEach((el: any) => {
-            const idx = Number(el.getAttribute("data-pdf-idx"));
-            if (originalStyles[idx]) el.style.cssText = originalStyles[idx];
-            if (idx === 0) {
-              el.style.width = "794px";
-              el.style.minWidth = "0";
-              el.style.maxWidth = "794px";
-              el.style.boxSizing = "border-box";
-            }
-            el.removeAttribute("data-pdf-idx");
-          });
-        },
-      },
-      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
-    };
-
     try {
-      await html2pdf().set(opt).from(reportRef.current).save();
+      const dataUrl = await toPng(reportRef.current, { width: 794, pixelRatio: 2, backgroundColor: "#ffffff" });
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+
+      const pdf = new jsPDF("p", "pt", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (img.naturalHeight / img.naturalWidth) * imgWidth;
+
+      let y = 0;
+      while (y < imgHeight) {
+        pdf.addImage(dataUrl, "PNG", 0, -y, imgWidth, imgHeight);
+        if (y + pageHeight < imgHeight) pdf.addPage();
+        y += pageHeight;
+      }
+      pdf.save(`pnl-${from}-to-${to}.pdf`);
     } catch (err: any) {
       toast(err?.message ?? "PDF download failed", "error");
-    } finally {
-      reportEls.forEach((el) => el.removeAttribute("data-pdf-idx"));
     }
   };
 
@@ -213,7 +190,7 @@ function PnLPage() {
 
         {/* Report preview */}
         <div className="flex-1 w-full h-[calc(100vh-200px)] overflow-auto">
-          <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-5 text-sm">
+          <div ref={reportRef} className="report-pdf print-container w-full min-w-0 shadow-lg rounded-none p-4 text-sm">
               <style>{`
                 .report-pdf { background-color: #ffffff !important; color: #0f172a !important; }
                 .report-pdf * { color: #0f172a !important; background-color: transparent !important; border-color: #e2e8f0 !important; }
@@ -279,7 +256,7 @@ function PnLPage() {
               ) : (
                 <div className="space-y-5">
                   {/* Summary cards */}
-                  <div className="flex gap-3">
+                  <div className="flex">
                     <div className="w-1/3 report-card-income p-3 rounded-xl">
                       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-1">Total Income</p>
                       <p className="text-lg font-bold text-emerald-800">{money(pnl.income)}</p>
