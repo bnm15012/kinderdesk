@@ -99,7 +99,7 @@ function PnLPage() {
   const downloadPdf = async () => {
     if (!reportRef.current) return;
     try {
-      const dataUrl = await toPng(reportRef.current, { pixelRatio: 2, backgroundColor: "#ffffff", style: { width: "794px", maxWidth: "794px", overflow: "hidden" } });
+      const dataUrl = await toPng(reportRef.current, { pixelRatio: 2, backgroundColor: "#ffffff", style: { width: "794px", maxWidth: "794px", overflow: "hidden", boxSizing: "border-box" } });
       const img = new Image();
       img.src = dataUrl;
       await new Promise((resolve) => { img.onload = resolve; });
@@ -220,7 +220,7 @@ function PnLPage() {
                 .report-pdf .report-card-net-neg { background-color: #fffbeb !important; border: 1px solid #fde68a !important; }
                 .report-pdf .report-table { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; border-collapse: collapse !important; table-layout: fixed !important; width: 100% !important; }
                 .report-pdf .report-thead { background-color: #f8fafc !important; }
-                .report-pdf th, .report-pdf td { border: 1px solid #e2e8f0 !important; padding: 8px !important; white-space: normal !important; overflow-wrap: break-word !important; }
+                .report-pdf .report-table th, .report-pdf .report-table td { border: 1px solid #e2e8f0 !important; padding: 6px !important; white-space: normal !important; overflow-wrap: break-word !important; font-size: 10px !important; }
                 .report-pdf .report-total { background-color: #f8fafc !important; }
               `}</style>
 
@@ -277,12 +277,12 @@ function PnLPage() {
                     <table className="report-table w-full text-sm">
                       <thead className="report-thead">
                         <tr>
-                          <th className="text-left w-12">No.</th>
+                          <th className="text-left w-10">No.</th>
                           <th className="text-left">Student</th>
-                          <th className="text-left">Payment Mode</th>
-                          <th className="text-left">Fee</th>
-                          <th className="text-left">Date</th>
-                          <th className="text-right w-28">Amount</th>
+                          <th className="text-left w-24">Payment Mode</th>
+                          <th className="text-left w-20">Fee</th>
+                          <th className="text-left w-20">Date</th>
+                          <th className="text-right w-24">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -310,11 +310,11 @@ function PnLPage() {
                     <table className="report-table w-full text-sm">
                       <thead className="report-thead">
                         <tr>
-                          <th className="text-left w-12">No.</th>
-                          <th className="text-left">Category</th>
+                          <th className="text-left w-10">No.</th>
+                          <th className="text-left w-20">Category</th>
                           <th className="text-left">Description</th>
-                          <th className="text-left">Date</th>
-                          <th className="text-right w-28">Amount</th>
+                          <th className="text-left w-20">Date</th>
+                          <th className="text-right w-24">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
