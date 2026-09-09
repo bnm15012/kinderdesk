@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Calendar, Download, Printer, FileText, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
-import html2pdf from "html2pdf.js";
+
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
@@ -94,41 +94,11 @@ function PnLPage() {
     }
   };
 
-  const downloadPdf = async () => {
-    if (!reportRef.current) return;
-    const container = document.createElement("div");
-    container.style.cssText = "position:fixed;left:-9999px;top:0;width:0;height:0;overflow:hidden;";
-    document.body.appendChild(container);
-
-    // Clone and flatten computed styles so html2canvas doesn't hit Tailwind oklch values
-    const clone = reportRef.current.cloneNode(true) as HTMLDivElement;
-    const origEls = Array.from(reportRef.current.querySelectorAll("*"));
-    const cloneEls = Array.from(clone.querySelectorAll("*"));
-    origEls.forEach((orig, i) => {
-      const cloneEl = cloneEls[i] as HTMLElement;
-      const computed = window.getComputedStyle(orig as Element);
-      cloneEl.style.cssText = computed.cssText;
-      cloneEl.removeAttribute("class");
-    });
-    clone.style.cssText = window.getComputedStyle(reportRef.current).cssText;
-    clone.removeAttribute("class");
-    container.appendChild(clone);
-
-    const opt = {
-      margin: 12,
-      filename: `pnl-${from}-to-${to}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: "pt", format: "a4", orientation: "portrait" },
-    };
-
-    try {
-      await html2pdf().set(opt).from(clone).save();
-    } catch (err: any) {
-      toast(err?.message ?? "PDF download failed", "error");
-    } finally {
-      document.body.removeChild(container);
-    }
+  const downloadPdf = () => {
+    const originalTitle = document.title;
+    document.title = `pnl-${from}-to-${to}`;
+    window.print();
+    document.title = originalTitle;
   };
 
   const printPdf = () => {
