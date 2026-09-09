@@ -106,18 +106,7 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
             className="absolute inset-0 opacity-[0.06]"
             style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "20px 20px" }}
           />
-          <div className="absolute top-4 right-4 flex items-center gap-2">
-            {/* Save profile — shown only on profile tab, submits the form */}
-            {tab === "profile" && (
-              <button
-                form="profile-form"
-                type="submit"
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white text-blue-700 hover:bg-blue-50 disabled:opacity-60 text-xs font-bold transition shadow-sm"
-              >
-                {loading ? "Saving…" : "Save profile"}
-              </button>
-            )}
+          <div className="absolute top-4 right-4">
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition"
@@ -225,6 +214,15 @@ export function ProfileDialog({ open, onClose, defaultTab = "profile" }: { open:
                 ))}
               </div>
 
+              <div className="pt-1 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-sm shadow-blue-200"
+                >
+                  {loading ? "Saving…" : "Save profile"}
+                </button>
+              </div>
             </form>
 
           ) : (
