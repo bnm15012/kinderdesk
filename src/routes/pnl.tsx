@@ -98,7 +98,16 @@ function PnLPage() {
   const downloadPdf = async () => {
     if (!reportRef.current) return;
     const reportEls = [reportRef.current, ...Array.from(reportRef.current.querySelectorAll("*"))];
-    const originalStyles = reportEls.map((el) => window.getComputedStyle(el).cssText);
+    const originalStyles = reportEls.map((el) => {
+      const c = window.getComputedStyle(el);
+      let s = "";
+      for (let i = 0; i < c.length; i++) {
+        const p = c.item(i);
+        const v = c.getPropertyValue(p);
+        if (v) s += `${p}:${v};`;
+      }
+      return s;
+    });
     reportEls.forEach((el, i) => el.setAttribute("data-pdf-idx", i.toString()));
 
     const opt = {
