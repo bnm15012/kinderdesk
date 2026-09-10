@@ -2127,6 +2127,70 @@ export const addStudent = createServerFn({ method: "POST" })
       }
     }
 
+    // ── Auto-generate initial fee invoices at admission ───────────────────────
+    if (data.currentClassId) {
+      const { feeStructures, invoices, schools } = await import("@/lib/db/schema");
+
+      const today = new Date();
+      const admissionYear = today.getFullYear();
+      const admissionMonth = today.getMonth();
+      const admissionDay = today.getDate();
+      const currentMonth = `${admissionYear}-${String(admissionMonth + 1).padStart(2, "0")}`;
+
+      const [school] = await db
+        .select({ feeCutoffDay: schools.feeCutoffDay })
+        .from(schools)
+        .where(eq(schools.id, data.schoolId))
+        .limit(1);
+      const feeCutoffDay = school?.feeCutoffDay ?? 20;
+
+      const structures = await db
+        .select({
+          id: feeStructures.id,
+          name: feeStructures.name,
+          amount: feeStructures.amount,
+          dueDay: feeStructures.dueDay,
+          frequency: feeStructures.frequency,
+        })
+        .from(feeStructures)
+        .where(and(
+          eq(feeStructures.schoolId, data.schoolId),
+          eq(feeStructures.locationId, data.locationId),
+          or(
+            eq(feeStructures.classId, data.currentClassId),
+            isNull(feeStructures.classId),
+          ),
+        ));
+
+      const toInsert: {
+        schoolId: number; locationId: number; studentId: number;
+        feeStructureId: number; amount: string; dueDate: Date;
+        status: "draft" | "sent"; generatedMonth: string;
+      }[] = [];
+
+      for (const fs of structures) {
+        if (fs.frequency === "monthly" && admissionDay > feeCutoffDay) continue;
+
+        const dueDay = fs.dueDay ?? 1;
+        const dueDate = new Date(admissionYear, admissionMonth, dueDay);
+
+        toInsert.push({
+          schoolId: data.schoolId,
+          locationId: data.locationId,
+          studentId,
+          feeStructureId: fs.id,
+          amount: String(fs.amount),
+          dueDate,
+          status: fs.frequency === "monthly" ? "sent" : "draft",
+          generatedMonth: currentMonth,
+        });
+      }
+
+      if (toInsert.length) {
+        await db.insert(invoices).values(toInsert);
+      }
+    }
+
     return { ok: true, studentId };
   });
 

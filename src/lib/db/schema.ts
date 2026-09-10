@@ -33,6 +33,7 @@ export const schools = mysqlTable("schools", {
   maxLocations: int("max_locations").default(1),
   maxStudents:  int("max_students").default(50),
   maxStaff:     int("max_staff").default(3),
+  feeCutoffDay: int("fee_cutoff_day").notNull().default(20),
   status: mysqlEnum("status", ["active", "suspended", "pending", "archived"]).default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
