@@ -25,7 +25,6 @@ import {
   BookOpen,
   ClipboardList,
   FileText,
-  Clipboard,
   TrendingUp,
   Wallet,
   Megaphone,
@@ -68,7 +67,6 @@ const ADMIN_NAV = [
   { to: "/fees",            label: "Fees",           icon: DollarSign },
   { to: "/academics",       label: "Academics",      icon: GraduationCap },
   { to: "/exams",           label: "Exams",          icon: ClipboardList },
-  { to: "/homework",        label: "Homework",       icon: Clipboard },
   { to: "/staff",           label: "Staff",          icon: Briefcase },
   { to: "/classes",         label: "Classes",        icon: DoorOpen },
   { to: "/expenses",        label: "Expenses",       icon: Wallet },
@@ -85,7 +83,6 @@ const SCHOOL_ADMIN_NAV = [
 const TEACHER_NAV = [
   { to: "/teacher",               label: "My Dashboard",  icon: LayoutDashboard },
   { to: "/teacher/attendance",    label: "Attendance",    icon: CalendarCheck   },
-  { to: "/homework",              label: "Homework",      icon: BookOpen        },
   { to: "/classes",               label: "Classes",       icon: DoorOpen        },
   { to: "/exams",                 label: "Exams",         icon: ClipboardList   },
   { to: "/curriculum",            label: "Activities",    icon: BookOpen        },
@@ -96,7 +93,6 @@ const PARENT_NAV = [
   { to: "/parent", label: "Profile",       icon: Users,        search: { tab: "profile" } },
   { to: "/parent", label: "Fees",          icon: DollarSign,   search: { tab: "fees" } },
   { to: "/parent", label: "Academics",     icon: GraduationCap, search: { tab: "academics" } },
-  { to: "/parent", label: "Homework",      icon: BookOpen,     search: { tab: "homework" } },
   { to: "/parent", label: "Activities",    icon: Calendar,     search: { tab: "activities" } },
   { to: "/parent", label: "Announcements", icon: Megaphone,    search: { tab: "announcements" } },
 ];
@@ -401,7 +397,7 @@ function AppShell() {
       const adminRoutes = ["/dashboard", "/admissions", "/students", "/students/", "/fees", "/staff", "/staff/", "/classes", "/schools", "/locations", "/curriculum", "/expenses", "/pnl", "/announcements"];
       const accountantRoutes = ["/dashboard", "/fees"];
       const receptionistRoutes = ["/admissions", "/fees", "/exams"];
-      const teacherRoutes = ["/teacher", "/teacher/attendance", "/homework", "/classes", "/exams", "/curriculum", "/teacher/announcements"];
+      const teacherRoutes = ["/teacher", "/teacher/attendance", "/classes", "/exams", "/curriculum", "/teacher/announcements"];
       const parentRoutes = ["/parent"];
       const superRoutes = ["/super-admin"];
       if (user.role === "teacher" || user.role === "staff") {

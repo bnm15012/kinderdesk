@@ -371,16 +371,23 @@ export const forgotPassword = createServerFn({ method: "POST" })
     const now = new Date();
     const expires = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
 
-    await db.insert(otps).values({
+    const [insertResult] = await db.insert(otps).values({
       email,
       code,
       type: "password_reset",
       expiresAt: expires,
       used: 0,
     });
+    const otpId = Number((insertResult as any).insertId);
 
     const { sendOtpEmail } = await import("@/lib/email");
-    await sendOtpEmail(email, code);
+    try {
+      await sendOtpEmail(email, code);
+    } catch (e) {
+      console.error("Failed to send OTP email:", e);
+      await db.delete(otps).where(eq(otps.id, otpId));
+      throw new Error("Could not send password reset email. Please check the SMTP configuration.");
+    }
 
     return { ok: true };
   });
@@ -5558,7 +5565,7 @@ export const getPnl = createServerFn({ method: "GET" })
   });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCHOOL ERP MODULES (Subjects, Timetable, Exams, Marks, Homework, Announcements)
+// SCHOOL ERP MODULES (Subjects, Timetable, Exams, Marks, Announcements)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── SUBJECTS ─────────────────────────────────────────────────────────────────
@@ -6029,97 +6036,6 @@ export const listStudentMarks = createServerFn({ method: "GET" })
       .innerJoin(examSubjects, eq(studentMarks.examSubjectId, examSubjects.id))
       .where(and(eq(examSubjects.examId, data.examId), eq(students.currentClassId, data.classId)))
       .orderBy(asc(students.firstName));
-  });
-
-// ── HOMEWORK ─────────────────────────────────────────────────────────────────
-
-const manageHomeworkSchema = z.object({
-  id: z.number().optional(),
-  classId: z.number(),
-  subjectId: z.number().optional(),
-  title: z.string().trim().min(1).max(200),
-  description: z.string().optional(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-});
-
-export const manageHomework = createServerFn({ method: "POST" })
-  .validator((i: unknown) => manageHomeworkSchema.parse(i))
-  .handler(async ({ data }) => {
-    const { schoolId, locationId, userId } = await requireAuth();
-    const { db } = await import("@/lib/db");
-    const { homework } = await import("@/lib/db/schema");
-
-    if (data.id) {
-      await db.update(homework).set({
-        classId: data.classId,
-        subjectId: data.subjectId ?? null,
-        title: data.title,
-        description: data.description,
-        dueDate: data.dueDate as any,
-      }).where(eq(homework.id, data.id));
-      return { id: data.id };
-    }
-
-    const [r] = await db.insert(homework).values({
-      schoolId,
-      locationId,
-      classId: data.classId,
-      subjectId: data.subjectId ?? null,
-      title: data.title,
-      description: data.description,
-      dueDate: data.dueDate as any,
-      createdBy: userId,
-    });
-    return { id: Number((r as any).insertId) };
-  });
-
-const listHomeworkSchema = z.object({
-  classId: z.number().optional(),
-  studentId: z.number().optional(),
-});
-
-export const listHomework = createServerFn({ method: "GET" })
-  .validator((i: unknown) => listHomeworkSchema.parse(i))
-  .handler(async ({ data }) => {
-    await requireSession();
-    const { db } = await import("@/lib/db");
-    const { homework, subjects, users } = await import("@/lib/db/schema");
-
-    const conditions = [];
-    if (data.classId) conditions.push(eq(homework.classId, data.classId));
-    if (data.studentId) {
-      const { students } = await import("@/lib/db/schema");
-      const [s] = await db.select({ currentClassId: students.currentClassId }).from(students).where(eq(students.id, data.studentId)).limit(1);
-      if (s?.currentClassId) conditions.push(eq(homework.classId, s.currentClassId));
-    }
-
-    return db.select({
-      id: homework.id,
-      classId: homework.classId,
-      subjectId: homework.subjectId,
-      title: homework.title,
-      description: homework.description,
-      dueDate: homework.dueDate,
-      createdAt: homework.createdAt,
-      subjectName: subjects.name,
-      createdByName: users.firstName,
-    })
-      .from(homework)
-      .leftJoin(subjects, eq(homework.subjectId, subjects.id))
-      .leftJoin(users, eq(homework.createdBy, users.id))
-      .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(homework.createdAt));
-  });
-
-const deleteHomeworkSchema = z.object({ id: z.number() });
-export const deleteHomework = createServerFn({ method: "POST" })
-  .validator((i: unknown) => deleteHomeworkSchema.parse(i))
-  .handler(async ({ data }) => {
-    const { schoolId } = await requireAuth();
-    const { db } = await import("@/lib/db");
-    const { homework } = await import("@/lib/db/schema");
-    await db.delete(homework).where(and(eq(homework.id, data.id), eq(homework.schoolId, schoolId)));
-    return { ok: true };
   });
 
 // ── SCHOOL ANNOUNCEMENTS ───────────────────────────────────────────────────────

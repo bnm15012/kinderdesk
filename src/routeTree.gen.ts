@@ -24,7 +24,6 @@ import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as HomeworkRouteImport } from './routes/homework'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as InvoicePrintRouteImport } from './routes/invoice-print'
 import { Route as LocationsRouteImport } from './routes/locations'
@@ -131,11 +130,6 @@ const FeesRoute = FeesRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HomeworkRoute = HomeworkRouteImport.update({
-  id: '/homework',
-  path: '/homework',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InviteRoute = InviteRouteImport.update({
@@ -316,7 +310,6 @@ export interface FileRoutesByFullPath {
   '/expenses': typeof ExpensesRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
   '/invoice-print': typeof InvoicePrintRoute
   '/locations': typeof LocationsRoute
@@ -366,7 +359,6 @@ export interface FileRoutesByTo {
   '/expenses': typeof ExpensesRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
   '/invoice-print': typeof InvoicePrintRoute
   '/locations': typeof LocationsRoute
@@ -414,7 +406,6 @@ export interface FileRoutesById {
   '/expenses': typeof ExpensesRoute
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/homework': typeof HomeworkRoute
   '/invite': typeof InviteRoute
   '/invoice-print': typeof InvoicePrintRoute
   '/locations': typeof LocationsRoute
@@ -466,7 +457,6 @@ export interface FileRouteTypes {
     | '/expenses'
     | '/fees'
     | '/forgot-password'
-    | '/homework'
     | '/invite'
     | '/invoice-print'
     | '/locations'
@@ -516,7 +506,6 @@ export interface FileRouteTypes {
     | '/expenses'
     | '/fees'
     | '/forgot-password'
-    | '/homework'
     | '/invite'
     | '/invoice-print'
     | '/locations'
@@ -563,7 +552,6 @@ export interface FileRouteTypes {
     | '/expenses'
     | '/fees'
     | '/forgot-password'
-    | '/homework'
     | '/invite'
     | '/invoice-print'
     | '/locations'
@@ -614,7 +602,6 @@ export interface RootRouteChildren {
   ExpensesRoute: typeof ExpensesRoute
   FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
-  HomeworkRoute: typeof HomeworkRoute
   InviteRoute: typeof InviteRoute
   InvoicePrintRoute: typeof InvoicePrintRoute
   LocationsRoute: typeof LocationsRoute
@@ -741,13 +728,6 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/homework': {
-      id: '/homework'
-      path: '/homework'
-      fullPath: '/homework'
-      preLoaderRoute: typeof HomeworkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invite': {
@@ -1065,7 +1045,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExpensesRoute: ExpensesRoute,
   FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
-  HomeworkRoute: HomeworkRoute,
   InviteRoute: InviteRoute,
   InvoicePrintRoute: InvoicePrintRoute,
   LocationsRoute: LocationsRoute,

@@ -1,8 +1,8 @@
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listHomework, listSchoolAnnouncements } from "@/lib/auth";
-import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Clipboard, Megaphone } from "lucide-react";
+import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listSchoolAnnouncements } from "@/lib/auth";
+import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Megaphone } from "lucide-react";
 import { fmtDate, fmtDateTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/parent")({
@@ -90,10 +90,10 @@ function ParentPortal() {
   const verifyFn            = useServerFn(verifyRazorpayPayment);
   const getAttendanceFn     = useServerFn(getStudentAttendanceSummary);
   const listReportCardsFn   = useServerFn(listReportCards);
-  const listHomeworkFn      = useServerFn(listHomework);
+
   const listAnnouncementsFn = useServerFn(listSchoolAnnouncements);
 
-  const { tab } = useSearch({ from: "/parent" }) as { tab?: "profile" | "fees" | "academics" | "report" | "homework" | "activities" | "announcements" };
+  const { tab } = useSearch({ from: "/parent" }) as { tab?: "profile" | "fees" | "academics" | "report" | "activities" | "announcements" };
   const navigate = useNavigate();
   const activeTab = tab ?? "profile";
 
@@ -112,7 +112,7 @@ function ParentPortal() {
   // Academic profile state
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
   const [reportCardsList, setReportCardsList] = useState<any[]>([]);
-  const [homeworkList, setHomeworkList] = useState<any[]>([]);
+
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
   const [academicLoading, setAcademicLoading] = useState(false);
 
@@ -201,11 +201,10 @@ function ParentPortal() {
     if (!data?.children[activeChild]?.id) return;
     const childId = data.children[activeChild].id;
     setAcademicLoading(true);
-    setAttendanceSummary([]); setReportCardsList([]); setHomeworkList([]); setAnnouncementsList([]);
+    setAttendanceSummary([]); setReportCardsList([]); setAnnouncementsList([]);
     Promise.all([
       getAttendanceFn({ data: { studentId: childId } }).then((d) => setAttendanceSummary(d as any[])).catch(() => {}),
       listReportCardsFn({ data: { studentId: childId } }).then((d) => setReportCardsList(d as any[])).catch(() => {}),
-      listHomeworkFn({ data: { studentId: childId } }).then((d) => setHomeworkList(d as any[])).catch(() => {}),
       listAnnouncementsFn({ data: { target: "parents" } }).then((d) => setAnnouncementsList(d as any[])).catch(() => {}),
     ]).finally(() => setAcademicLoading(false));
   }, [activeChild, data?.children.length]);
@@ -602,39 +601,6 @@ function ParentPortal() {
                     );
                   })()}
                 </div>
-              </div>
-            )}
-          </div>
-
-          </>)}
-
-          {activeTab === "homework" && (<>
-          {/* Homework */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
-              <div className="w-1 h-5 bg-amber-600 rounded-full" />
-              <Clipboard className="w-4 h-4 text-amber-600" />
-              <h2 className="text-sm font-bold text-slate-800">Homework</h2>
-            </div>
-            {homeworkList.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-slate-400">No homework assigned</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {homeworkList.map((h: any) => (
-                  <div key={h.id} className="p-5">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clipboard className="w-4 h-4 text-amber-500" />
-                      <h3 className="font-semibold text-slate-900 text-sm">{h.title}</h3>
-                    </div>
-                    {h.description && <p className="text-xs text-slate-500 mb-2">{h.description}</p>}
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      {h.subjectName && <span>{h.subjectName}</span>}
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Due {new Date(h.dueDate).toLocaleDateString("en-IN")}</span>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </div>

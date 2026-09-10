@@ -10,11 +10,15 @@
  */
 import nodemailer from "nodemailer";
 
+function env(k: string) {
+  return process.env[k]?.trim().replace(/^["']|["']$/g, "");
+}
+
 function getTransport() {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = env("SMTP_HOST");
+  const port = parseInt(env("SMTP_PORT") ?? "465", 10);
+  const user = env("SMTP_USER");
+  const pass = env("SMTP_PASS");
 
   if (!host || !user || !pass) {
     throw new Error("SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in env.");
@@ -29,7 +33,7 @@ function getTransport() {
   });
 }
 
-const FROM = process.env.SMTP_FROM ?? "KinderDesk <noreply@kinderdesk.in>";
+const FROM = env("SMTP_FROM") ?? "KinderDesk <noreply@kinderdesk.in>";
 
 export async function sendConfirmationEmail(email: string, token: string, appUrl: string) {
   const transport = getTransport();

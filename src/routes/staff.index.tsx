@@ -178,7 +178,7 @@ function StaffForm({ initial, onSubmit, onCancel, saving, error, submitLabel, sh
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">App access role</label>
               <select value={f.appRole} onChange={(e) => set("appRole", e.target.value)} className={`${inputCls} bg-white`}>
-                <option value="teacher">Teacher — dashboard, attendance, homework, classes, exams, activities</option>
+                <option value="teacher">Teacher — dashboard, attendance, classes, exams, activities</option>
                 <option value="staff">Staff — same as Teacher</option>
                 <option value="accountant">Accountant — fees only</option>
                 <option value="receptionist">Receptionist — admissions and fees only</option>
@@ -326,7 +326,7 @@ function ResendInviteModal({ staff, onClose }: { staff: StaffRow; onClose: () =>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1.5">App access role</label>
           <select value={appRole} onChange={(e) => setAppRole(e.target.value as any)} className={`${inputCls} bg-white`}>
-            <option value="teacher">Teacher — dashboard, attendance, homework, classes, exams, activities</option>
+            <option value="teacher">Teacher — dashboard, attendance, classes, exams, activities</option>
             <option value="staff">Staff — same as Teacher</option>
             <option value="accountant">Accountant — fees only</option>
             <option value="receptionist">Receptionist — admissions and fees only</option>

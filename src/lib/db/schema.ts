@@ -484,21 +484,6 @@ export const gradingScales = mysqlTable("grading_scales", {
   uniqueGradeScale: uniqueIndex("grading_scales_school_board_name").on(t.schoolId, t.board, t.name),
 }));
 
-// ── Homework / Assignments ────────────────────────────────────────────────────
-export const homework = mysqlTable("homework", {
-  id: int("id").primaryKey().autoincrement(),
-  schoolId: int("school_id").notNull().references(() => schools.id),
-  locationId: int("location_id").notNull().references(() => locations.id),
-  classId: int("class_id").notNull().references(() => classes.id),
-  subjectId: int("subject_id").references(() => subjects.id),
-  title: varchar("title", { length: 200 }).notNull(),
-  description: text("description"),
-  dueDate: date("due_date"),
-  attachments: text("attachments"), // JSON array of {url, name}
-  createdBy: int("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // ── School Announcements (school / branch notices) ─────────────────────────────
 export const schoolAnnouncements = mysqlTable("school_announcements", {
   id: int("id").primaryKey().autoincrement(),
