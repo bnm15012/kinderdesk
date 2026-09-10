@@ -5119,13 +5119,8 @@ export const runFeeAutomation = createServerFn({ method: "POST" })
         sql`${invoices.dueDate} < ${todayStr}`,
       ));
 
-    // ── 2. Auto-generate monthly invoices on the 1st of the month ────────────
+    // ── 2. Auto-generate monthly invoices for the current month ───────────────
     const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-
-    // Only generate on 1st–3rd of month to avoid re-triggering edge cases
-    if (today.getDate() > 3) {
-      return { ok: true, generated: 0, flipped: 0 };
-    }
 
     // Get all monthly fee structures for this school/location
     const structures = await db.select().from(feeStructures)
