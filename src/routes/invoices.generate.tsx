@@ -57,6 +57,7 @@ function GenerateInvoice() {
             <option value="">Select student</option>
             {students.map((s) => <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>)}
           </select>
+          {students.length === 0 && <p className="text-xs text-slate-500 mt-1.5">No students found. Add a student in <strong>Admissions</strong> first.</p>}
         </div>
 
         <div>

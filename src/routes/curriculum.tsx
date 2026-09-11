@@ -190,7 +190,9 @@ function CurriculumPage() {
       )}
 
       {/* Class filter */}
-      {classes.length > 1 && (
+      {classes.length === 0 ? (
+        <p className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4 border border-slate-200">No classes found. Create a class in <strong>Classes</strong> before uploading activities.</p>
+      ) : classes.length > 1 && (
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => handleClassFilter("")}
@@ -370,6 +372,7 @@ function CurriculumPage() {
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
+                {classes.length === 0 && <p className="text-xs text-slate-500 mt-1.5">No classes found. Create a class in <strong>Classes</strong> first.</p>}
               </div>
 
               {/* Title */}

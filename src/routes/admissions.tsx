@@ -650,6 +650,7 @@ function InquiryDrawer({
                     <option key={c.id} value={c.id}>{c.name} {c.ageGroup ? `(${c.ageGroup})` : ""}</option>
                   ))}
                 </select>
+                {classes.length === 0 && <p className="text-xs text-slate-500 mt-1.5">No classes found. Create a class in <strong>Classes</strong> first.</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Start date</label>
