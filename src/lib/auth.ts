@@ -9,6 +9,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { fmtDate, todayIST } from "@/lib/utils";
+import { broadcastPush } from "@/lib/push-core";
 
 function randomHex(bytes = 32) {
   return randomBytes(bytes).toString("hex");
@@ -4329,6 +4330,13 @@ export const createAnnouncement = createServerFn({ method: "POST" })
       expiresAt:  data.expiresAt ? new Date(data.expiresAt) : null,
       createdBy:  userId,
     });
+
+    try {
+      await broadcastPush(data.title, data.body, "/");
+    } catch {
+      // Push not configured or no subscriptions yet — don't fail the announcement.
+    }
+
     return { ok: true, id: Number((r as any).insertId) };
   });
 
@@ -6275,6 +6283,13 @@ export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
       target: data.target,
       createdBy: userId,
     });
+
+    try {
+      await broadcastPush(data.title, data.message, "/announcements", schoolId);
+    } catch {
+      // Ignore push failures.
+    }
+
     return { id: Number((r as any).insertId) };
   });
 

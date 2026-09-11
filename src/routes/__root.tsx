@@ -40,6 +40,7 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 import { UserMenu } from "@/components/user-menu";
 import { useServerFn } from "@tanstack/react-start";
 import { getSession, getSchoolBoard } from "@/lib/auth";
+import { usePush } from "@/lib/usePush";
 
 export const publicPaths = [
   "/", "/about", "/contact", "/pricing", "/refund-policy", "/privacy-policy", "/terms-of-service",
@@ -500,6 +501,7 @@ function RootComponent() {
 }
 
 function RegisterSW() {
+  usePush();
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});

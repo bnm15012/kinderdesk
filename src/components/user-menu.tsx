@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { User, Lock, LogOut } from "lucide-react";
+import { User, Lock, LogOut, Bell, BellOff } from "lucide-react";
 import { getSession, logout } from "@/lib/auth";
+import { requestPushPermission } from "@/lib/usePush";
 import { ProfileDialog } from "@/components/profile-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -18,9 +19,28 @@ export function UserMenu() {
   const [dialogTab, setDialogTab] = useState<"profile" | "security">("profile");
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [pushState, setPushState] = useState<"default" | "granted" | "denied" | "unsupported">("default");
   const getSessionFn = useServerFn(getSession);
   const logoutFn = useServerFn(logout);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushState("unsupported");
+      return;
+    }
+    setPushState(Notification.permission as any);
+  }, []);
+
+  const handleEnablePush = async () => {
+    const ok = await requestPushPermission();
+    if (ok) {
+      window.location.reload();
+    } else {
+      setPushState("denied");
+    }
+  };
 
   const openDialog = (tab: "profile" | "security") => {
     setDialogTab(tab);
@@ -95,6 +115,31 @@ export function UserMenu() {
                 <Lock className="w-4 h-4 text-slate-400" />
                 Change password
               </button>
+
+              {pushState === "default" && (
+                <button
+                  onClick={handleEnablePush}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition"
+                >
+                  <Bell className="w-4 h-4 text-slate-400" />
+                  Enable notifications
+                </button>
+              )}
+
+              {pushState === "granted" && (
+                <div className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-green-700">
+                  <Bell className="w-4 h-4" />
+                  Notifications enabled
+                </div>
+              )}
+
+              {pushState === "denied" && (
+                <div className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-500">
+                  <BellOff className="w-4 h-4" />
+                  Notifications blocked
+                </div>
+              )}
+
               <div className="h-px bg-slate-100 my-1" />
               <button
                 onClick={() => { setOpen(false); setConfirmSignOut(true); }}

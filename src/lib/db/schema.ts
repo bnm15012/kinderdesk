@@ -648,3 +648,13 @@ export const curriculumActivities = mysqlTable("curriculum_activities", {
   r2Key:       varchar("r2_key", { length: 500 }),
   createdAt:   timestamp("created_at").defaultNow(),
 });
+
+// ── Push notification subscriptions ───────────────────────────────────────────
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id:        int("id").primaryKey().autoincrement(),
+  userId:    int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint:  varchar("endpoint", { length: 500 }).notNull().unique(),
+  p256dh:    varchar("p256dh", { length: 255 }).notNull(),
+  auth:      varchar("auth", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
