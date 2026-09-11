@@ -8,7 +8,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, todayIST } from "@/lib/utils";
 
 function randomHex(bytes = 32) {
   return randomBytes(bytes).toString("hex");
@@ -4155,7 +4155,7 @@ export const getAttendanceSummary = createServerFn({ method: "GET" })
     const { studentAttendance, staffAttendance, students, staff } = await import("@/lib/db/schema");
     const { sql: sqlRaw } = await import("drizzle-orm");
 
-    const today = data.date ?? new Date().toISOString().slice(0, 10);
+    const today = data.date ?? todayIST();
 
     // Student counts
     const [studentStats] = await db

@@ -260,8 +260,10 @@ function HistoryTab({ classes, schoolId, locationId }: { classes: ClassOption[];
 
   const [classFilter, setClassFilter] = useState<number | "all">("all");
   const [fromDate, setFromDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 6);
-    return d.toISOString().slice(0, 10);
+    const [y, m, d] = today().split("-").map(Number);
+    const from = new Date(Date.UTC(y, m - 1, d));
+    from.setUTCDate(from.getUTCDate() - 6);
+    return from.toISOString().slice(0, 10);
   });
   const [toDate, setToDate]     = useState(today());
   const [rows, setRows]         = useState<HistoryRow[]>([]);
