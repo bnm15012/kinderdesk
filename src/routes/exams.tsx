@@ -321,45 +321,53 @@ function ExamsPage() {
             </select>
           </div>
 
-          {selectedExam && selectedClass ? (
-            <table className="w-full text-sm border border-slate-200 rounded-2xl overflow-hidden">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="text-left px-4 py-2 text-xs font-bold text-slate-600">Student</th>
-                  {examSubjects.map((es) => <th key={es.id} className="px-4 py-2 text-xs font-bold text-slate-600 text-center">{es.name} / {es.maxMarks}</th>)}
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {students.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-2 font-medium text-slate-800">{s.firstName} {s.lastName}</td>
-                    {examSubjects.map((es) => {
-                      const val = marksData[s.id]?.[es.id]?.marks ?? "";
-                      return (
-                        <td key={es.id} className="px-2 py-2">
-                          <input
-                            value={val}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setMarksData((prev) => ({
-                                ...prev,
-                                [s.id]: { ...(prev[s.id] ?? {}), [es.id]: { ...prev[s.id]?.[es.id], marks: v } },
-                              }));
-                            }}
-                            className="w-20 mx-auto block text-center px-2 py-1 rounded-lg border border-slate-200 text-sm"
-                            placeholder="—"
-                          />
-                        </td>
-                      );
-                    })}
+          {(() => {
+            if (!selectedClass) return <p className="text-sm text-slate-400">Select a class and exam to start entering marks.</p>;
+            const className = classes.find((c) => c.id === selectedClass)?.name ?? "this class";
+            const classExams = exams.filter((e) => e.classId === selectedClass);
+            if (classExams.length === 0) return <p className="text-sm text-slate-500">No exams found for <strong className="text-slate-700">{className}</strong>. Create an exam in the <strong>Exams</strong> tab first.</p>;
+            if (!selectedExam) return <p className="text-sm text-slate-400">Select an exam for <strong className="text-slate-700">{className}</strong> to enter marks.</p>;
+            if (students.length === 0) return <p className="text-sm text-slate-500">No students found in <strong className="text-slate-700">{className}</strong>.</p>;
+            return (
+              <table className="w-full text-sm border border-slate-200 rounded-2xl overflow-hidden">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-bold text-slate-600">Student</th>
+                    {examSubjects.map((es) => <th key={es.id} className="px-4 py-2 text-xs font-bold text-slate-600 text-center">{es.name} / {es.maxMarks}</th>)}
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <p className="text-sm text-slate-400">Select a class and exam</p>}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {students.map((s) => (
+                    <tr key={s.id}>
+                      <td className="px-4 py-2 font-medium text-slate-800">{s.firstName} {s.lastName}</td>
+                      {examSubjects.map((es) => {
+                        const val = marksData[s.id]?.[es.id]?.marks ?? "";
+                        return (
+                          <td key={es.id} className="px-2 py-2">
+                            <input
+                              value={val}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setMarksData((prev) => ({
+                                  ...prev,
+                                  [s.id]: { ...(prev[s.id] ?? {}), [es.id]: { ...prev[s.id]?.[es.id], marks: v } },
+                                }));
+                              }}
+                              className="w-20 mx-auto block text-center px-2 py-1 rounded-lg border border-slate-200 text-sm"
+                              placeholder="—"
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
 
-          {selectedExam && selectedClass && (
+          {selectedExam && selectedClass && students.length > 0 && (
             <button onClick={async () => {
               const payload = [];
               for (const [studentId, subs] of Object.entries(marksData)) {
