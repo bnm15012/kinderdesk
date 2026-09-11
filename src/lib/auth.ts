@@ -4790,7 +4790,7 @@ export const addPayrollRecord = createServerFn({ method: "POST" })
     const { payload } = await verifySessionToken(token);
     const userId = Number(payload.userId);
     const { db } = await import("@/lib/db");
-    const { users, staffPayroll } = await import("@/lib/db/schema");
+    const { users, staff, staffPayroll, expenses } = await import("@/lib/db/schema");
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user?.schoolId || !user?.locationId) throw new Error("Not authorized");
 
@@ -4799,19 +4799,39 @@ export const addPayrollRecord = createServerFn({ method: "POST" })
     const bon       = parseFloat(data.bonus ?? "0");
     const net       = basic - deduct + bon;
 
-    const [r] = await db.insert(staffPayroll).values({
-      schoolId:    user.schoolId,
-      locationId:  user.locationId,
-      staffId:     data.staffId,
-      month:       data.month,
-      basicSalary: data.basicSalary,
-      deductions:  data.deductions ?? "0",
-      bonus:       data.bonus ?? "0",
-      netSalary:   net.toFixed(2),
-      notes:       data.notes ?? null,
-      status:      "pending",
+    const [staffRow] = await db
+      .select({ firstName: staff.firstName, lastName: staff.lastName })
+      .from(staff)
+      .where(eq(staff.id, data.staffId))
+      .limit(1);
+    const staffName = staffRow ? `${staffRow.firstName} ${staffRow.lastName}`.trim() : `Staff ${data.staffId}`;
+
+    const { id: payrollId } = await db.transaction(async (tx) => {
+      const [r] = await tx.insert(staffPayroll).values({
+        schoolId:    user.schoolId,
+        locationId:  user.locationId,
+        staffId:     data.staffId,
+        month:       data.month,
+        basicSalary: data.basicSalary,
+        deductions:  data.deductions ?? "0",
+        bonus:       data.bonus ?? "0",
+        netSalary:   net.toFixed(2),
+        notes:       data.notes ?? null,
+        status:      "pending",
+      });
+
+      await tx.insert(expenses).values({
+        schoolId:    user.schoolId,
+        locationId:  user.locationId,
+        category:    "salary",
+        description: `Salary - ${staffName}`,
+        amount:      net.toFixed(2),
+        expenseDate: new Date(),
+      });
+
+      return { id: Number((r as any).insertId) };
     });
-    return { ok: true, id: Number((r as any).insertId), netSalary: net.toFixed(2) };
+    return { ok: true, id: payrollId, netSalary: net.toFixed(2) };
   });
 
 const markPayrollPaidSchema = z.object({ payrollId: z.number() });
