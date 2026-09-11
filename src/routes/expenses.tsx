@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus, Pencil, Trash2, Wallet, Search, Save, X } from "lucide-react";
-import { manageExpense, listExpenses, deleteExpense } from "@/lib/auth";
+import { manageExpense, listExpenses, deleteExpense, listStaff } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { usePagination } from "@/lib/usePagination";
@@ -13,6 +13,7 @@ export const Route = createFileRoute("/expenses")({
 });
 
 type Expense = { id: number; category: string; description: string | null; amount: string; expenseDate: string | null };
+type StaffOption = { id: number; firstName: string; lastName: string; salary: string | null };
 
 const CATEGORIES = ["salary", "electricity", "rent", "supplies", "transport", "maintenance", "other"];
 const PAGE_SIZE = 12;
@@ -25,6 +26,7 @@ function ExpensesPage() {
   const manageExpenseFn = useServerFn(manageExpense);
   const listExpensesFn = useServerFn(listExpenses);
   const deleteExpenseFn = useServerFn(deleteExpense);
+  const listStaffFn = useServerFn(listStaff);
 
   const today = new Date().toISOString().split("T")[0];
   const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
@@ -33,7 +35,8 @@ function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState<{ id?: number; category: string; description: string; amount: string; expenseDate: string } | null>(null);
+  const [staffList, setStaffList] = useState<StaffOption[]>([]);
+  const [form, setForm] = useState<{ id?: number; category: string; description: string; amount: string; expenseDate: string; staffId?: number } | null>(null);
 
   const filteredExpenses = useMemo(() => {
     const q = search.toLowerCase();
@@ -59,13 +62,21 @@ function ExpensesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant]);
 
+  useEffect(() => {
+    if (!tenant) return;
+    listStaffFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } })
+      .then((rows: any[]) => setStaffList(rows.map((r) => ({ id: r.id, firstName: r.firstName, lastName: r.lastName, salary: r.salary ? String(r.salary) : null }))))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant]);
+
   if (!tenant) return <p className="text-sm text-slate-500">Loading…</p>;
 
   return (
     <div className="w-full max-w-none space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">Expenses</h1>
-        <button onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today })} className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"><Plus className="w-4 h-4" /> Add Expense</button>
+        <button onClick={() => setForm({ category: CATEGORIES[0], description: "", amount: "", expenseDate: today, staffId: undefined })} className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"><Plus className="w-4 h-4" /> Add Expense</button>
       </div>
 
       {/* Date filter */}
@@ -99,10 +110,33 @@ function ExpensesPage() {
               {form && (
                 <tr className="bg-slate-50">
                   <td className="px-4 py-2.5 text-slate-400 w-16 text-center font-semibold">—</td>
-                  <td className="px-4 py-2.5"><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls + " bg-white w-full"}>
+                  <td className="px-4 py-2.5"><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, staffId: undefined, description: e.target.value === "salary" ? "" : form.description })} className={inputCls + " bg-white w-full"}>
                     {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                   </select></td>
-                  <td className="px-4 py-2.5"><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls + " w-full"} placeholder="Description" /></td>
+                  <td className="px-4 py-2.5">
+                    {form.category === "salary" ? (
+                      <select
+                        value={form.staffId ?? ""}
+                        onChange={(e) => {
+                          const staffId = Number(e.target.value);
+                          const staff = staffList.find((s) => s.id === staffId);
+                          if (staff) {
+                            setForm({ ...form, staffId, description: `${staff.firstName} ${staff.lastName}`.trim(), amount: staff.salary || "" });
+                          } else {
+                            setForm({ ...form, staffId: undefined, description: "", amount: "" });
+                          }
+                        }}
+                        className={inputCls + " bg-white w-full"}
+                      >
+                        <option value="">Select staff</option>
+                        {staffList.map((s) => (
+                          <option key={s.id} value={s.id}>{s.firstName} {s.lastName}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputCls + " w-full"} placeholder="Description" />
+                    )}
+                  </td>
                   <td className="px-4 py-2.5"><input type="date" value={form.expenseDate} onChange={(e) => setForm({ ...form, expenseDate: e.target.value })} className={inputCls + " bg-white w-full"} /></td>
                   <td className="px-4 py-2.5"><input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className={inputCls + " w-full"} placeholder="Amount" /></td>
                   <td className="px-4 py-2.5 text-right">
@@ -130,7 +164,7 @@ function ExpensesPage() {
                   <td className="px-4 py-2.5 text-slate-500">{e.expenseDate ? new Date(e.expenseDate).toLocaleDateString("en-IN") : "—"}</td>
                   <td className="px-4 py-2.5 text-right font-medium text-slate-800">{money(parseFloat(e.amount))}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString().slice(0, 10) : today })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString().slice(0, 10) : today, staffId: undefined })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
                     <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
