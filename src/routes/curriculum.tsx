@@ -225,8 +225,10 @@ function CurriculumPage() {
       ) : (
         <div className="space-y-10">
           {(() => {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            const todayStr = todayIST();
+            const [y, m, d] = todayStr.split("-").map(Number);
+            const yesterday = new Date(Date.UTC(y, m - 1, d - 1));
+            const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
             // Group: year -> month -> date -> activities
             const byYear = new Map<string, Map<string, Map<string, Activity[]>>>();

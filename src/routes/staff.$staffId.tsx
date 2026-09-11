@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
+import { todayIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/staff/$staffId")({
   component: StaffDetailPage,
@@ -211,7 +212,7 @@ function StaffDetailPage() {
   const [payrollError, setPayrollError] = useState("");
   const [addingPayroll, setAddingPayroll] = useState(false);
   const [payrollForm, setPayrollForm] = useState({
-    month: new Date().toISOString().slice(0, 7),
+    month: todayIST().slice(0, 7),
     basicSalary: "",
     deductions: "0", bonus: "0", notes: "",
   });

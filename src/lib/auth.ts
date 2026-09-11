@@ -689,8 +689,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     // "Upcoming" = sent invoices with a future (or today) due date, soonest first.
     // "Overdue"  = sent/overdue invoices whose due date has already passed.
     // We show upcoming first; if fewer than 5, backfill with overdue (most recent first).
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = todayIST();
 
     const upcomingRows = await db
       .select({
@@ -936,8 +935,7 @@ export const getTeacherDashboard = createServerFn({ method: "GET" }).handler(asy
     );
   }
 
-  const todayDate = new Date();
-  todayDate.setHours(0, 0, 0, 0);
+  const todayDate = new Date(todayIST());
   const attendanceToday = staffRecord
     ? await db
         .select({ status: staffAttendance.status })
@@ -2145,11 +2143,8 @@ export const addStudent = createServerFn({ method: "POST" })
     if (data.currentClassId) {
       const { feeStructures, invoices, schools } = await import("@/lib/db/schema");
 
-      const today = new Date();
-      const admissionYear = today.getFullYear();
-      const admissionMonth = today.getMonth();
-      const admissionDay = today.getDate();
-      const currentMonth = `${admissionYear}-${String(admissionMonth + 1).padStart(2, "0")}`;
+      const [admissionYear, admissionMonth, admissionDay] = todayIST().split("-").map(Number);
+      const currentMonth = `${admissionYear}-${String(admissionMonth).padStart(2, "0")}`;
 
       const [school] = await db
         .select({ feeCutoffDay: schools.feeCutoffDay })
@@ -2186,7 +2181,7 @@ export const addStudent = createServerFn({ method: "POST" })
         if (fs.frequency === "monthly" && admissionDay > feeCutoffDay) continue;
 
         const dueDay = fs.dueDay ?? 1;
-        const dueDate = new Date(admissionYear, admissionMonth, dueDay);
+        const dueDate = new Date(Date.UTC(admissionYear, admissionMonth - 1, dueDay));
 
         toInsert.push({
           schoolId: data.schoolId,
@@ -4829,7 +4824,7 @@ export const addPayrollRecord = createServerFn({ method: "POST" })
         category:    "salary",
         description: `Salary - ${staffName}`,
         amount:      net.toFixed(2),
-        expenseDate: new Date(),
+        expenseDate: todayIST(),
       });
 
       return { id: Number((r as any).insertId) };
@@ -5142,9 +5137,8 @@ export const runFeeAutomation = createServerFn({ method: "POST" })
     const { db } = await import("@/lib/db");
     const { invoices, feeStructures, students, classEnrollments } = await import("@/lib/db/schema");
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+    const todayStr = todayIST();
+    const [year, month, day] = todayStr.split("-").map(Number);
 
     // ── 1. Flip sent invoices past due date → overdue ────────────────────────
     await db.update(invoices)
@@ -5157,7 +5151,7 @@ export const runFeeAutomation = createServerFn({ method: "POST" })
       ));
 
     // ── 2. Auto-generate monthly invoices for the current month ───────────────
-    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonth = `${year}-${String(month).padStart(2, "0")}`;
 
     // Get all monthly fee structures for this school/location
     const structures = await db.select().from(feeStructures)
@@ -5211,7 +5205,7 @@ export const runFeeAutomation = createServerFn({ method: "POST" })
 
         // Build due date: dueDay of current month
         const dueDay = fs.dueDay ?? 1;
-        const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+        const dueDate = new Date(Date.UTC(year, month - 1, dueDay));
 
         toInsert.push({
           schoolId: data.schoolId,

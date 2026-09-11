@@ -10,7 +10,7 @@ import { listInquiries, addInquiry, updateInquiry, archiveInquiry, sendParentInv
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { fmtDate, fmtDateShort } from "@/lib/utils";
+import { fmtDate, fmtDateShort, todayIST } from "@/lib/utils";
 import { usePagination } from "@/lib/usePagination";
 import { Pagination } from "@/components/pagination";
 
@@ -225,7 +225,7 @@ function InquiryDrawer({
     childDob: toDateStr(inquiry.childDob),
     gender: "" as "" | "male" | "female" | "other" | "prefer_not_to_say",
     classId: "",
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: todayIST(),
     parentName: inquiry.parentName,
     parentEmail: inquiry.email ?? "",
     parentPhone: inquiry.phone ?? "",

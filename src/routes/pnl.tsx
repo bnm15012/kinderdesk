@@ -8,6 +8,7 @@ import jsPDF from "jspdf";
 import { getPnl } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
+import { todayIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/pnl")({
   component: PnLPage,
@@ -68,8 +69,9 @@ function PnLPage() {
   const reportRef = useRef<HTMLDivElement>(null);
   const getPnlFn = useServerFn(getPnl);
 
-  const today = new Date().toISOString().split("T")[0];
-  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+  const today = todayIST();
+  const [year, month] = today.split("-").map(Number);
+  const firstOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today);
 

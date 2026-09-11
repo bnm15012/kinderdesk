@@ -7,6 +7,7 @@ import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
 import { usePagination } from "@/lib/usePagination";
 import { Pagination } from "@/components/pagination";
+import { todayIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/expenses")({
   component: ExpensesPage,
@@ -28,8 +29,9 @@ function ExpensesPage() {
   const deleteExpenseFn = useServerFn(deleteExpense);
   const listStaffFn = useServerFn(listStaff);
 
-  const today = new Date().toISOString().split("T")[0];
-  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+  const today = todayIST();
+  const [year, month] = today.split("-").map(Number);
+  const firstOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
   const [from, setFrom] = useState(firstOfMonth);
   const [to, setTo] = useState(today);
 
