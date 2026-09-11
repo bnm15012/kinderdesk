@@ -110,7 +110,12 @@ function ExpensesPage() {
               {form && (
                 <tr className="bg-slate-50">
                   <td className="px-4 py-2.5 text-slate-400 w-16 text-center font-semibold">—</td>
-                  <td className="px-4 py-2.5"><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, staffId: undefined, description: e.target.value === "salary" ? "" : form.description })} className={inputCls + " bg-white w-full"}>
+                  <td className="px-4 py-2.5"><select value={form.category} onChange={(e) => {
+                    const newCategory = e.target.value;
+                    const leavingSalary = form.category === "salary" && newCategory !== "salary";
+                    const enteringSalary = newCategory === "salary";
+                    setForm({ ...form, category: newCategory, staffId: undefined, description: (leavingSalary || enteringSalary) ? "" : form.description });
+                  }} className={inputCls + " bg-white w-full"}>
                     {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                   </select></td>
                   <td className="px-4 py-2.5">
