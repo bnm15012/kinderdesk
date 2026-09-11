@@ -5296,27 +5296,42 @@ export const sendInvoice = createServerFn({ method: "POST" })
       const [school] = await db.select({ name: schools.name }).from(schools).where(eq(schools.id, inv.schoolId)).limit(1);
       const [student] = await db.select({ firstName: students.firstName, lastName: students.lastName })
         .from(students).where(eq(students.id, inv.studentId)).limit(1);
-      const parentRows = await db.select({ email: parents.email, name: parents.name })
+      const parentRows = await db.select({ email: parents.email, name: parents.name, phone: parents.phone })
         .from(parents)
         .where(and(eq(parents.studentId, inv.studentId), eq(parents.isPrimary, 1)));
 
       const primaryParent = parentRows[0] ?? null;
+      const studentName = `${student?.firstName ?? ""} ${student?.lastName ?? ""}`.trim();
+      const schoolName = school?.name ?? "Your School";
+      const dueDate = inv.dueDate ? fmtDate(inv.dueDate) : null;
+      const appUrl = process.env.APP_URL ?? "https://kinderdesk.vercel.app";
+
       if (primaryParent?.email) {
         const { sendInvoiceEmail } = await import("@/lib/email");
-        const appUrl = process.env.APP_URL ?? "https://kinderdesk.vercel.app";
         await sendInvoiceEmail({
           to: primaryParent.email,
           parentName: primaryParent.name,
-          studentName: `${student?.firstName ?? ""} ${student?.lastName ?? ""}`.trim(),
-          schoolName: school?.name ?? "Your School",
+          studentName,
+          schoolName,
           amount: inv.amount,
-          dueDate: inv.dueDate ? fmtDate(inv.dueDate) : null,
+          dueDate,
           invoiceId: inv.id,
           payUrl: `${appUrl}/parent`,
         });
       }
+
+      if (primaryParent?.phone) {
+        try {
+          const { sendSMS } = await import("@/lib/sms");
+          const body = `Fee of Rs.${inv.amount} for ${studentName} at ${schoolName}${dueDate ? ` due ${dueDate}` : ""}. Pay at ${appUrl}/parent`;
+          await sendSMS({ to: primaryParent.phone, body });
+        } catch (smsErr: any) {
+          // SMS failure is non-fatal — invoice is still sent
+          console.warn("Failed to send invoice SMS:", smsErr?.message ?? smsErr);
+        }
+      }
     } catch (_) {
-      // Email failure is non-fatal — invoice is already marked sent
+      // Email/parent fetch failure is non-fatal — invoice is already marked sent
     }
 
     return { ok: true };
