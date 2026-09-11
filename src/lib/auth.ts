@@ -5940,9 +5940,15 @@ export const listExams = createServerFn({ method: "GET" })
     if (data.classId) conditions.push(eq(exams.classId, data.classId));
     if (data.academicYear) conditions.push(eq(exams.academicYear, data.academicYear));
 
-    return db.select().from(exams)
+    const rows = await db.select().from(exams)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(exams.createdAt));
+
+    return rows.map((r: any) => ({
+      ...r,
+      startDate: r.startDate ? new Date(r.startDate).toISOString().slice(0, 10) : null,
+      endDate: r.endDate ? new Date(r.endDate).toISOString().slice(0, 10) : null,
+    }));
   });
 
 const deleteExamSchema = z.object({ id: z.number() });
@@ -6006,7 +6012,7 @@ export const listExamSubjects = createServerFn({ method: "GET" })
     const { db } = await import("@/lib/db");
     const { examSubjects, subjects } = await import("@/lib/db/schema");
 
-    return db.select({
+    const rows = await db.select({
       id: examSubjects.id,
       examId: examSubjects.examId,
       subjectId: examSubjects.subjectId,
@@ -6017,6 +6023,11 @@ export const listExamSubjects = createServerFn({ method: "GET" })
       .from(examSubjects)
       .leftJoin(subjects, eq(examSubjects.subjectId, subjects.id))
       .where(eq(examSubjects.examId, data.examId));
+
+    return rows.map((r: any) => ({
+      ...r,
+      examDate: r.examDate ? new Date(r.examDate).toISOString().slice(0, 10) : null,
+    }));
   });
 
 const deleteExamSubjectSchema = z.object({ id: z.number() });
