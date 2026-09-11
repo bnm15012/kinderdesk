@@ -95,7 +95,7 @@ function ParentPortal() {
 
   const listAnnouncementsFn = useServerFn(listSchoolAnnouncements);
 
-  const { tab } = useSearch({ from: "/parent" }) as { tab?: "profile" | "fees" | "academics" | "report" | "activities" | "announcements" };
+  const { tab } = useSearch({ from: "/parent" }) as { tab?: "profile" | "fees" | "attendance" | "academics" | "report" | "activities" | "announcements" };
   const navigate = useNavigate();
   const activeTab = tab ?? "profile";
 
@@ -557,6 +557,47 @@ function ParentPortal() {
 
           </>)}
 
+          {activeTab === "attendance" && (<>
+          {/* Attendance */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+              <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+              <Calendar className="w-4 h-4 text-emerald-600" />
+              <h2 className="text-sm font-bold text-slate-800">Attendance</h2>
+            </div>
+            {academicLoading ? (
+              <div className="p-6 space-y-3">{[1,2].map(i=><div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse"/>)}</div>
+            ) : attendanceSummary.length === 0 ? (
+              <div className="p-10 text-center">
+                <Calendar className="w-10 h-10 mx-auto mb-3 text-slate-200" />
+                <p className="text-sm text-slate-400">No attendance data yet</p>
+              </div>
+            ) : (
+              <div className="p-6 space-y-3">
+                {attendanceSummary.slice(0, 6).map((m: any) => {
+                  const pct = m.pct as number;
+                  const barColor = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
+                  const badgeColor = pct >= 75 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700";
+                  return (
+                    <div key={m.monthKey}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-slate-700">{m.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">{m.present}P · {m.absent}A</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{pct}%</span>
+                        </div>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full">
+                        <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          </>)}
+
           {activeTab === "academics" && (<>
           {/* Academic Profile */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -569,39 +610,6 @@ function ParentPortal() {
               <div className="p-6 space-y-3">{[1,2].map(i=><div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse"/>)}</div>
             ) : (
               <div className="p-6 space-y-6">
-                {/* Attendance Summary */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <BarChart2 className="w-4 h-4 text-blue-500" />
-                    <h3 className="text-sm font-bold text-slate-700">Attendance</h3>
-                  </div>
-                  {attendanceSummary.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-4 text-center">No attendance data yet</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {attendanceSummary.slice(0, 6).map((m: any) => {
-                        const pct = m.pct as number;
-                        const barColor = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
-                        const badgeColor = pct >= 75 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700";
-                        return (
-                          <div key={m.monthKey}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-slate-700">{m.label}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-400">{m.present}P · {m.absent}A</span>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{pct}%</span>
-                              </div>
-                            </div>
-                            <div className="w-full h-1.5 bg-slate-100 rounded-full">
-                              <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
                 {/* Report Cards */}
                 <div className="border-t border-slate-100 pt-5">
                   <div className="flex items-center gap-2 mb-3">

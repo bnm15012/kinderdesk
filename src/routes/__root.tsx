@@ -92,6 +92,7 @@ const TEACHER_NAV = [
 const PARENT_NAV = [
   { to: "/parent", label: "Profile",       icon: Users,        search: { tab: "profile" } },
   { to: "/parent", label: "Fees",          icon: DollarSign,   search: { tab: "fees" } },
+  { to: "/parent", label: "Attendance",    icon: CalendarCheck, search: { tab: "attendance" } },
   { to: "/parent", label: "Academics",     icon: GraduationCap, search: { tab: "academics" } },
   { to: "/parent", label: "Activities",    icon: Calendar,     search: { tab: "activities" } },
   { to: "/parent", label: "Announcements", icon: Megaphone,    search: { tab: "announcements" } },

@@ -4102,37 +4102,117 @@ export const getAttendanceHistory = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await requireAuth(data.schoolId, data.locationId);
     const { db } = await import("@/lib/db");
-    const { studentAttendance, students, classes } = await import("@/lib/db/schema");
-    const { gte, lte } = await import("drizzle-orm");
+    const { studentAttendance, students, classes, attendanceSessions } = await import("@/lib/db/schema");
 
-    const conditions = [
+    const toISODate = (value: any) => {
+      if (!value) return "";
+      if (typeof value === "string") return value.slice(0, 10);
+      if (value instanceof Date) return value.toISOString().slice(0, 10);
+      return String(value).slice(0, 10);
+    };
+
+    // Resolve which classes to report for
+    let targetClassIds: number[] = [];
+    if (data.studentId) {
+      const [student] = await db.select({ currentClassId: students.currentClassId })
+        .from(students).where(eq(students.id, data.studentId)).limit(1);
+      if (student?.currentClassId) targetClassIds = [student.currentClassId];
+    } else if (data.classId) {
+      targetClassIds = [data.classId];
+    }
+
+    // 1. Get attendance sessions that were actually taken (this is the source of "Present" days)
+    const sessionConditions: any[] = [
+      eq(attendanceSessions.schoolId, data.schoolId),
+      eq(attendanceSessions.locationId, data.locationId),
+    ];
+    if (targetClassIds.length) sessionConditions.push(inArray(attendanceSessions.classId, targetClassIds));
+    if (data.fromDate) sessionConditions.push(gte(attendanceSessions.date, data.fromDate as any));
+    if (data.toDate)   sessionConditions.push(lte(attendanceSessions.date, data.toDate as any));
+    const sessions = await db.select({ id: attendanceSessions.id, date: attendanceSessions.date, classId: attendanceSessions.classId })
+      .from(attendanceSessions)
+      .where(and(...sessionConditions))
+      .orderBy(desc(attendanceSessions.date));
+
+    if (sessions.length === 0) return [];
+
+    // If no class/student filter was supplied, derive class list from the sessions
+    if (targetClassIds.length === 0) {
+      targetClassIds = [...new Set(sessions.map((s) => s.classId))];
+    }
+
+    // 2. Get all enrolled students for the relevant classes
+    const studentConditions: any[] = [
+      eq(students.schoolId, data.schoolId),
+      eq(students.locationId, data.locationId),
+      eq(students.status, "enrolled"),
+      inArray(students.currentClassId, targetClassIds),
+    ];
+    if (data.studentId) studentConditions.push(eq(students.id, data.studentId));
+    const classStudents = await db.select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      classId: students.currentClassId,
+      className: classes.name,
+    })
+      .from(students)
+      .innerJoin(classes, eq(students.currentClassId, classes.id))
+      .where(and(...studentConditions));
+
+    const studentsByClass = classStudents.reduce<Record<number, typeof classStudents[number][]>>((acc, s) => {
+      (acc[s.classId] = acc[s.classId] ?? []).push(s);
+      return acc;
+    }, {});
+
+    // 3. Get non-present records for the same range
+    const recordConditions: any[] = [
       eq(studentAttendance.schoolId, data.schoolId),
       eq(studentAttendance.locationId, data.locationId),
+      inArray(studentAttendance.classId, targetClassIds),
     ];
-    if (data.classId)   conditions.push(eq(studentAttendance.classId, data.classId));
-    if (data.studentId) conditions.push(eq(studentAttendance.studentId, data.studentId));
-    if (data.fromDate)  conditions.push(gte(studentAttendance.date, data.fromDate as any));
-    if (data.toDate)    conditions.push(lte(studentAttendance.date, data.toDate as any));
-
-    const rows = await db
-      .select({
-        id:          studentAttendance.id,
-        date:        studentAttendance.date,
-        status:      studentAttendance.status,
-        notes:       studentAttendance.notes,
-        studentId:   studentAttendance.studentId,
-        firstName:   students.firstName,
-        lastName:    students.lastName,
-        classId:     studentAttendance.classId,
-        className:   classes.name,
-      })
+    if (data.fromDate) recordConditions.push(gte(studentAttendance.date, data.fromDate as any));
+    if (data.toDate)   recordConditions.push(lte(studentAttendance.date, data.toDate as any));
+    if (data.studentId) recordConditions.push(eq(studentAttendance.studentId, data.studentId));
+    const records = await db.select({
+      id: studentAttendance.id,
+      date: studentAttendance.date,
+      status: studentAttendance.status,
+      notes: studentAttendance.notes,
+      studentId: studentAttendance.studentId,
+    })
       .from(studentAttendance)
-      .innerJoin(students, eq(studentAttendance.studentId, students.id))
-      .innerJoin(classes, eq(studentAttendance.classId, classes.id))
-      .where(and(...conditions))
-      .orderBy(desc(studentAttendance.date));
+      .where(and(...recordConditions));
 
-    return rows.map((r) => ({ ...r, date: String(r.date) }));
+    const recordByDateAndStudent = new Map<string, Map<number, typeof records[number]>>();
+    for (const r of records) {
+      const date = toISODate(r.date);
+      if (!recordByDateAndStudent.has(date)) recordByDateAndStudent.set(date, new Map());
+      recordByDateAndStudent.get(date)!.set(r.studentId, r);
+    }
+
+    // 4. Build one history row per student per session, defaulting to Present
+    const out: any[] = [];
+    for (const s of sessions) {
+      const date = toISODate(s.date);
+      const studs = studentsByClass[s.classId] ?? [];
+      for (const stud of studs) {
+        const rec = recordByDateAndStudent.get(date)?.get(stud.id);
+        out.push({
+          id: rec?.id ?? (s.id * 100000 + stud.id),
+          date,
+          status: rec?.status ?? "present",
+          notes: rec?.notes ?? null,
+          studentId: stud.id,
+          firstName: stud.firstName,
+          lastName: stud.lastName,
+          classId: s.classId,
+          className: stud.className,
+        });
+      }
+    }
+
+    return out;
   });
 
 // ── Attendance summary stats (for dashboard widget) ───────────────────────────
@@ -4552,9 +4632,16 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
     }
 
     // Get student's class and school
-    const [student] = await db.select({ schoolId: students.schoolId, currentClassId: students.currentClassId })
+    const [student] = await db.select({ schoolId: students.schoolId, locationId: students.locationId, currentClassId: students.currentClassId })
       .from(students).where(eq(students.id, data.studentId)).limit(1);
     if (!student) throw new Error("Student not found");
+
+    const toISODate = (value: any) => {
+      if (!value) return "";
+      if (typeof value === "string") return value.slice(0, 10);
+      if (value instanceof Date) return value.toISOString().slice(0, 10);
+      return String(value).slice(0, 10);
+    };
 
     // Get all attendance records for this student
     const records = await db.select({
@@ -4571,6 +4658,7 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
           .from(attendanceSessions)
           .where(and(
             eq(attendanceSessions.schoolId, student.schoolId),
+            eq(attendanceSessions.locationId, student.locationId),
             eq(attendanceSessions.classId, student.currentClassId),
           ))
       : [];
@@ -4591,7 +4679,7 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
 
     // Seed from sessions (school days)
     for (const s of sessions) {
-      const dateStr = (s.date as string).slice(0, 10);
+      const dateStr = toISODate(s.date);
       const monthKey = dateStr.slice(0, 7);
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, {
@@ -4605,7 +4693,7 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
 
     // Fill in student's attendance
     for (const r of records) {
-      const dateStr = (r.date as string).slice(0, 10);
+      const dateStr = toISODate(r.date);
       const monthKey = dateStr.slice(0, 7);
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, {
