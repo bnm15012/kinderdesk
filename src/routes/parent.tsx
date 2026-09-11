@@ -2,7 +2,7 @@ import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listSchoolAnnouncements } from "@/lib/auth";
-import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Megaphone } from "lucide-react";
+import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Megaphone, HeartPulse } from "lucide-react";
 import { fmtDate, fmtDateTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/parent")({
@@ -31,7 +31,9 @@ type PortalData = {
   fees: Fee[];
   parentContacts: ParentContact[];
   emergencyContacts: EmergencyContact[];
+  medicalNotes: MedicalNote[];
 };
+type MedicalNote = { studentId: number; allergies: string | null; conditions: string | null; medications: string | null; notes: string | null; };
 type Activity = {
   id: number; classId: number; className: string; title: string;
   description: string | null; activityDate: Date | string; photoUrl: string | null;
@@ -365,6 +367,54 @@ function ParentPortal() {
               ))}
             </div>
           </div>
+
+          {/* Medical information */}
+          {(() => {
+            const medical = data.medicalNotes.find((m) => m.studentId === child.id);
+            return (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-slate-100 bg-emerald-50 text-emerald-700">
+                  <HeartPulse className="w-4 h-4" />
+                  <h3 className="text-sm font-bold">Medical Information</h3>
+                </div>
+                <div className="p-4 sm:p-5">
+                  {!medical ? (
+                    <p className="text-sm text-slate-400">No medical information on record.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {medical.allergies && (
+                        <div>
+                          <span className="text-xs text-slate-400 uppercase tracking-wide">Allergies</span>
+                          <p className="text-sm text-slate-700 font-medium">{medical.allergies}</p>
+                        </div>
+                      )}
+                      {medical.conditions && (
+                        <div>
+                          <span className="text-xs text-slate-400 uppercase tracking-wide">Conditions</span>
+                          <p className="text-sm text-slate-700 font-medium">{medical.conditions}</p>
+                        </div>
+                      )}
+                      {medical.medications && (
+                        <div>
+                          <span className="text-xs text-slate-400 uppercase tracking-wide">Medications</span>
+                          <p className="text-sm text-slate-700 font-medium">{medical.medications}</p>
+                        </div>
+                      )}
+                      {medical.notes && (
+                        <div>
+                          <span className="text-xs text-slate-400 uppercase tracking-wide">Notes</span>
+                          <p className="text-sm text-slate-700 font-medium">{medical.notes}</p>
+                        </div>
+                      )}
+                      {!medical.allergies && !medical.conditions && !medical.medications && !medical.notes && (
+                        <p className="text-sm text-slate-400 col-span-2">No medical details recorded.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           </>)}
 
           {activeTab === "fees" && (<>

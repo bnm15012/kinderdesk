@@ -1054,7 +1054,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
   if (!userId) throw new Error("Not authenticated");
 
   const { db } = await import("@/lib/db");
-  const { users, parents, students, invoices, emergencyContacts, classes } = await import("@/lib/db/schema");
+  const { users, parents, students, invoices, emergencyContacts, medicalNotes, classes } = await import("@/lib/db/schema");
 
   const [user] = await db
     .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email, firstName: users.firstName, lastName: users.lastName })
@@ -1122,6 +1122,19 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
         .where(inArray(emergencyContacts.studentId, childIds))
     : [];
 
+  const medical = childIds.length
+    ? await db
+        .select({
+          studentId: medicalNotes.studentId,
+          allergies: medicalNotes.allergies,
+          conditions: medicalNotes.conditions,
+          medications: medicalNotes.medications,
+          notes: medicalNotes.notes,
+        })
+        .from(medicalNotes)
+        .where(inArray(medicalNotes.studentId, childIds))
+    : [];
+
   return {
     user: { firstName: user.firstName, lastName: user.lastName, email: user.email },
     children: children.map((c) => ({
@@ -1134,6 +1147,7 @@ export const getParentPortal = createServerFn({ method: "GET" }).handler(async (
     })),
     parentContacts: parentRecords,
     emergencyContacts: emergency,
+    medicalNotes: medical,
     fees: fees.map((f) => ({
       ...f,
       dueDate: f.dueDate ? fmtDate(f.dueDate) : null,
