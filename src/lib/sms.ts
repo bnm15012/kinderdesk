@@ -1,14 +1,24 @@
 const DEFAULT_COUNTRY_CODE = process.env.SMS_DEFAULT_COUNTRY_CODE ?? "+91";
 
-function normalizePhone(phone: string) {
+function to10Digit(phone: string) {
+  const countryCode = DEFAULT_COUNTRY_CODE.replace(/\D/g, "");
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith(countryCode) && digits.length > countryCode.length) {
+    digits = digits.slice(countryCode.length);
+  }
+  if (digits.length > 10) digits = digits.slice(-10);
+  return digits;
+}
+
+function toE164(phone: string) {
   if (phone.startsWith("+")) return phone;
-  const digits = phone.replace(/\D/g, "");
-  return `${DEFAULT_COUNTRY_CODE}${digits}`;
+  const countryCode = DEFAULT_COUNTRY_CODE.replace(/\D/g, "");
+  return `+${countryCode}${to10Digit(phone)}`;
 }
 
 /**
  * Send an SMS. Active only when SMS_PROVIDER is configured; otherwise no-ops.
- * Supported providers: "twilio"
+ * Supported providers: "twilio", "fast2sms"
  */
 export async function sendSMS({ to, body }: { to: string; body: string }) {
   const provider = (process.env.SMS_PROVIDER ?? "").toLowerCase();
@@ -16,8 +26,6 @@ export async function sendSMS({ to, body }: { to: string; body: string }) {
     console.log("SMS not configured; skipping SMS");
     return { ok: true, sent: false, provider: "none" };
   }
-
-  const formattedTo = normalizePhone(to);
 
   if (provider === "twilio") {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -37,7 +45,7 @@ export async function sendSMS({ to, body }: { to: string; body: string }) {
         },
         body: new URLSearchParams({
           From: from,
-          To: formattedTo,
+          To: toE164(to),
           Body: body,
         }),
       },
@@ -46,6 +54,42 @@ export async function sendSMS({ to, body }: { to: string; body: string }) {
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       throw new Error(`Twilio error: ${response.status} ${text}`);
+    }
+
+    return { ok: true, sent: true, provider };
+  }
+
+  if (provider === "fast2sms") {
+    const authKey = process.env.FAST2SMS_AUTH_KEY;
+    if (!authKey) throw new Error("Fast2SMS auth key not configured");
+
+    const numbers = to10Digit(to);
+    const route = process.env.FAST2SMS_ROUTE ?? "q";
+    const payload: Record<string, any> = {
+      route,
+      numbers,
+      message: body,
+      language: process.env.FAST2SMS_LANGUAGE ?? "english",
+      flash: 0,
+    };
+
+    if (route === "dlt") {
+      if (process.env.FAST2SMS_SENDER_ID) payload.sender_id = process.env.FAST2SMS_SENDER_ID;
+      if (process.env.FAST2SMS_TEMPLATE_ID) payload.template_id = process.env.FAST2SMS_TEMPLATE_ID;
+    }
+
+    const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+      method: "POST",
+      headers: {
+        authorization: authKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await response.json().catch(() => ({} as any));
+    if (!response.ok || json.return === false) {
+      throw new Error(`Fast2SMS error: ${response.status} ${JSON.stringify(json)}`);
     }
 
     return { ok: true, sent: true, provider };
