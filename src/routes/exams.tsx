@@ -53,7 +53,7 @@ function ExamsPage() {
   const [schoolBoard, setSchoolBoard] = useState<string>("generic");
 
   // Exams
-  const [examForm, setExamForm] = useState<{ id?: number; academicYear: string; term: string; examType: string; startDate: string; endDate: string } | null>(null);
+  const [examForm, setExamForm] = useState<{ id?: number; classId: number; academicYear: string; term: string; examType: string; startDate: string; endDate: string; status: string } | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [examSubjects, setExamSubjects] = useState<ExamSubject[]>([]);
   const [esForm, setEsForm] = useState<{ subjectId: number; maxMarks: string; examDate: string } | null>(null);
@@ -141,28 +141,72 @@ function ExamsPage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-slate-800">Exams</h2>
-              <button onClick={() => setExamForm({ academicYear: "", term: "", examType: "", startDate: "", endDate: "" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg"><Plus className="w-3.5 h-3.5" /> Add exam</button>
+              <button onClick={() => setExamForm({ classId: selectedClass || 0, academicYear: "", term: "", examType: "", startDate: "", endDate: "", status: "active" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg"><Plus className="w-3.5 h-3.5" /> Add exam</button>
             </div>
 
             {examForm && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                  <select value={selectedClass} onChange={(e) => setSelectedClass(Number(e.target.value))} className={inputCls + " bg-white"}>
-                    <option value={0}>— class —</option>
-                    {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <input value={examForm.academicYear} onChange={(e) => setExamForm({ ...examForm, academicYear: e.target.value })} className={inputCls} placeholder="2025-26" />
-                  <input value={examForm.term} onChange={(e) => setExamForm({ ...examForm, term: e.target.value })} className={inputCls} placeholder="Term 1" />
-                  <input type="date" value={examForm.startDate} onChange={(e) => setExamForm({ ...examForm, startDate: e.target.value })} className={inputCls} />
-                  <input type="date" value={examForm.endDate} onChange={(e) => setExamForm({ ...examForm, endDate: e.target.value })} className={inputCls} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">Class</label>
+                    <select value={examForm.classId} onChange={(e) => setExamForm({ ...examForm, classId: Number(e.target.value) })} className={inputCls + " bg-white w-full"}>
+                      <option value={0}>— select class —</option>
+                      {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">Academic Year</label>
+                    <input value={examForm.academicYear} onChange={(e) => setExamForm({ ...examForm, academicYear: e.target.value })} className={inputCls + " w-full"} placeholder="2025-26" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">Term</label>
+                    <input value={examForm.term} onChange={(e) => setExamForm({ ...examForm, term: e.target.value })} className={inputCls + " w-full"} placeholder="Term 1" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">Exam Type</label>
+                    <select value={examForm.examType} onChange={(e) => setExamForm({ ...examForm, examType: e.target.value })} className={inputCls + " bg-white w-full"}>
+                      <option value="">— select —</option>
+                      <option value="unit">Unit Test</option>
+                      <option value="term">Term Exam</option>
+                      <option value="final">Final Exam</option>
+                      <option value="assignment">Assignment</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">Start Date</label>
+                    <input type="date" value={examForm.startDate} onChange={(e) => setExamForm({ ...examForm, startDate: e.target.value })} className={inputCls + " w-full"} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600">End Date</label>
+                    <input type="date" value={examForm.endDate} onChange={(e) => setExamForm({ ...examForm, endDate: e.target.value })} className={inputCls + " w-full"} />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={async () => {
-                    if (!selectedClass) return;
-                    await manageExamFn({ data: { ...examForm, classId: selectedClass, status: "active" } });
-                    setExamForm(null);
-                    loadExams();
-                    toast("Exam saved", "success");
+                    if (!examForm) return;
+                    if (!examForm.classId) { toast("Please select a class", "error"); return; }
+                    if (!examForm.academicYear.trim()) { toast("Academic year is required", "error"); return; }
+                    if (!examForm.term.trim()) { toast("Term is required", "error"); return; }
+                    const payload: any = {
+                      ...examForm,
+                      academicYear: examForm.academicYear.trim(),
+                      term: examForm.term.trim(),
+                      examType: examForm.examType || "other",
+                      status: examForm.status,
+                      classId: examForm.classId,
+                    };
+                    if (!payload.startDate) delete payload.startDate;
+                    if (!payload.endDate) delete payload.endDate;
+                    if (!payload.id) delete payload.id;
+                    try {
+                      await manageExamFn({ data: payload });
+                      setExamForm(null);
+                      loadExams();
+                      toast("Exam saved", "success");
+                    } catch (err: any) {
+                      toast(err?.message ?? "Failed to save exam", "error");
+                    }
                   }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
                   <button onClick={() => setExamForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
                 </div>
@@ -170,17 +214,30 @@ function ExamsPage() {
             )}
 
             <div className="space-y-2">
-              {exams.map((e) => (
-                <div key={e.id} onClick={() => setSelectedExam(e)} className={`p-3 rounded-xl border cursor-pointer transition ${selectedExam?.id === e.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{e.term} · {e.academicYear}</p>
-                      <p className="text-xs text-slate-400">{e.examType} · {e.startDate} to {e.endDate}</p>
+              {exams.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">No exams created yet.</p>
+              ) : (
+                exams.map((e) => (
+                  <div key={e.id} onClick={() => setSelectedExam(e)} className={`p-3 rounded-xl border cursor-pointer transition ${selectedExam?.id === e.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">
+                          {e.term} · {e.academicYear} · {classes.find((c) => c.id === e.classId)?.name ?? "Class " + e.classId}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          <span className="capitalize">{e.examType}</span>
+                          {e.startDate || e.endDate ? ` · ${e.startDate || "—"} to ${e.endDate || "—"}` : null}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{e.status}</span>
+                        <button onClick={(ev) => { ev.stopPropagation(); setExamForm({ id: e.id, classId: e.classId, academicYear: e.academicYear, term: e.term, examType: e.examType || "", startDate: e.startDate || "", endDate: e.endDate || "", status: e.status }); }} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={async (ev) => { ev.stopPropagation(); await deleteExamFn({ data: { id: e.id } }); loadExams(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
-                    <button onClick={async (ev) => { ev.stopPropagation(); await deleteExamFn({ data: { id: e.id } }); loadExams(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
