@@ -207,8 +207,8 @@ function ExamsPage() {
                     } catch (err: any) {
                       toast(err?.message ?? "Failed to save exam", "error");
                     }
-                  }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-                  <button onClick={() => setExamForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
+                  }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition">Save</button>
+                  <button onClick={() => setExamForm(null)} className="px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold rounded-lg transition">Cancel</button>
                 </div>
               </div>
             )}
