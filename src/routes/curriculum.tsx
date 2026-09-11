@@ -59,8 +59,8 @@ function CurriculumPage() {
   const loadData = async () => {
     if (!tenant) return;
     try {
-      const session = (await getSessionFn()) as { user: { role: string; schoolId: number; locationId: number } } | null;
-      const role = session?.user?.role ?? "";
+      const session = (await getSessionFn()) as { role: string; schoolId: number; locationId: number } | null;
+      const role = session?.role ?? "";
       const admin = ADMIN_ROLES.includes(role);
       setIsAdmin(admin);
 
