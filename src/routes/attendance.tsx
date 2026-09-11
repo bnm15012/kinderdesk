@@ -136,7 +136,7 @@ function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; sc
             type="date"
             value={date}
             max={today()}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => setDate(e.target.value || today())}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
           />
 
@@ -312,10 +312,10 @@ function HistoryTab({ classes, schoolId, locationId }: { classes: ClassOption[];
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
-        <input type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value)}
+        <input type="date" value={fromDate} max={toDate} onChange={(e) => setFromDate(e.target.value || toDate)}
           className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition" />
         <span className="text-slate-400 text-sm">to</span>
-        <input type="date" value={toDate} max={today()} min={fromDate} onChange={(e) => setToDate(e.target.value)}
+        <input type="date" value={toDate} max={today()} min={fromDate} onChange={(e) => setToDate(e.target.value || today())}
           className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition" />
         <span className="text-xs text-slate-400 ml-auto">{rows.length} records</span>
       </div>
