@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
+import { fmtDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/exams")({
   component: ExamsPage,
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/exams")({
 type ClassRow = { id: number; name: string; ageGroup: string };
 type Subject = { id: number; name: string };
 type Exam = { id: number; classId: number; academicYear: string; term: string; examType: string; startDate: string | null; endDate: string | null; status: string };
-type ExamSubject = { id: number; subjectId: number; name: string; maxMarks: string };
+type ExamSubject = { id: number; subjectId: number; name: string; maxMarks: string; examDate: string | null };
 type Student = { id: number; firstName: string; lastName: string };
 
 const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
@@ -260,8 +261,8 @@ function ExamsPage() {
                       await upsertExamSubjectFn({ data: { examId: selectedExam.id, subjectId: esForm.subjectId, maxMarks: esForm.maxMarks, examDate: esForm.examDate } });
                       setEsForm(null);
                       listExamSubjectsFn({ data: { examId: selectedExam.id } }).then((d) => setExamSubjects(d as ExamSubject[]));
-                    }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-                    <button onClick={() => setEsForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
+                    }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition">Save</button>
+                    <button onClick={() => setEsForm(null)} className="px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold rounded-lg transition">Cancel</button>
                   </div>
                 </div>
               )}
@@ -269,11 +270,37 @@ function ExamsPage() {
               <div className="space-y-2">
                 {examSubjects.map((es) => (
                   <div key={es.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
-                    <span className="text-sm text-slate-800">{es.name}</span>
-                    <span className="text-xs text-slate-500">Max: {es.maxMarks}</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-800">{es.name}</p>
+                      <p className="text-xs text-slate-500">{es.examDate ? fmtDate(es.examDate) : "No date set"} · Max: {es.maxMarks}</p>
+                    </div>
                     <button onClick={async () => { await deleteExamSubjectFn({ data: { id: es.id } }); setExamSubjects((p) => p.filter((x) => x.id !== es.id)); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
+              </div>
+
+              {/* Schedule view for the selected exam */}
+              <div className="mt-6">
+                <h4 className="text-sm font-bold text-slate-800 mb-3">Schedule</h4>
+                {(() => {
+                  const scheduled = examSubjects
+                    .filter((es) => es.examDate)
+                    .sort((a, b) => (a.examDate as string).localeCompare(b.examDate as string));
+                  if (scheduled.length === 0) return <p className="text-xs text-slate-400">No subject dates set yet.</p>;
+                  return (
+                    <div className="space-y-2">
+                      {scheduled.map((es) => (
+                        <div key={es.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
+                          <div className="flex items-center gap-3">
+                            <span className="w-24 text-sm font-semibold text-blue-700">{fmtDate(es.examDate)}</span>
+                            <span className="text-sm text-slate-800">{es.name}</span>
+                          </div>
+                          <span className="text-xs text-slate-500">Max {es.maxMarks}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
