@@ -218,17 +218,20 @@ function ExamsPage() {
               {exams.length === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-6">No exams created yet.</p>
               ) : (
-                exams.map((e) => (
+                exams.map((e, i) => (
                   <div key={e.id} onClick={() => { if (selectedExam?.id === e.id) { setSelectedExam(null); setExamSubjects([]); } else { setSelectedExam(e); } }} className={`p-3 rounded-xl border cursor-pointer transition ${selectedExam?.id === e.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
                     <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">
-                          {e.term} · {e.academicYear} · {classes.find((c) => c.id === e.classId)?.name ?? "Class " + e.classId}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          <span className="capitalize">{e.examType}</span>
-                          {e.startDate || e.endDate ? ` · ${e.startDate || "—"} to ${e.endDate || "—"}` : null}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold text-slate-400 w-5">{i + 1}</span>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">
+                            {e.term} · {e.academicYear} · {classes.find((c) => c.id === e.classId)?.name ?? "Class " + e.classId}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            <span className="capitalize">{e.examType}</span>
+                            {e.startDate || e.endDate ? ` · ${e.startDate || "—"} to ${e.endDate || "—"}` : null}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{e.status}</span>
