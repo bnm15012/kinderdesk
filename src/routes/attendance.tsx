@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarCheck, ChevronDown, CheckCircle2, XCircle,
@@ -56,6 +56,8 @@ function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; sc
   const [loading, setLoading]   = useState(false);
   const [saving, setSaving]     = useState(false);
   const [alreadyMarked, setAlreadyMarked] = useState(false);
+  const isMounted = useRef(true);
+  useEffect(() => () => { isMounted.current = false; }, []);
 
   const load = async () => {
     if (!selectedClass) return;
@@ -68,19 +70,21 @@ function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; sc
       const classStudents = (allStudents as any[]).filter((s: any) => s.currentClassId === selectedClass.id && s.status === "enrolled");
       const { sessionTaken, records } = existing as any;
       const existingMap = new Map((records as any[]).map((e: any) => [e.studentId, e.status as AttendanceStatus]));
-      setAlreadyMarked(sessionTaken);
-      setStudents(classStudents.map((s: any) => ({
-        id: s.id, firstName: s.firstName, lastName: s.lastName,
-        status: existingMap.get(s.id) ?? "present",
-      })));
+      if (isMounted.current) {
+        setAlreadyMarked(sessionTaken);
+        setStudents(classStudents.map((s: any) => ({
+          id: s.id, firstName: s.firstName, lastName: s.lastName,
+          status: existingMap.get(s.id) ?? "present",
+        })));
+      }
     } catch (e: any) {
-      toast(e?.message ?? "Failed to load", "error");
+      if (isMounted.current) toast(e?.message ?? "Failed to load", "error");
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [selectedClass?.id, date]);
+  useEffect(() => { isMounted.current = true; load(); }, [selectedClass?.id, date]);
 
   const setStatus = (studentId: number, status: AttendanceStatus) =>
     setStudents((prev) => prev.map((s) => s.id === studentId ? { ...s, status } : s));
@@ -268,6 +272,8 @@ function HistoryTab({ classes, schoolId, locationId }: { classes: ClassOption[];
   const [toDate, setToDate]     = useState(today());
   const [rows, setRows]         = useState<HistoryRow[]>([]);
   const [loading, setLoading]   = useState(false);
+  const histMounted = useRef(true);
+  useEffect(() => () => { histMounted.current = false; }, []);
 
   const load = async () => {
     setLoading(true);
@@ -279,15 +285,15 @@ function HistoryTab({ classes, schoolId, locationId }: { classes: ClassOption[];
           fromDate, toDate,
         },
       }) as HistoryRow[];
-      setRows(res);
+      if (histMounted.current) setRows(res);
     } catch (e: any) {
-      toast(e?.message ?? "Failed to load history", "error");
+      if (histMounted.current) toast(e?.message ?? "Failed to load history", "error");
     } finally {
-      setLoading(false);
+      if (histMounted.current) setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [classFilter, fromDate, toDate]);
+  useEffect(() => { histMounted.current = true; load(); }, [classFilter, fromDate, toDate]);
 
   // Group rows by date
   const byDate = rows.reduce<Record<string, HistoryRow[]>>((acc, r) => {
@@ -381,12 +387,14 @@ function AttendancePage() {
   const [tab, setTab]         = useState<"mark" | "history">("mark");
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const pageMounted = useRef(true);
+  useEffect(() => () => { pageMounted.current = false; }, []);
 
   useEffect(() => {
     listClassesFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } })
-      .then((d) => setClasses((d as any[]).map((c: any) => ({ id: c.id, name: c.name, ageGroup: c.ageGroup, startTime: c.startTime, endTime: c.endTime }))))
-      .catch((e: any) => toast(e?.message ?? "Failed to load classes", "error"))
-      .finally(() => setLoading(false));
+      .then((d) => { if (pageMounted.current) setClasses((d as any[]).map((c: any) => ({ id: c.id, name: c.name, ageGroup: c.ageGroup, startTime: c.startTime, endTime: c.endTime }))); })
+      .catch((e: any) => { if (pageMounted.current) toast(e?.message ?? "Failed to load classes", "error"); })
+      .finally(() => { if (pageMounted.current) setLoading(false); });
   }, [tenant.schoolId, tenant.locationId]);
 
   return (
