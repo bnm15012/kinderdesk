@@ -294,8 +294,9 @@ function ExamsPage() {
                         </div>
                       )}
                       <div className="space-y-2">
-                        {examSubjects.map((es) => (
-                          <div key={es.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                        {examSubjects.map((es, i) => (
+                          <div key={es.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                            <span className="text-xs font-semibold text-slate-400 w-5">{i + 1}</span>
                             <div>
                               <p className="text-sm text-slate-800">{es.name}</p>
                               <p className="text-xs text-slate-500">{es.examDate ? fmtDate(es.examDate) : "No date set"}</p>
@@ -314,9 +315,10 @@ function ExamsPage() {
                         <p className="text-xs text-slate-400">No subject dates set yet.</p>
                       ) : (
                         <div className="space-y-2">
-                          {scheduled.map((es) => (
+                          {scheduled.map((es, i) => (
                             <div key={es.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
                               <div className="flex items-center gap-3">
+                                <span className="text-xs font-semibold text-slate-400 w-5">{i + 1}</span>
                                 <span className="w-24 text-sm font-semibold text-blue-700">{fmtDate(es.examDate)}</span>
                                 <span className="text-sm text-slate-800">{es.name}</span>
                               </div>
