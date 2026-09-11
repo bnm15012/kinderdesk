@@ -364,14 +364,16 @@ function ExamsPage() {
               <table className="w-full text-sm border border-slate-200 rounded-2xl overflow-hidden">
                 <thead className="bg-slate-50">
                   <tr>
+                    <th className="px-4 py-2 text-xs font-bold text-slate-600 text-center w-14">S.No.</th>
                     <th className="text-left px-4 py-2 text-xs font-bold text-slate-600">Student</th>
                     {examSubjects.map((es) => <th key={es.id} className="px-4 py-2 text-xs font-bold text-slate-600 text-center">{es.name} / {es.maxMarks}</th>)}
                     <th></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {students.map((s) => (
+                  {students.map((s, i) => (
                     <tr key={s.id}>
+                      <td className="px-4 py-2 text-center text-slate-500 text-xs font-semibold">{i + 1}</td>
                       <td className="px-4 py-2 font-medium text-slate-800">{s.firstName} {s.lastName}</td>
                       {examSubjects.map((es) => {
                         const val = marksData[s.id]?.[es.id]?.marks ?? "";
