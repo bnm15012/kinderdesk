@@ -816,6 +816,17 @@ function Fees() {
                                 {sendingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                               </button>
                             )}
+                            {/* Resend reminder */}
+                            {(inv.status === "sent" || inv.status === "overdue") && (
+                              <button
+                                onClick={(e) => handleSendInvoice(inv, e)}
+                                disabled={sendingId === inv.id}
+                                className="p-1.5 rounded-lg text-violet-500 hover:text-violet-700 hover:bg-violet-50 transition disabled:opacity-40"
+                                title="Resend / remind parent"
+                              >
+                                {sendingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
                             {/* Mark as Paid (cash/manual) */}
                             {(inv.status === "sent" || inv.status === "overdue") && (
                               <button
