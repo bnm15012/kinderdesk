@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getTeacherDashboard, getSession, listClasses, uploadCurriculumActivity, getCurriculumActivities, deleteCurriculumActivity } from "@/lib/auth";
+import { useTenant } from "@/lib/tenant";
 import { ImagePlus, Trash2, X, Upload, BookOpen, Calendar, ChevronDown, AlertCircle, Loader2, Plus, Image } from "lucide-react";
 import { todayIST } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ type Activity = {
 const ADMIN_ROLES = ["school_admin", "location_admin", "super_admin"];
 
 function CurriculumPage() {
+  const { tenant }      = useTenant();
   const getSessionFn    = useServerFn(getSession);
   const getDashFn       = useServerFn(getTeacherDashboard);
   const listClassesFn   = useServerFn(listClasses);
@@ -55,16 +57,16 @@ function CurriculumPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadData = async () => {
+    if (!tenant) return;
     try {
-      // Determine role to decide how to load classes
       const session = (await getSessionFn()) as { user: { role: string; schoolId: number; locationId: number } } | null;
       const role = session?.user?.role ?? "";
       const admin = ADMIN_ROLES.includes(role);
       setIsAdmin(admin);
 
       if (admin) {
-        // Admin: get all classes for the school
-        const cls = (await listClassesFn({ data: { schoolId: session!.user.schoolId, locationId: session!.user.locationId } })) as { id: number; name: string }[];
+        // Admin: get all classes for the selected location
+        const cls = (await listClassesFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } })) as { id: number; name: string }[];
         const mapped = cls.map((c) => ({ classId: c.id, className: c.name }));
         setClasses(mapped);
         if (mapped.length) setUpClass(mapped[0].classId);
@@ -74,7 +76,9 @@ function CurriculumPage() {
         setClasses(dash.myClasses);
         if (dash.myClasses.length) setUpClass(dash.myClasses[0].classId);
       }
-    } catch {}
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load classes");
+    }
 
     try {
       const acts = (await getActivitiesFn({ data: {} })) as Activity[];
@@ -86,7 +90,7 @@ function CurriculumPage() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [tenant]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
