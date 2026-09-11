@@ -219,7 +219,7 @@ function ExamsPage() {
                 <p className="text-sm text-slate-400 text-center py-6">No exams created yet.</p>
               ) : (
                 exams.map((e) => (
-                  <div key={e.id} onClick={() => setSelectedExam(e)} className={`p-3 rounded-xl border cursor-pointer transition ${selectedExam?.id === e.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                  <div key={e.id} onClick={() => { if (selectedExam?.id === e.id) { setSelectedExam(null); setExamSubjects([]); } else { setSelectedExam(e); } }} className={`p-3 rounded-xl border cursor-pointer transition ${selectedExam?.id === e.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-bold text-slate-800">
