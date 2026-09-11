@@ -4504,7 +4504,7 @@ async function uploadToR2orDisk(
 
 const uploadDocumentSchema = z.object({
   studentId: z.number(),
-  type: z.enum(["birth_certificate", "immunization_record", "photo", "other"]),
+  type: z.enum(["birth_certificate", "immunization_record", "aadhar_card", "photo", "other"]),
   // base64 data-url: "data:<mime>;base64,<data>"
   fileDataUrl: z.string(),
   fileName: z.string().max(255),

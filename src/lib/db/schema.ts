@@ -514,7 +514,7 @@ export const documents = mysqlTable("documents", {
   locationId: int("location_id").notNull().references(() => locations.id),
   studentId: int("student_id").references(() => students.id),
   staffId: int("staff_id").references(() => staff.id),
-  type: mysqlEnum("type", ["birth_certificate", "immunization_record", "photo", "background_check", "other"]).notNull(),
+  type: mysqlEnum("type", ["birth_certificate", "immunization_record", "aadhar_card", "photo", "background_check", "other"]).notNull(),
   r2Key: varchar("r2_key", { length: 500 }),
   publicUrl: varchar("public_url", { length: 500 }),
   uploadedAt: timestamp("uploaded_at").defaultNow(),

@@ -667,10 +667,10 @@ function StudentDetailPage() {
               <Section icon={FileText} title="Documents" color="bg-indigo-50 text-indigo-700">
                 {/* Upload buttons */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {(["birth_certificate", "immunization_record", "other"] as const).map((docType) => (
+                  {(["birth_certificate", "immunization_record", "aadhar_card", "other"] as const).map((docType) => (
                     <label key={docType} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border cursor-pointer transition ${uploading ? "opacity-50 pointer-events-none" : "bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-600 hover:text-blue-700"}`}>
                       <Upload className="w-3.5 h-3.5" />
-                      {docType === "birth_certificate" ? "Birth Certificate" : docType === "immunization_record" ? "Immunization Record" : "Other"}
+                      {docType === "birth_certificate" ? "Birth Certificate" : docType === "immunization_record" ? "Immunization Record" : docType === "aadhar_card" ? "Aadhaar Card" : "Other"}
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png,.webp"
@@ -728,6 +728,7 @@ function StudentDetailPage() {
                           <p className="text-sm font-semibold text-slate-800 capitalize">
                             {doc.type === "birth_certificate" ? "Birth Certificate" :
                              doc.type === "immunization_record" ? "Immunization Record" :
+                             doc.type === "aadhar_card" ? "Aadhaar Card" :
                              doc.type === "photo" ? "Photo" : "Other Document"}
                           </p>
                           <p className="text-xs text-slate-400">{fmtDate(doc.uploadedAt ? String(doc.uploadedAt) : null)}</p>
