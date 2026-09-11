@@ -15,7 +15,7 @@ import {
 } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
 import { useToast } from "@/lib/toast";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, todayIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/attendance")({
   component: AttendancePage,
@@ -41,7 +41,7 @@ const STATUS_BADGE: Record<AttendanceStatus, string> = {
   leave:    "bg-slate-100 text-slate-500 border border-slate-200",
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayIST;
 
 // ── Mark Attendance Tab ────────────────────────────────────────────────────
 function MarkTab({ classes, schoolId, locationId }: { classes: ClassOption[]; schoolId: number; locationId: number }) {

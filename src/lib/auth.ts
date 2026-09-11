@@ -4629,6 +4629,9 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
     // Compute attendance %
     const result: MonthSummary[] = [];
     for (const m of monthMap.values()) {
+      if (m.schoolDays > 0) {
+        m.present = Math.max(0, m.schoolDays - m.absent - m.halfDay - m.leave);
+      }
       const effectiveDays = m.schoolDays || (m.present + m.absent + m.halfDay + m.leave);
       m.pct = effectiveDays > 0 ? Math.round(((m.present + m.halfDay * 0.5) / effectiveDays) * 100) : 0;
       result.push(m);
