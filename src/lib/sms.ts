@@ -16,7 +16,8 @@ function to10Digit(phone: string) {
  */
 export async function sendSMS({ to, body }: { to: string; body: string }) {
   const authKey = process.env.FAST2SMS_AUTH_KEY;
-  if (!authKey || authKey === "none" || authKey === "disabled") {
+  const key = authKey.trim().toLowerCase();
+  if (!key || key === "none" || key === "disabled") {
     console.log("Fast2SMS not configured; skipping SMS");
     return { ok: true, sent: false };
   }
