@@ -257,10 +257,23 @@ function ExamsPage() {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={async () => {
-                      if (!esForm.subjectId) return;
-                      await upsertExamSubjectFn({ data: { examId: selectedExam.id, subjectId: esForm.subjectId, maxMarks: esForm.maxMarks, examDate: esForm.examDate } });
-                      setEsForm(null);
-                      listExamSubjectsFn({ data: { examId: selectedExam.id } }).then((d) => setExamSubjects(d as ExamSubject[]));
+                      if (!esForm.subjectId) { toast("Please select a subject", "error"); return; }
+                      if (!esForm.maxMarks || Number(esForm.maxMarks) <= 0) { toast("Max marks must be greater than 0", "error"); return; }
+                      const payload: any = { examId: selectedExam.id, subjectId: esForm.subjectId, maxMarks: String(esForm.maxMarks) };
+                      if (esForm.examDate) {
+                        if (selectedExam.startDate && esForm.examDate < selectedExam.startDate) { toast(`Exam date must be on or after ${selectedExam.startDate}`, "error"); return; }
+                        if (selectedExam.endDate && esForm.examDate > selectedExam.endDate) { toast(`Exam date must be on or before ${selectedExam.endDate}`, "error"); return; }
+                        payload.examDate = esForm.examDate;
+                      }
+                      try {
+                        await upsertExamSubjectFn({ data: payload });
+                        setEsForm(null);
+                        const d = await listExamSubjectsFn({ data: { examId: selectedExam.id } });
+                        setExamSubjects(d as ExamSubject[]);
+                        toast("Subject saved", "success");
+                      } catch (err: any) {
+                        toast(err?.message ?? "Failed to save subject", "error");
+                      }
                     }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition">Save</button>
                     <button onClick={() => setEsForm(null)} className="px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold rounded-lg transition">Cancel</button>
                   </div>
