@@ -391,6 +391,7 @@ function AttendancePage() {
   useEffect(() => () => { pageMounted.current = false; }, []);
 
   useEffect(() => {
+    pageMounted.current = true;
     listClassesFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } })
       .then((d) => { if (pageMounted.current) setClasses((d as any[]).map((c: any) => ({ id: c.id, name: c.name, ageGroup: c.ageGroup, startTime: c.startTime, endTime: c.endTime }))); })
       .catch((e: any) => { if (pageMounted.current) toast(e?.message ?? "Failed to load classes", "error"); })
