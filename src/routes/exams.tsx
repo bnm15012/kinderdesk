@@ -244,77 +244,91 @@ function ExamsPage() {
 
           {selectedExam && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-800 mb-3">Subjects for {selectedExam.term}</h3>
-              {esForm && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <select value={esForm.subjectId} onChange={(e) => setEsForm({ ...esForm, subjectId: Number(e.target.value) })} className={inputCls + " bg-white"}>
-                      <option value={0}>— subject —</option>
-                      {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <input type="number" value={esForm.maxMarks} onChange={(e) => setEsForm({ ...esForm, maxMarks: e.target.value })} className={inputCls} placeholder="Max marks" />
-                    <input type="date" value={esForm.examDate} onChange={(e) => setEsForm({ ...esForm, examDate: e.target.value })} className={inputCls} />
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={async () => {
-                      if (!esForm.subjectId) { toast("Please select a subject", "error"); return; }
-                      if (!esForm.maxMarks || Number(esForm.maxMarks) <= 0) { toast("Max marks must be greater than 0", "error"); return; }
-                      const payload: any = { examId: selectedExam.id, subjectId: esForm.subjectId, maxMarks: String(esForm.maxMarks) };
-                      if (esForm.examDate) {
-                        if (selectedExam.startDate && esForm.examDate < selectedExam.startDate) { toast(`Exam date must be on or after ${selectedExam.startDate}`, "error"); return; }
-                        if (selectedExam.endDate && esForm.examDate > selectedExam.endDate) { toast(`Exam date must be on or before ${selectedExam.endDate}`, "error"); return; }
-                        payload.examDate = esForm.examDate;
-                      }
-                      try {
-                        await upsertExamSubjectFn({ data: payload });
-                        setEsForm(null);
-                        const d = await listExamSubjectsFn({ data: { examId: selectedExam.id } });
-                        setExamSubjects(d as ExamSubject[]);
-                        toast("Subject saved", "success");
-                      } catch (err: any) {
-                        toast(err?.message ?? "Failed to save subject", "error");
-                      }
-                    }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition">Save</button>
-                    <button onClick={() => setEsForm(null)} className="px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold rounded-lg transition">Cancel</button>
-                  </div>
-                </div>
-              )}
-              <button onClick={() => setEsForm({ subjectId: 0, maxMarks: "100", examDate: "" })} className="mb-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg"><Plus className="w-3.5 h-3.5" /> Add subject</button>
-              <div className="space-y-2">
-                {examSubjects.map((es) => (
-                  <div key={es.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-800">{es.name}</p>
-                      <p className="text-xs text-slate-500">{es.examDate ? fmtDate(es.examDate) : "No date set"} · Max: {es.maxMarks}</p>
-                    </div>
-                    <button onClick={async () => { await deleteExamSubjectFn({ data: { id: es.id } }); setExamSubjects((p) => p.filter((x) => x.id !== es.id)); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Schedule view for the selected exam */}
-              <div className="mt-6">
-                <h4 className="text-sm font-bold text-slate-800 mb-3">Schedule</h4>
-                {(() => {
-                  const scheduled = examSubjects
-                    .filter((es) => es.examDate)
-                    .sort((a, b) => (a.examDate as string).localeCompare(b.examDate as string));
-                  if (scheduled.length === 0) return <p className="text-xs text-slate-400">No subject dates set yet.</p>;
-                  return (
-                    <div className="space-y-2">
-                      {scheduled.map((es) => (
-                        <div key={es.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
-                          <div className="flex items-center gap-3">
-                            <span className="w-24 text-sm font-semibold text-blue-700">{fmtDate(es.examDate)}</span>
-                            <span className="text-sm text-slate-800">{es.name}</span>
+              <h3 className="text-sm font-bold text-slate-800 mb-4">{selectedExam.term} · Subjects & Schedule</h3>
+              {(() => {
+                const scheduled = examSubjects
+                  .filter((es) => es.examDate)
+                  .sort((a, b) => (a.examDate as string).localeCompare(b.examDate as string));
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Subjects column */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-600">Subjects</h4>
+                        {!esForm && (
+                          <button onClick={() => setEsForm({ subjectId: 0, maxMarks: "100", examDate: "" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition"><Plus className="w-3.5 h-3.5" /> Add subject</button>
+                        )}
+                      </div>
+                      {esForm && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <select value={esForm.subjectId} onChange={(e) => setEsForm({ ...esForm, subjectId: Number(e.target.value) })} className={inputCls + " bg-white"}>
+                              <option value={0}>— subject —</option>
+                              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                            <input type="number" value={esForm.maxMarks} onChange={(e) => setEsForm({ ...esForm, maxMarks: e.target.value })} className={inputCls} placeholder="Max marks" />
+                            <input type="date" value={esForm.examDate} onChange={(e) => setEsForm({ ...esForm, examDate: e.target.value })} className={inputCls} />
                           </div>
-                          <span className="text-xs text-slate-500">Max {es.maxMarks}</span>
+                          <div className="flex gap-2">
+                            <button onClick={async () => {
+                              if (!esForm.subjectId) { toast("Please select a subject", "error"); return; }
+                              if (!esForm.maxMarks || Number(esForm.maxMarks) <= 0) { toast("Max marks must be greater than 0", "error"); return; }
+                              const payload: any = { examId: selectedExam.id, subjectId: esForm.subjectId, maxMarks: String(esForm.maxMarks) };
+                              if (esForm.examDate) {
+                                if (selectedExam.startDate && esForm.examDate < selectedExam.startDate) { toast(`Exam date must be on or after ${selectedExam.startDate}`, "error"); return; }
+                                if (selectedExam.endDate && esForm.examDate > selectedExam.endDate) { toast(`Exam date must be on or before ${selectedExam.endDate}`, "error"); return; }
+                                payload.examDate = esForm.examDate;
+                              }
+                              try {
+                                await upsertExamSubjectFn({ data: payload });
+                                setEsForm(null);
+                                const d = await listExamSubjectsFn({ data: { examId: selectedExam.id } });
+                                setExamSubjects(d as ExamSubject[]);
+                                toast("Subject saved", "success");
+                              } catch (err: any) {
+                                toast(err?.message ?? "Failed to save subject", "error");
+                              }
+                            }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition">Save</button>
+                            <button onClick={() => setEsForm(null)} className="px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold rounded-lg transition">Cancel</button>
+                          </div>
                         </div>
-                      ))}
+                      )}
+                      <div className="space-y-2">
+                        {examSubjects.map((es) => (
+                          <div key={es.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                            <div>
+                              <p className="text-sm text-slate-800">{es.name}</p>
+                              <p className="text-xs text-slate-500">{es.examDate ? fmtDate(es.examDate) : "No date set"}</p>
+                            </div>
+                            <span className="text-xs text-slate-600">Max {es.maxMarks}</span>
+                            <button onClick={async () => { await deleteExamSubjectFn({ data: { id: es.id } }); setExamSubjects((p) => p.filter((x) => x.id !== es.id)); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  );
-                })()}
-              </div>
+
+                    {/* Schedule column */}
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-slate-600 mb-3">Schedule</h4>
+                      {scheduled.length === 0 ? (
+                        <p className="text-xs text-slate-400">No subject dates set yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {scheduled.map((es) => (
+                            <div key={es.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
+                              <div className="flex items-center gap-3">
+                                <span className="w-24 text-sm font-semibold text-blue-700">{fmtDate(es.examDate)}</span>
+                                <span className="text-sm text-slate-800">{es.name}</span>
+                              </div>
+                              <span className="text-xs text-slate-500">Max {es.maxMarks}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
