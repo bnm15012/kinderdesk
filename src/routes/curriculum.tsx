@@ -193,22 +193,18 @@ function CurriculumPage() {
       {classes.length === 0 ? (
         <p className="text-sm text-slate-500 bg-slate-50 rounded-xl p-4 border border-slate-200">No classes found. Create a class in <strong>Classes</strong> before uploading activities.</p>
       ) : classes.length > 1 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => handleClassFilter("")}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${!selectedClass ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
+        <div className="relative w-full sm:w-64">
+          <select
+            value={selectedClass}
+            onChange={(e) => handleClassFilter(e.target.value ? Number(e.target.value) : "")}
+            className="w-full appearance-none pl-4 pr-9 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
           >
-            All classes
-          </button>
-          {classes.map((c) => (
-            <button
-              key={c.classId}
-              onClick={() => handleClassFilter(c.classId)}
-              className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${selectedClass === c.classId ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"}`}
-            >
-              {c.className}
-            </button>
-          ))}
+            <option value="">All classes</option>
+            {classes.map((c) => (
+              <option key={c.classId} value={c.classId}>{c.className}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       )}
 
