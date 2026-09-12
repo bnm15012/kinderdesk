@@ -77,13 +77,13 @@ function AcademicsPage() {
     if (!tenant) return;
     listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
     listClassesFn({ data: { schoolId: tenant.schoolId, locationId: tenant.locationId } }).then((d) => setClasses(d as ClassRow[]));
+    getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoardValue(ALLOWED_BOARDS.includes(d) ? d : "preschool"));
   }, [tenant]);
 
   useEffect(() => {
     if (!tenant) return;
     if (activeTab === "subjects") listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
     if (activeTab === "grading") {
-      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoardValue(ALLOWED_BOARDS.includes(d) ? d : "preschool"));
       listGradingScalesFn({ data: { board: schoolBoard } }).then((d: any) => setGradingScalesList(d));
     }
   }, [activeTab, tenant, schoolBoard]);
