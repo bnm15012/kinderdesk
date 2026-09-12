@@ -34,9 +34,11 @@ export function usePush() {
 
       const json = JSON.parse(JSON.stringify(sub)) as any;
       await (subscribe as any)({
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
+        data: {
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+        },
       });
     };
 
