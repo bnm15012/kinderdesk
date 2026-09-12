@@ -676,11 +676,11 @@ function Home() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 to-slate-900/90" />
 
-        <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
+        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
           <div className="w-14 h-14 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6 border border-white/20">
             <GraduationCap className="w-7 h-7 text-white" />
           </div>
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-5 leading-tight sm:whitespace-nowrap">
             Ready to transform your school?
           </h2>
           <p className="text-slate-300 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
