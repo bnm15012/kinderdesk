@@ -2,7 +2,7 @@ import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listSchoolAnnouncements } from "@/lib/auth";
-import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Megaphone, HeartPulse } from "lucide-react";
+import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Megaphone, HeartPulse, ChevronDown } from "lucide-react";
 import { fmtDate, fmtDateTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/parent")({
@@ -113,6 +113,7 @@ function ParentPortal() {
 
   // Academic profile state
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
   const [reportCardsList, setReportCardsList] = useState<any[]>([]);
 
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
@@ -573,23 +574,52 @@ function ParentPortal() {
                 <p className="text-sm text-slate-400">No attendance data yet</p>
               </div>
             ) : (
-              <div className="p-6 space-y-3">
+              <div className="p-6 space-y-2">
                 {attendanceSummary.slice(0, 6).map((m: any) => {
                   const pct = m.pct as number;
                   const barColor = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
                   const badgeColor = pct >= 75 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700";
+                  const expanded = expandedMonth === m.monthKey;
+                  const days = (m.days ?? []) as { date: string; status: string }[];
                   return (
-                    <div key={m.monthKey}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-semibold text-slate-700">{m.label}</span>
+                    <div key={m.monthKey} className="rounded-xl border border-slate-200 overflow-hidden">
+                      <button
+                        onClick={() => setExpandedMonth(expanded ? null : m.monthKey)}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-700">{m.label}</span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-slate-400">{m.present}P · {m.absent}A</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{pct}%</span>
                         </div>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full">
+                      </button>
+                      <div className="w-full h-1.5 bg-slate-100 mx-4 mb-3" style={{ width: "calc(100% - 2rem)" }}>
                         <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
                       </div>
+                      {expanded && (
+                        <div className="px-4 pb-4 space-y-2">
+                          {days.map((d: any) => {
+                            const status = d.status as string;
+                            const badge = status === "present"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : status === "absent"
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : status === "half_day"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-slate-100 text-slate-600 border-slate-200";
+                            const label = status === "half_day" ? "Half day" : status.charAt(0).toUpperCase() + status.slice(1);
+                            return (
+                              <div key={d.date} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                                <span className="text-sm text-slate-700">{fmtDate(d.date)}</span>
+                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badge}`}>{label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

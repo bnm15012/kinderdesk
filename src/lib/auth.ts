@@ -4765,11 +4765,15 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
       halfDay: number;
       leave: number;
       pct: number;
+      days: { date: string; status: string }[];
     };
 
     const monthMap = new Map<string, MonthSummary>();
+    const recordByDate = new Map<string, typeof records[number]["status"]>(
+      records.map((r) => [toISODate(r.date), r.status])
+    );
 
-    // Seed from sessions (school days)
+    // Seed from sessions (school days) and build day-by-day list
     for (const s of sessions) {
       const dateStr = toISODate(s.date);
       const monthKey = dateStr.slice(0, 7);
@@ -4777,13 +4781,15 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
         monthMap.set(monthKey, {
           monthKey,
           label: new Date(`${monthKey}-01`).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
-          schoolDays: 0, present: 0, absent: 0, halfDay: 0, leave: 0, pct: 0,
+          schoolDays: 0, present: 0, absent: 0, halfDay: 0, leave: 0, pct: 0, days: [],
         });
       }
-      monthMap.get(monthKey)!.schoolDays++;
+      const m = monthMap.get(monthKey)!;
+      m.schoolDays++;
+      m.days.push({ date: dateStr, status: recordByDate.get(dateStr) ?? "present" });
     }
 
-    // Fill in student's attendance
+    // Fill in student's attendance counts (covers records without a session, if any)
     for (const r of records) {
       const dateStr = toISODate(r.date);
       const monthKey = dateStr.slice(0, 7);
@@ -4791,7 +4797,7 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
         monthMap.set(monthKey, {
           monthKey,
           label: new Date(`${monthKey}-01`).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
-          schoolDays: 0, present: 0, absent: 0, halfDay: 0, leave: 0, pct: 0,
+          schoolDays: 0, present: 0, absent: 0, halfDay: 0, leave: 0, pct: 0, days: [],
         });
       }
       const m = monthMap.get(monthKey)!;
@@ -4801,7 +4807,7 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
       else if (r.status === "leave") m.leave++;
     }
 
-    // Compute attendance %
+    // Compute attendance % and sort days newest first
     const result: MonthSummary[] = [];
     for (const m of monthMap.values()) {
       if (m.schoolDays > 0) {
@@ -4809,6 +4815,7 @@ export const getStudentAttendanceSummary = createServerFn({ method: "GET" })
       }
       const effectiveDays = m.schoolDays || (m.present + m.absent + m.halfDay + m.leave);
       m.pct = effectiveDays > 0 ? Math.round(((m.present + m.halfDay * 0.5) / effectiveDays) * 100) : 0;
+      m.days.sort((a, b) => b.date.localeCompare(a.date));
       result.push(m);
     }
 
