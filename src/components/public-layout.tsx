@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { GraduationCap, Facebook, Twitter, Linkedin, Mail, Phone, MapPin, Menu, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { InstallAppButton } from "@/components/install-app-button";
 
 export function PublicLayout({
   children,
@@ -63,8 +64,12 @@ export function PublicLayout({
               </Link>
             </div>
 
-            {/* Mobile: Sign in link + hamburger */}
+            {/* Mobile: Install icon + Sign in link + hamburger */}
             <div className="flex items-center gap-2 ml-auto md:hidden">
+              <InstallAppButton
+                iconOnly
+                className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition"
+              />
               <Link
                 to="/login"
                 className="text-sm text-slate-700 font-medium px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"

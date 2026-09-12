@@ -8,7 +8,7 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-export function InstallAppButton({ className }: { className?: string }) {
+export function InstallAppButton({ className, iconOnly = false }: { className?: string; iconOnly?: boolean }) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
 
@@ -79,9 +79,9 @@ export function InstallAppButton({ className }: { className?: string }) {
   };
 
   return (
-    <button onClick={handleClick} className={className}>
+    <button onClick={handleClick} className={className} aria-label="Install app">
       <Download className="w-5 h-5" />
-      Install app
+      {!iconOnly && <span>Install app</span>}
     </button>
   );
 }

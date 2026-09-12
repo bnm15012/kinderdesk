@@ -5,7 +5,6 @@ import {
   ArrowRight, Star, CheckCircle2, Zap, MessageCircle,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public-layout";
-import { InstallAppButton } from "@/components/install-app-button";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -674,11 +673,6 @@ function Home() {
           </p>
         </div>
       </section>
-
-      {/* Mobile install app FAB */}
-      <div className="fixed bottom-4 right-4 z-50 lg:hidden">
-        <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-full font-bold text-sm shadow-xl" />
-      </div>
 
     </PublicLayout>
   );
