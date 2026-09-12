@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { z } from "zod";
-import { eq, and, count, desc, asc, inArray, notInArray, gte, lte, or, sql, gt, ne, isNull } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, notInArray, gte, lte, or, sql, gt, lt, ne, isNull } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -6081,6 +6081,16 @@ const upsertTimetableSchema = z.object({
   teacherId: z.number().optional(),
 });
 
+function normalizeTime(t?: string) {
+  if (!t || !t.trim()) return null;
+  const [h, m] = t.split(":");
+  if (h == null || m == null) return t.trim();
+  const hh = Number(h);
+  const mm = Number(m);
+  if (Number.isNaN(hh) || Number.isNaN(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) return t.trim();
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
 export const upsertTimetable = createServerFn({ method: "POST" })
   .validator((i: unknown) => upsertTimetableSchema.parse(i))
   .handler(async ({ data }) => {
@@ -6088,12 +6098,30 @@ export const upsertTimetable = createServerFn({ method: "POST" })
     const { db } = await import("@/lib/db");
     const { timetable } = await import("@/lib/db/schema");
 
+    const startTime = normalizeTime(data.startTime);
+    const endTime = normalizeTime(data.endTime);
+
+    if (startTime && endTime) {
+      if (startTime >= endTime) throw new Error("Start time must be before end time");
+      const clash = await db.select({ id: timetable.id })
+        .from(timetable)
+        .where(and(
+          eq(timetable.classId, data.classId),
+          eq(timetable.dayOfWeek, data.dayOfWeek),
+          ne(timetable.id, data.id ?? 0),
+          lt(timetable.startTime, endTime),
+          gt(timetable.endTime, startTime),
+        ))
+        .limit(1);
+      if (clash.length) throw new Error("This time slot overlaps with an existing period");
+    }
+
     if (data.id) {
       await db.update(timetable).set({
         dayOfWeek: data.dayOfWeek,
         periodNumber: data.periodNumber,
-        startTime: data.startTime,
-        endTime: data.endTime,
+        startTime,
+        endTime,
         subjectId: data.subjectId || null,
         teacherId: data.teacherId || null,
       }).where(eq(timetable.id, data.id));
@@ -6106,8 +6134,8 @@ export const upsertTimetable = createServerFn({ method: "POST" })
       classId: data.classId,
       dayOfWeek: data.dayOfWeek,
       periodNumber: data.periodNumber,
-      startTime: data.startTime,
-      endTime: data.endTime,
+      startTime,
+      endTime,
       subjectId: data.subjectId || null,
       teacherId: data.teacherId || null,
     });
