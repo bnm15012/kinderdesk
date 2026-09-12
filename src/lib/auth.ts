@@ -2919,7 +2919,7 @@ export const listClasses = createServerFn({ method: "GET" })
       const [staffRecord] = await db
         .select({ id: staff.id })
         .from(staff)
-        .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+        .where(and(eq(staff.schoolId, user.schoolId), or(eq(staff.userId, user.id), eq(staff.email, user.email ?? ""))))
         .limit(1);
 
       if (staffRecord) {
@@ -5118,7 +5118,7 @@ export const uploadCurriculumActivity = createServerFn({ method: "POST" })
     const [staffRecord] = await db
       .select({ id: staff.id, firstName: staff.firstName, lastName: staff.lastName })
       .from(staff)
-      .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+      .where(and(eq(staff.schoolId, user.schoolId), or(eq(staff.userId, user.id), eq(staff.email, user.email ?? ""))))
       .limit(1);
 
     const isAdminRole = user.role === "school_admin" || user.role === "location_admin";
@@ -5296,7 +5296,7 @@ export const deleteCurriculumActivity = createServerFn({ method: "POST" })
       const [staffRecord] = await db
         .select({ id: staff.id })
         .from(staff)
-        .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+        .where(and(eq(staff.schoolId, user.schoolId), or(eq(staff.userId, user.id), eq(staff.email, user.email ?? ""))))
         .limit(1);
       if (!staffRecord || activity.uploadedBy !== staffRecord.id) throw new Error("Not authorized");
     }
