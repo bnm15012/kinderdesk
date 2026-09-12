@@ -5,6 +5,7 @@ import { getTeacherDashboard, getSession, listClasses, uploadCurriculumActivity,
 import { useTenant } from "@/lib/tenant";
 import { ImagePlus, Trash2, X, Upload, BookOpen, Calendar, ChevronDown, AlertCircle, Loader2, Plus, Image, Pencil } from "lucide-react";
 import { todayIST } from "@/lib/utils";
+import Swal from "sweetalert2";
 
 export const Route = createFileRoute("/curriculum")({
   component: CurriculumPage,
@@ -212,12 +213,22 @@ function CurriculumPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this activity?")) return;
+    const { isConfirmed } = await Swal.fire({
+      title: "Delete activity?",
+      text: "This cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
+    });
+    if (!isConfirmed) return;
     try {
       await deleteFn({ data: { id } });
       setActivities((prev) => prev.filter((a) => a.id !== id));
+      await Swal.fire({ icon: "success", title: "Deleted", showConfirmButton: false, timer: 1500 });
     } catch (e: any) {
-      alert(e?.message ?? "Delete failed");
+      await Swal.fire({ icon: "error", title: "Delete failed", text: e?.message ?? "Please try again." });
     }
   };
 
