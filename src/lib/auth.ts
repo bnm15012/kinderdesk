@@ -6361,24 +6361,15 @@ export const listSchoolAnnouncements = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const user = await requireAuth();
     const { db } = await import("@/lib/db");
-    const { schoolAnnouncements, schoolAnnouncementDismissals, announcements, announcementDismissals } = await import("@/lib/db/schema");
+    const { schoolAnnouncements, announcements } = await import("@/lib/db/schema");
 
     // ── School announcements ────────────────────────────────────────────────────
-    const schoolDismissed = await db
-      .select({ announcementId: schoolAnnouncementDismissals.schoolAnnouncementId })
-      .from(schoolAnnouncementDismissals)
-      .where(eq(schoolAnnouncementDismissals.userId, user.id));
-    const schoolDismissedIds = schoolDismissed.map((d) => d.announcementId);
-
     const schoolConditions = [
       eq(schoolAnnouncements.schoolId, user.schoolId),
       eq(schoolAnnouncements.locationId, user.locationId),
     ];
     if (data.target) {
       schoolConditions.push(or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, data.target)));
-    }
-    if (schoolDismissedIds.length > 0) {
-      schoolConditions.push(notInArray(schoolAnnouncements.id, schoolDismissedIds));
     }
 
     const schoolRows = await db
@@ -6388,20 +6379,11 @@ export const listSchoolAnnouncements = createServerFn({ method: "GET" })
       .orderBy(desc(schoolAnnouncements.createdAt));
 
     // ── Global super-admin announcements ────────────────────────────────────────
-    const globalDismissed = await db
-      .select({ announcementId: announcementDismissals.announcementId })
-      .from(announcementDismissals)
-      .where(eq(announcementDismissals.userId, user.id));
-    const globalDismissedIds = globalDismissed.map((d) => d.announcementId);
-
     const globalConditions = [
       eq(announcements.isActive, 1),
       or(eq(announcements.targetRole, "all"), eq(announcements.targetRole, user.role)),
       or(isNull(announcements.expiresAt), gt(announcements.expiresAt, sql`now()`)),
     ];
-    if (globalDismissedIds.length > 0) {
-      globalConditions.push(notInArray(announcements.id, globalDismissedIds));
-    }
 
     const globalRows = await db
       .select()
