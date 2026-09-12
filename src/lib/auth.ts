@@ -4406,67 +4406,126 @@ export const deleteAnnouncement = createServerFn({ method: "POST" })
 export const getActiveAnnouncements = createServerFn({ method: "GET" }).handler(async () => {
   const user = await requireAuth();
   const { db } = await import("@/lib/db");
-  const { schoolAnnouncements, schoolAnnouncementDismissals } = await import("@/lib/db/schema");
+  const { schoolAnnouncements, schoolAnnouncementDismissals, announcements, announcementDismissals } = await import("@/lib/db/schema");
 
   const target = user.role === "parent" ? "parents" : "staff";
 
-  // Dismissed by this user
-  const dismissed = await db
+  // ── School announcements ────────────────────────────────────────────────────
+  const dismissedSchool = await db
     .select({ announcementId: schoolAnnouncementDismissals.schoolAnnouncementId })
     .from(schoolAnnouncementDismissals)
     .where(eq(schoolAnnouncementDismissals.userId, user.id));
-  const dismissedIds = dismissed.map((d) => d.announcementId);
+  const dismissedSchoolIds = dismissedSchool.map((d) => d.announcementId);
 
-  const conditions = [
+  const schoolConditions = [
     eq(schoolAnnouncements.schoolId, user.schoolId),
     eq(schoolAnnouncements.locationId, user.locationId),
     or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, target)),
   ];
-  if (dismissedIds.length > 0) {
-    conditions.push(notInArray(schoolAnnouncements.id, dismissedIds));
+  if (dismissedSchoolIds.length > 0) {
+    schoolConditions.push(notInArray(schoolAnnouncements.id, dismissedSchoolIds));
   }
 
-  const rows = await db
+  const schoolRows = await db
     .select()
     .from(schoolAnnouncements)
-    .where(and(...conditions))
+    .where(and(...schoolConditions))
     .orderBy(desc(schoolAnnouncements.createdAt));
 
-  return rows.map((a) => ({
-    id: a.id,
-    title: a.title,
-    body: a.message ?? "",
-    type: "info" as const,
-  }));
+  // ── Global super-admin announcements ────────────────────────────────────────
+  const dismissedGlobal = await db
+    .select({ announcementId: announcementDismissals.announcementId })
+    .from(announcementDismissals)
+    .where(eq(announcementDismissals.userId, user.id));
+  const dismissedGlobalIds = dismissedGlobal.map((d) => d.announcementId);
+
+  const globalConditions = [
+    eq(announcements.isActive, 1),
+    or(eq(announcements.targetRole, "all"), eq(announcements.targetRole, user.role)),
+    or(isNull(announcements.expiresAt), gt(announcements.expiresAt, sql`now()`)),
+  ];
+  if (dismissedGlobalIds.length > 0) {
+    globalConditions.push(notInArray(announcements.id, dismissedGlobalIds));
+  }
+
+  const globalRows = await db
+    .select()
+    .from(announcements)
+    .where(and(...globalConditions))
+    .orderBy(desc(announcements.createdAt));
+
+  const combined = [
+    ...schoolRows.map((a) => ({
+      id: a.id,
+      title: a.title,
+      body: a.message ?? "",
+      type: "info" as const,
+      scope: "school" as const,
+    })),
+    ...globalRows.map((a) => ({
+      id: a.id,
+      title: a.title,
+      body: a.body,
+      type: a.type as "info" | "warning" | "success" | "critical",
+      scope: "global" as const,
+    })),
+  ];
+
+  return combined.sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
 });
 
 // ── Any user: dismiss an announcement ────────────────────────────────────────
-const dismissAnnouncementSchema = z.object({ announcementId: z.number() });
+const dismissAnnouncementSchema = z.object({
+  announcementId: z.number(),
+  scope: z.enum(["school", "global"]).default("school"),
+});
 export const dismissAnnouncement = createServerFn({ method: "POST" })
   .validator((i: unknown) => dismissAnnouncementSchema.parse(i))
   .handler(async ({ data }) => {
     const user = await requireAuth();
     const { db } = await import("@/lib/db");
-    const { schoolAnnouncementDismissals } = await import("@/lib/db/schema");
+    const { schoolAnnouncementDismissals, announcementDismissals } = await import("@/lib/db/schema");
 
-    const [existing] = await db
-      .select({ id: schoolAnnouncementDismissals.id })
-      .from(schoolAnnouncementDismissals)
-      .where(and(
-        eq(schoolAnnouncementDismissals.schoolAnnouncementId, data.announcementId),
-        eq(schoolAnnouncementDismissals.userId, user.id),
-      ))
-      .limit(1);
+    if (data.scope === "global") {
+      const [existing] = await db
+        .select({ id: announcementDismissals.id })
+        .from(announcementDismissals)
+        .where(and(
+          eq(announcementDismissals.announcementId, data.announcementId),
+          eq(announcementDismissals.userId, user.id),
+        ))
+        .limit(1);
 
-    if (existing) {
-      await db.update(schoolAnnouncementDismissals)
-        .set({ dismissedAt: new Date() })
-        .where(eq(schoolAnnouncementDismissals.id, existing.id));
+      if (existing) {
+        await db.update(announcementDismissals)
+          .set({ dismissedAt: new Date() })
+          .where(eq(announcementDismissals.id, existing.id));
+      } else {
+        await db.insert(announcementDismissals).values({
+          announcementId: data.announcementId,
+          userId: user.id,
+        });
+      }
     } else {
-      await db.insert(schoolAnnouncementDismissals).values({
-        schoolAnnouncementId: data.announcementId,
-        userId: user.id,
-      });
+      const [existing] = await db
+        .select({ id: schoolAnnouncementDismissals.id })
+        .from(schoolAnnouncementDismissals)
+        .where(and(
+          eq(schoolAnnouncementDismissals.schoolAnnouncementId, data.announcementId),
+          eq(schoolAnnouncementDismissals.userId, user.id),
+        ))
+        .limit(1);
+
+      if (existing) {
+        await db.update(schoolAnnouncementDismissals)
+          .set({ dismissedAt: new Date() })
+          .where(eq(schoolAnnouncementDismissals.id, existing.id));
+      } else {
+        await db.insert(schoolAnnouncementDismissals).values({
+          schoolAnnouncementId: data.announcementId,
+          userId: user.id,
+        });
+      }
     }
     return { ok: true };
   });
@@ -6300,19 +6359,74 @@ const listSchoolAnnouncementsSchema = z.object({
 export const listSchoolAnnouncements = createServerFn({ method: "GET" })
   .validator((i: unknown) => listSchoolAnnouncementsSchema.parse(i))
   .handler(async ({ data }) => {
-    const { schoolId, locationId } = await requireAuth();
+    const user = await requireAuth();
     const { db } = await import("@/lib/db");
-    const { schoolAnnouncements } = await import("@/lib/db/schema");
+    const { schoolAnnouncements, schoolAnnouncementDismissals, announcements, announcementDismissals } = await import("@/lib/db/schema");
 
-    const conditions = [
-      eq(schoolAnnouncements.schoolId, schoolId),
-      eq(schoolAnnouncements.locationId, locationId),
+    // ── School announcements ────────────────────────────────────────────────────
+    const schoolDismissed = await db
+      .select({ announcementId: schoolAnnouncementDismissals.schoolAnnouncementId })
+      .from(schoolAnnouncementDismissals)
+      .where(eq(schoolAnnouncementDismissals.userId, user.id));
+    const schoolDismissedIds = schoolDismissed.map((d) => d.announcementId);
+
+    const schoolConditions = [
+      eq(schoolAnnouncements.schoolId, user.schoolId),
+      eq(schoolAnnouncements.locationId, user.locationId),
     ];
-    if (data.target) conditions.push(or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, data.target)));
+    if (data.target) {
+      schoolConditions.push(or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, data.target)));
+    }
+    if (schoolDismissedIds.length > 0) {
+      schoolConditions.push(notInArray(schoolAnnouncements.id, schoolDismissedIds));
+    }
 
-    return db.select().from(schoolAnnouncements)
-      .where(and(...conditions))
+    const schoolRows = await db
+      .select()
+      .from(schoolAnnouncements)
+      .where(and(...schoolConditions))
       .orderBy(desc(schoolAnnouncements.createdAt));
+
+    // ── Global super-admin announcements ────────────────────────────────────────
+    const globalDismissed = await db
+      .select({ announcementId: announcementDismissals.announcementId })
+      .from(announcementDismissals)
+      .where(eq(announcementDismissals.userId, user.id));
+    const globalDismissedIds = globalDismissed.map((d) => d.announcementId);
+
+    const globalConditions = [
+      eq(announcements.isActive, 1),
+      or(eq(announcements.targetRole, "all"), eq(announcements.targetRole, user.role)),
+      or(isNull(announcements.expiresAt), gt(announcements.expiresAt, sql`now()`)),
+    ];
+    if (globalDismissedIds.length > 0) {
+      globalConditions.push(notInArray(announcements.id, globalDismissedIds));
+    }
+
+    const globalRows = await db
+      .select()
+      .from(announcements)
+      .where(and(...globalConditions))
+      .orderBy(desc(announcements.createdAt));
+
+    return [
+      ...schoolRows.map((a) => ({
+        id: a.id,
+        title: a.title,
+        message: a.message,
+        target: a.target,
+        createdAt: a.createdAt,
+        scope: "school" as const,
+      })),
+      ...globalRows.map((a) => ({
+        id: a.id,
+        title: a.title,
+        message: a.body,
+        target: a.targetRole,
+        createdAt: a.createdAt,
+        scope: "global" as const,
+      })),
+    ].sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
   });
 
 const deleteSchoolAnnouncementSchema = z.object({ id: z.number() });

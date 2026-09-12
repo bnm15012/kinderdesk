@@ -10,6 +10,7 @@ type Announcement = {
   title: string;
   body: string;
   type: AnnType | null;
+  scope: "school" | "global";
 };
 
 const TYPE_STYLE: Record<AnnType, { bg: string; border: string; icon: React.ReactNode; text: string; btn: string }> = {
@@ -28,14 +29,14 @@ export function AnnouncementBanner() {
   useEffect(() => {
     getAnnouncementsFn()
       .then((d) => setItems((d as any[]).map((a: any) => ({
-        id: a.id, title: a.title, body: a.body, type: a.type,
+        id: a.id, title: a.title, body: a.body, type: a.type, scope: a.scope,
       }))))
       .catch(() => {});
   }, []);
 
-  const dismiss = async (id: number) => {
-    setItems((prev) => prev.filter((a) => a.id !== id));
-    try { await dismissFn({ data: { announcementId: id } }); } catch (e: any) { console.error("Failed to dismiss announcement:", e?.message ?? e); }
+  const dismiss = async (ann: Announcement) => {
+    setItems((prev) => prev.filter((a) => a.id !== ann.id || a.scope !== ann.scope));
+    try { await dismissFn({ data: { announcementId: ann.id, scope: ann.scope } }); } catch (e: any) { console.error("Failed to dismiss announcement:", e?.message ?? e); }
   };
 
   if (items.length === 0) return null;
@@ -46,7 +47,7 @@ export function AnnouncementBanner() {
         const style = TYPE_STYLE[ann.type ?? "info"];
         return (
           <div
-            key={ann.id}
+            key={`${ann.scope}-${ann.id}`}
             className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${style.bg} ${style.border}`}
           >
             {style.icon}
@@ -55,7 +56,7 @@ export function AnnouncementBanner() {
               <p className={`text-xs mt-0.5 ${style.text} opacity-80`}>{ann.body}</p>
             </div>
             <button
-              onClick={() => dismiss(ann.id)}
+              onClick={() => dismiss(ann)}
               className={`p-1 rounded-lg transition ${style.btn} shrink-0`}
               title="Dismiss"
             >

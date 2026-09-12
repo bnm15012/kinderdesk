@@ -10,7 +10,7 @@ export const Route = createFileRoute("/announcements")({
   component: AnnouncementsPage,
 });
 
-type Announcement = { id: number; title: string; message: string | null; target: string; createdAt: any };
+type Announcement = { id: number; title: string; message: string | null; target: string; createdAt: any; scope: "school" | "global" };
 
 const inputCls = "w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
 
@@ -70,17 +70,19 @@ function AnnouncementsPage() {
         ) : (
           <div className="space-y-2">
             {announcements.map((a) => (
-              <div key={a.id} className="p-4 rounded-xl border border-slate-200">
+              <div key={`${a.scope}-${a.id}`} className="p-4 rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-bold text-slate-800">{a.title}</p>
-                  <div className="flex gap-1">
-                    <button onClick={() => setAnnForm({ id: a.id, title: a.title, message: a.message ?? "", target: a.target })} className="p-1 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={async () => { await deleteFn({ data: { id: a.id } }); setAnnouncements((p) => p.filter((x) => x.id !== a.id)); }} className="p-1 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
+                  {a.scope === "school" && (
+                    <div className="flex gap-1">
+                      <button onClick={() => setAnnForm({ id: a.id, title: a.title, message: a.message ?? "", target: a.target })} className="p-1 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={async () => { await deleteFn({ data: { id: a.id } }); setAnnouncements((p) => p.filter((x) => x.id !== a.id)); }} className="p-1 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 mb-1">{a.message}</p>
                 <p className="text-[10px] text-slate-400 mt-1">{fmtDateTime(a.createdAt)}</p>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{a.target}</span>
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{a.target}{a.scope === "global" ? " (global)" : ""}</span>
               </div>
             ))}
             {announcements.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No announcements</p>}
