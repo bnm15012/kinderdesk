@@ -22,9 +22,16 @@ export function usePush() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    if (Notification.permission !== "granted") return;
 
     const run = async () => {
+      let permission = Notification.permission;
+      const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+      if (isTouchDevice && permission === "default") {
+        permission = await Notification.requestPermission();
+      }
+      if (permission !== "granted") return;
+
+
       const registration = await navigator.serviceWorker.ready;
       const { publicKey } = await (getKey as any)();
 
