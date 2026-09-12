@@ -251,8 +251,8 @@ function AcademicsPage() {
                     setTt(d as TT[]);
                     toast("Saved", "success");
                   } catch (err: any) { toast(err?.message ?? "Save failed", "error"); }
-                }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
-                <button onClick={() => setTtForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
+                }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition cursor-pointer">Save</button>
+                <button onClick={() => setTtForm(null)} className="px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg shadow-sm hover:shadow transition cursor-pointer">Cancel</button>
               </div>
             </div>
           )}
