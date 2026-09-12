@@ -634,7 +634,33 @@ function Home() {
       </section>
 
 
-
+      {/* ════════════════════════════════════════
+          MOBILE APP DOWNLOAD
+          ════════════════════════════════════════ */}
+      <section className="bg-blue-600 py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+            Take KinderDesk with you
+          </h2>
+          <p className="text-blue-100 text-lg mb-10 max-w-2xl mx-auto">
+            Install the app on your phone and manage fees, attendance, and parent communication from anywhere.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10 text-left">
+            {[
+              { icon: Bell, title: "Instant alerts", desc: "Get notified for fee dues, announcements, and attendance." },
+              { icon: Calendar, title: "On-the-go access", desc: "View timetables, mark attendance, and check schedules." },
+              { icon: Users, title: "Stay connected", desc: "Parents and teachers can communicate in real time." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+                <Icon className="w-6 h-6 text-white mb-3" />
+                <div className="text-white font-bold text-base mb-1">{title}</div>
+                <div className="text-blue-100 text-sm">{desc}</div>
+              </div>
+            ))}
+          </div>
+          <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-blue-700 px-8 py-4 rounded-xl font-bold text-base transition shadow-lg" />
+        </div>
+      </section>
 
 
       {/* ════════════════════════════════════════
