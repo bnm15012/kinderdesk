@@ -4586,11 +4586,11 @@ async function uploadToR2orDisk(
     });
     await s3.send(new PutObjectCommand({ Bucket: r2Bucket!, Key: key, Body: buffer, ContentType: mimeType }));
     return `${r2PublicUrl!.replace(/\/$/, "")}/${key}`;
-  } else {
-    // No R2 configured — return an in-place data URL so uploads still work in serverless envs.
-    // Set real R2 credentials in production to keep DB small and serve files from Cloudflare.
-    return `data:${mimeType};base64,${buffer.toString("base64")}`;
   }
+
+  throw new Error(
+    "R2 storage is not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME and R2_PUBLIC_URL."
+  );
 }
 
 const uploadDocumentSchema = z.object({
