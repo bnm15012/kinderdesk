@@ -10,25 +10,28 @@ type BeforeInstallPromptEvent = Event & {
 
 export function InstallAppButton({ className }: { className?: string }) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
     };
     (window as any).addEventListener("beforeinstallprompt", handler);
 
-    const ua = navigator.userAgent.toLowerCase();
-    const standalone = "standalone" in navigator ? (navigator as any).standalone : false;
-    setIsIOS(/iphone|ipad|ipod/.test(ua) && !standalone);
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (("standalone" in navigator) && (navigator as any).standalone === true);
+    setIsStandalone(standalone);
 
     return () => {
       (window as any).removeEventListener("beforeinstallprompt", handler);
     };
   }, []);
 
-  if (!deferred && !isIOS) return null;
+  if (isStandalone) return null;
 
   const handleClick = async () => {
     if (deferred) {
@@ -40,9 +43,35 @@ export function InstallAppButton({ className }: { className?: string }) {
       return;
     }
 
+    const ua = navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isAndroid = /android/.test(ua);
+
+    if (isIOS) {
+      Swal.fire({
+        title: "Install KinderDesk",
+        html: `<p class="text-left text-sm text-slate-600">1. Tap the <strong>Share</strong> icon in Safari.<br/>2. Scroll down and tap <strong>Add to Home Screen</strong>.<br/>3. Tap <strong>Add</strong>.</p>`,
+        icon: "info",
+        confirmButtonText: "Got it",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
+    if (isAndroid) {
+      Swal.fire({
+        title: "Install KinderDesk",
+        html: `<p class="text-left text-sm text-slate-600">1. Open Chrome's menu (three dots).<br/>2. Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.<br/>3. Tap <strong>Add</strong>.</p>`,
+        icon: "info",
+        confirmButtonText: "Got it",
+        confirmButtonColor: "#2563eb",
+      });
+      return;
+    }
+
     Swal.fire({
       title: "Install KinderDesk",
-      html: `<p class="text-left text-sm text-slate-600">1. Tap the <strong>Share</strong> icon in Safari.<br/>2. Scroll down and tap <strong>Add to Home Screen</strong>.<br/>3. Tap <strong>Add</strong>.</p>`,
+      html: `<p class="text-left text-sm text-slate-600">Open this page on your phone's browser and tap <strong>Add to Home Screen</strong> or <strong>Install app</strong>.</p>`,
       icon: "info",
       confirmButtonText: "Got it",
       confirmButtonColor: "#2563eb",

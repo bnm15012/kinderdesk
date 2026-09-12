@@ -173,7 +173,6 @@ function Home() {
                 >
                   Sign in
                 </Link>
-                <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-8 py-4 rounded-xl font-bold text-base transition shadow-xl" />
               </div>
               <p className="text-sm text-slate-400 mt-5">No credit card needed · Setup in under 5 minutes</p>
             </div>
@@ -675,6 +674,11 @@ function Home() {
           </p>
         </div>
       </section>
+
+      {/* Mobile install app FAB */}
+      <div className="fixed bottom-4 right-4 z-50 lg:hidden">
+        <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-full font-bold text-sm shadow-xl" />
+      </div>
 
     </PublicLayout>
   );
