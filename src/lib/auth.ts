@@ -2362,50 +2362,59 @@ export const listClassesForSchool = createServerFn({ method: "GET" })
 // SCHOOLS & LOCATIONS MANAGEMENT (school_admin view)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getSchoolWithLocations = createServerFn({ method: "GET" }).handler(async () => {
-  const userId = await requireSession();
-  const { db } = await import("@/lib/db");
-  const { users, schools, locations, students, staff } = await import("@/lib/db/schema");
-
-  const [user] = await db
-    .select({ schoolId: users.schoolId, role: users.role })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  if (!user) throw new Error("Not authenticated");
-
-  const [school] = await db
-    .select()
-    .from(schools)
-    .where(eq(schools.id, user.schoolId))
-    .limit(1);
-  if (!school) throw new Error("School not found");
-
-  const locs = await db
-    .select()
-    .from(locations)
-    .where(eq(locations.schoolId, user.schoolId))
-    .orderBy(asc(locations.name));
-
-  // Attach student + staff counts per branch
-  const locsWithCounts = await Promise.all(
-    locs.map(async (l) => {
-      const [{ cnt: studentCnt }] = await db
-        .select({ cnt: count() })
-        .from(students)
-        .where(and(eq(students.schoolId, user.schoolId), eq(students.locationId, l.id)));
-      const [{ cnt: staffCnt }] = await db
-        .select({ cnt: count() })
-        .from(staff)
-        .where(and(eq(staff.schoolId, user.schoolId), eq(staff.locationId, l.id)));
-      return { ...l, studentCount: Number(studentCnt), staffCount: Number(staffCnt) };
-    })
-  );
-
-  return { school, locations: locsWithCounts, role: user.role };
+const getSchoolWithLocationsSchema = z.object({
+  schoolId: z.number().optional(),
 });
 
+export const getSchoolWithLocations = createServerFn({ method: "GET" })
+  .validator((input: unknown) => getSchoolWithLocationsSchema.parse(input))
+  .handler(async ({ data }) => {
+    const userId = await requireSession();
+    const { db } = await import("@/lib/db");
+    const { users, schools, locations, students, staff } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ schoolId: users.schoolId, role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new Error("Not authenticated");
+
+    const targetSchoolId = data.schoolId ? (user.role === "super_admin" ? data.schoolId : user.schoolId) : user.schoolId;
+
+    const [school] = await db
+      .select()
+      .from(schools)
+      .where(eq(schools.id, targetSchoolId))
+      .limit(1);
+    if (!school) throw new Error("School not found");
+
+    const locs = await db
+      .select()
+      .from(locations)
+      .where(eq(locations.schoolId, targetSchoolId))
+      .orderBy(asc(locations.name));
+
+    // Attach student + staff counts per branch
+    const locsWithCounts = await Promise.all(
+      locs.map(async (l) => {
+        const [{ cnt: studentCnt }] = await db
+          .select({ cnt: count() })
+          .from(students)
+          .where(and(eq(students.schoolId, targetSchoolId), eq(students.locationId, l.id)));
+        const [{ cnt: staffCnt }] = await db
+          .select({ cnt: count() })
+          .from(staff)
+          .where(and(eq(staff.schoolId, targetSchoolId), eq(staff.locationId, l.id)));
+        return { ...l, studentCount: Number(studentCnt), staffCount: Number(staffCnt) };
+      })
+    );
+
+    return { school, locations: locsWithCounts, role: user.role };
+  });
+
 const addBranchSchema = z.object({
+  schoolId: z.number(),
   name: z.string().trim().min(1).max(255),
   address: z.string().trim().max(1000).optional(),
   city: z.string().trim().max(100).optional(),
@@ -2430,20 +2439,22 @@ export const addBranch = createServerFn({ method: "POST" })
     if (!user) throw new Error("Not authenticated");
     if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
 
-    // Plan limit guard
-    if (user.schoolId) await checkPlanLimit(user.schoolId, "locations");
+    const targetSchoolId = user.role === "super_admin" ? data.schoolId : user.schoolId;
 
-    if (user.schoolId) {
+    // Plan limit guard
+    if (targetSchoolId) await checkPlanLimit(targetSchoolId, "locations");
+
+    if (targetSchoolId) {
       const [existing] = await db
         .select({ id: locations.id })
         .from(locations)
-        .where(and(eq(locations.schoolId, user.schoolId), eq(locations.name, data.name)))
+        .where(and(eq(locations.schoolId, targetSchoolId), eq(locations.name, data.name)))
         .limit(1);
       if (existing) throw new Error(`A branch named "${data.name}" already exists`);
     }
 
     const [res] = await db.insert(locations).values({
-      schoolId: user.schoolId,
+      schoolId: targetSchoolId,
       name: data.name,
       address: data.address || null,
       city: data.city || null,
@@ -2458,6 +2469,7 @@ export const addBranch = createServerFn({ method: "POST" })
   });
 
 const updateSchoolSchema = z.object({
+  schoolId: z.number(),
   name: z.string().trim().min(1).max(255).optional(),
   email: z.string().trim().email().max(255).optional().or(z.literal("")),
   phone: z.string().trim().max(50).optional(),
@@ -2482,6 +2494,8 @@ export const updateSchool = createServerFn({ method: "POST" })
     if (!user) throw new Error("Not authenticated");
     if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
 
+    const targetSchoolId = user.role === "super_admin" ? data.schoolId : user.schoolId;
+
     await db.update(schools).set({
       name: data.name,
       email: data.email || null,
@@ -2490,12 +2504,13 @@ export const updateSchool = createServerFn({ method: "POST" })
       city: data.city || null,
       state: data.state || null,
       pincode: data.pincode || null,
-    }).where(eq(schools.id, user.schoolId));
+    }).where(eq(schools.id, targetSchoolId));
 
     return { ok: true };
   });
 
 const updateSchoolLogoSchema = z.object({
+  schoolId: z.number(),
   logo: z.string().trim().min(1),
 });
 
@@ -2513,6 +2528,8 @@ export const updateSchoolLogo = createServerFn({ method: "POST" })
       .limit(1);
     if (!user) throw new Error("Not authenticated");
     if (!["school_admin", "super_admin"].includes(user.role ?? "")) throw new Error("Not authorized");
+
+    const targetSchoolId = user.role === "super_admin" ? data.schoolId : user.schoolId;
 
     const match = data.logo.match(/^data:image\/([a-zA-Z0-9+]+);base64,/);
     if (!match) throw new Error("Invalid image data");
@@ -2534,7 +2551,7 @@ export const updateSchoolLogo = createServerFn({ method: "POST" })
     if (buffer.length > 5 * 1024 * 1024) throw new Error("Image must be under 5MB");
 
     const mimeType = `image/${mimeExt === "svg" ? "svg+xml" : mimeExt}`;
-    const fileName = `schools/${user.schoolId}/logo/logo-${Date.now()}.${ext}`;
+    const fileName = `schools/${targetSchoolId}/logo/logo-${Date.now()}.${ext}`;
 
     let logoUrl: string;
 
@@ -2565,14 +2582,14 @@ export const updateSchoolLogo = createServerFn({ method: "POST" })
       logoUrl = `${r2PublicUrl!.replace(/\/$/, "")}/${fileName}`;
     } else {
       // Fallback: local disk (dev only)
-      const uploadDir = path.join(process.cwd(), "public", "uploads", "schools", String(user.schoolId), "logo");
+      const uploadDir = path.join(process.cwd(), "public", "uploads", "schools", String(targetSchoolId), "logo");
       await mkdir(uploadDir, { recursive: true });
       const localName = `logo-${Date.now()}.${ext}`;
       await writeFile(path.join(uploadDir, localName), buffer);
-      logoUrl = `/uploads/schools/${user.schoolId}/logo/${localName}`;
+      logoUrl = `/uploads/schools/${targetSchoolId}/logo/${localName}`;
     }
 
-    await db.update(schools).set({ logoUrl }).where(eq(schools.id, user.schoolId));
+    await db.update(schools).set({ logoUrl }).where(eq(schools.id, targetSchoolId));
     return { ok: true, logoUrl };
   });
 
@@ -3606,6 +3623,7 @@ export const getInvoicePrintData = createServerFn({ method: "GET" })
 // ─────────────────────────────────────────────────────────────────────────────
 
 const updateBranchSchema = z.object({
+  schoolId: z.number(),
   locationId: z.number(),
   name: z.string().trim().min(1).max(255),
   address: z.string().trim().max(1000).optional(),
@@ -3626,10 +3644,12 @@ export const updateBranch = createServerFn({ method: "POST" })
     const [user] = await db.select({ role: users.role, schoolId: users.schoolId }).from(users).where(eq(users.id, userId)).limit(1);
     if (!["school_admin", "super_admin"].includes(user?.role ?? "")) throw new Error("Not authorized");
 
+    const targetSchoolId = user.role === "super_admin" ? data.schoolId : user.schoolId;
+
     const [existing] = await db
       .select({ id: locations.id })
       .from(locations)
-      .where(and(eq(locations.schoolId, user.schoolId), eq(locations.name, data.name), ne(locations.id, data.locationId)))
+      .where(and(eq(locations.schoolId, targetSchoolId), eq(locations.name, data.name), ne(locations.id, data.locationId)))
       .limit(1);
     if (existing) throw new Error(`A branch named "${data.name}" already exists`);
 
@@ -3642,7 +3662,7 @@ export const updateBranch = createServerFn({ method: "POST" })
       phone: data.phone || null,
       capacity: data.capacity ?? null,
       status: data.status ?? undefined,
-    }).where(eq(locations.id, data.locationId));
+    }).where(and(eq(locations.id, data.locationId), eq(locations.schoolId, targetSchoolId)));
     return { ok: true };
   });
 

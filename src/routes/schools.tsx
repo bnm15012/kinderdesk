@@ -6,6 +6,7 @@ import {
   AlertCircle, Pencil, Phone, Mail, CreditCard, CheckCircle2, Eye, EyeOff,
 } from "lucide-react";
 import { getSchoolWithLocations, addBranch, updateSchool, updateBranch, updateSchoolLogo, saveRazorpayKeys, getSchoolPaymentSettings } from "@/lib/auth";
+import { useTenant } from "@/lib/tenant";
 import { PlanLimitDialog, parsePlanLimitError } from "@/components/plan-limit-dialog";
 
 export const Route = createFileRoute("/schools")({
@@ -30,7 +31,7 @@ const inputCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate
 
 // ── Add Branch Modal ───────────────────────────────────────────────────────
 
-function AddBranchModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function AddBranchModal({ schoolId, onClose, onSaved }: { schoolId: number; onClose: () => void; onSaved: () => void }) {
   const addFn = useServerFn(addBranch);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +44,7 @@ function AddBranchModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     try {
       await addFn({
         data: {
+          schoolId,
           name: f.name,
           address: f.address || undefined,
           city: f.city || undefined,
@@ -146,7 +148,7 @@ function EditSchoolModal({ school, onClose, onSaved }: { school: School; onClose
     e.preventDefault();
     setSaving(true); setError("");
     try {
-      await updateFn({ data: { name: f.name, email: f.email || "", phone: f.phone || undefined, address: f.address || undefined, city: f.city || undefined, state: f.state || undefined, pincode: f.pincode || undefined } });
+      await updateFn({ data: { schoolId: school.id, name: f.name, email: f.email || "", phone: f.phone || undefined, address: f.address || undefined, city: f.city || undefined, state: f.state || undefined, pincode: f.pincode || undefined } });
       onSaved();
     } catch (err: any) {
       setError(err?.message ?? "Failed to update school");
@@ -215,7 +217,7 @@ function EditSchoolModal({ school, onClose, onSaved }: { school: School; onClose
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
-function EditBranchModal({ branch, onClose, onSaved }: { branch: Location; onClose: () => void; onSaved: () => void }) {
+function EditBranchModal({ schoolId, branch, onClose, onSaved }: { schoolId: number; branch: Location; onClose: () => void; onSaved: () => void }) {
   const updateFn = useServerFn(updateBranch);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -230,7 +232,7 @@ function EditBranchModal({ branch, onClose, onSaved }: { branch: Location; onClo
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true); setError("");
     try {
-      await updateFn({ data: { locationId: branch.id, name: f.name, address: f.address || undefined, city: f.city || undefined, state: f.state || undefined, pincode: f.pincode || undefined, phone: f.phone || undefined, capacity: f.capacity ? parseInt(f.capacity) : undefined, status: f.status } });
+      await updateFn({ data: { schoolId, locationId: branch.id, name: f.name, address: f.address || undefined, city: f.city || undefined, state: f.state || undefined, pincode: f.pincode || undefined, phone: f.phone || undefined, capacity: f.capacity ? parseInt(f.capacity) : undefined, status: f.status } });
       onSaved();
     } catch (err: any) { setError(err?.message ?? "Failed"); }
     finally { setSaving(false); }
@@ -404,6 +406,7 @@ function RazorpaySettings({ schoolId }: { schoolId: number }) {
 }
 
 function SchoolsPage() {
+  const { tenant } = useTenant();
   const getFn = useServerFn(getSchoolWithLocations);
   const uploadLogoFn = useServerFn(updateSchoolLogo);
   const [data, setData] = useState<PageData | null>(null);
@@ -417,21 +420,21 @@ function SchoolsPage() {
 
   const load = () => {
     setLoading(true);
-    getFn()
+    getFn({ data: { schoolId: tenant.schoolId } })
       .then((d) => setData(d as PageData))
       .catch((e) => setError(e?.message ?? "Failed to load"))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [tenant.schoolId]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !data?.school) return;
     setUploading(true); setError("");
     try {
       const logo = await toBase64(file);
-      await uploadLogoFn({ data: { logo } });
+      await uploadLogoFn({ data: { schoolId: data.school.id, logo } });
       await load();
     } catch (err: any) {
       setError(err?.message ?? "Failed to upload logo");
@@ -624,9 +627,9 @@ function SchoolsPage() {
       {/* Razorpay Payment Settings */}
       {school && <RazorpaySettings schoolId={school.id} />}
 
-      {addOpen && <AddBranchModal onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); load(); }} />}
+      {addOpen && school && <AddBranchModal schoolId={school.id} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); load(); }} />}
       {editOpen && school && <EditSchoolModal school={school} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); load(); }} />}
-      {editBranch && <EditBranchModal branch={editBranch} onClose={() => setEditBranch(null)} onSaved={() => { setEditBranch(null); load(); }} />}
+      {editBranch && school && <EditBranchModal schoolId={school.id} branch={editBranch} onClose={() => setEditBranch(null)} onSaved={() => { setEditBranch(null); load(); }} />}
     </div>
   );
 }
