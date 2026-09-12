@@ -1,1 +1,0 @@
-ALTER TABLE `school_announcements` MODIFY COLUMN `target` enum('all','parents','staff','location_admin','teacher') DEFAULT 'all';
