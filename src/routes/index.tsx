@@ -689,7 +689,7 @@ function Home() {
             <GraduationCap className="w-7 h-7 text-white" />
           </div>
           <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
-            Ready to transform<br />your school?
+            Ready to transform your school?
           </h2>
           <p className="text-slate-300 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
             See KinderDesk in action — book a personalised demo and we'll walk you through everything your school needs.
