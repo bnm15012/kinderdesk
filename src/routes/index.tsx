@@ -5,6 +5,7 @@ import {
   ArrowRight, Star, CheckCircle2, Zap, MessageCircle,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public-layout";
+import { InstallAppButton } from "@/components/install-app-button";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -172,6 +173,7 @@ function Home() {
                 >
                   Sign in
                 </Link>
+                <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-900 px-8 py-4 rounded-xl font-bold text-base transition shadow-xl" />
               </div>
               <p className="text-sm text-slate-400 mt-5">No credit card needed · Setup in under 5 minutes</p>
             </div>
