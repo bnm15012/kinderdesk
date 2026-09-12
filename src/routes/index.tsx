@@ -640,13 +640,16 @@ function Home() {
           ════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-slate-900 to-slate-700 py-20">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
-            Take KinderDesk with you
-          </h2>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 mb-4">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              Take KinderDesk with you
+            </h2>
+            <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-blue-700 px-6 py-3 rounded-xl font-bold text-base transition shadow-lg" />
+          </div>
           <p className="text-slate-300 text-lg mb-10 max-w-2xl mx-auto">
             Install the app on your phone and manage fees, attendance, and parent communication from anywhere.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10 text-left">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
             {[
               { icon: Bell, title: "Instant alerts", desc: "Get notified for fee dues, announcements, and attendance." },
               { icon: Calendar, title: "On-the-go access", desc: "View timetables, mark attendance, and check schedules." },
@@ -659,7 +662,6 @@ function Home() {
               </div>
             ))}
           </div>
-          <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-blue-700 px-8 py-4 rounded-xl font-bold text-base transition shadow-lg" />
         </div>
       </section>
 
