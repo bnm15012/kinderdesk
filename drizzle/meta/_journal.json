@@ -1,0 +1,27 @@
+{
+  "version": "5",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "tag": "0000_push_subscriptions",
+      "hash": "3e445be6b9ab23f1cbca7e3b0c8e6738616d438fa14c38f5e3f1d582a2660987",
+      "breakpoints": false
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1789166194224,
+      "tag": "0001_dark_may_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1789190451961,
+      "tag": "0002_nosy_chronomancer",
+      "breakpoints": true
+    }
+  ]
+}

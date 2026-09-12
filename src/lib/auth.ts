@@ -4302,7 +4302,7 @@ const createAnnouncementSchema = z.object({
   title:      z.string().trim().min(1).max(255),
   body:       z.string().trim().min(1),
   type:       z.enum(["info", "warning", "success", "critical"]).default("info"),
-  targetRole: z.enum(["all", "school_admin", "location_admin", "teacher", "accountant"]).default("all"),
+  targetRole: z.enum(["all", "school_admin", "location_admin", "teacher", "accountant"]).default("school_admin"),
   expiresAt:  z.string().datetime().optional(), // ISO string
 });
 
@@ -4408,7 +4408,13 @@ export const getActiveAnnouncements = createServerFn({ method: "GET" }).handler(
   const { db } = await import("@/lib/db");
   const { schoolAnnouncements, schoolAnnouncementDismissals, announcements, announcementDismissals } = await import("@/lib/db/schema");
 
-  const target = user.role === "parent" ? "parents" : "staff";
+  const schoolTargetMatches = [eq(schoolAnnouncements.target, "all")];
+  if (user.role === "parent") {
+    schoolTargetMatches.push(eq(schoolAnnouncements.target, "parents"));
+  } else {
+    schoolTargetMatches.push(eq(schoolAnnouncements.target, "staff"));
+    schoolTargetMatches.push(eq(schoolAnnouncements.target, user.role as any));
+  }
 
   // ── School announcements ────────────────────────────────────────────────────
   const dismissedSchool = await db
@@ -4420,7 +4426,7 @@ export const getActiveAnnouncements = createServerFn({ method: "GET" }).handler(
   const schoolConditions = [
     eq(schoolAnnouncements.schoolId, user.schoolId),
     eq(schoolAnnouncements.locationId, user.locationId),
-    or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, target)),
+    or(...schoolTargetMatches),
   ];
   if (dismissedSchoolIds.length > 0) {
     schoolConditions.push(notInArray(schoolAnnouncements.id, dismissedSchoolIds));
@@ -6315,7 +6321,7 @@ const manageSchoolAnnouncementSchema = z.object({
   id: z.number().optional(),
   title: z.string().trim().min(1).max(200),
   message: z.string().optional(),
-  target: z.enum(["all", "parents", "staff"]).default("all"),
+  target: z.enum(["all", "parents", "staff", "location_admin", "teacher"]).default("all"),
 });
 
 const ANNOUNCEMENT_ROLES = new Set(["super_admin", "school_admin", "location_admin", "teacher"]);
@@ -6348,7 +6354,13 @@ export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
 
     try {
       const targetLocationId = SCHOOL_WIDE_ROLES.has(role ?? "") ? undefined : locationId;
-      await broadcastPush(data.title, data.message ?? "", "/announcements", schoolId, targetLocationId);
+      const targetRole =
+        data.target === "parents"
+          ? "parent"
+          : data.target === "all" || data.target === "staff"
+          ? undefined
+          : data.target;
+      await broadcastPush(data.title, data.message ?? "", "/announcements", schoolId, targetLocationId, targetRole);
     } catch (e) {
       console.error("broadcastPush (school) failed:", e);
     }
@@ -6357,7 +6369,7 @@ export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
   });
 
 const listSchoolAnnouncementsSchema = z.object({
-  target: z.enum(["all", "parents", "staff"]).optional(),
+  target: z.enum(["all", "parents", "staff", "location_admin", "teacher"]).optional(),
 });
 
 export const listSchoolAnnouncements = createServerFn({ method: "GET" })
@@ -6368,9 +6380,18 @@ export const listSchoolAnnouncements = createServerFn({ method: "GET" })
     const { schoolAnnouncements, announcements } = await import("@/lib/db/schema");
 
     // ── School announcements ────────────────────────────────────────────────────
+    const schoolTargetMatches = [eq(schoolAnnouncements.target, "all")];
+    if (user.role === "parent") {
+      schoolTargetMatches.push(eq(schoolAnnouncements.target, "parents"));
+    } else {
+      schoolTargetMatches.push(eq(schoolAnnouncements.target, "staff"));
+      schoolTargetMatches.push(eq(schoolAnnouncements.target, user.role as any));
+    }
+
     const schoolConditions = [
       eq(schoolAnnouncements.schoolId, user.schoolId),
       eq(schoolAnnouncements.locationId, user.locationId),
+      or(or(...schoolTargetMatches), eq(schoolAnnouncements.createdBy, user.id)),
     ];
     if (data.target) {
       schoolConditions.push(or(eq(schoolAnnouncements.target, "all"), eq(schoolAnnouncements.target, data.target)));

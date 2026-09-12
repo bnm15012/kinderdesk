@@ -9,6 +9,14 @@ export const Route = createFileRoute("/teacher/announcements")({
   component: TeacherAnnouncementsPage,
 });
 
+const TARGET_LABELS: Record<string, string> = {
+  all: "All",
+  parents: "Parents",
+  staff: "Staff",
+  location_admin: "Branch Admins",
+  teacher: "Teachers",
+};
+
 function TeacherAnnouncementsPage() {
   const listFn = useServerFn(listSchoolAnnouncements);
   const [items, setItems] = useState<any[]>([]);
@@ -16,7 +24,7 @@ function TeacherAnnouncementsPage() {
 
   useEffect(() => {
     setLoading(true);
-    listFn({ data: { target: "staff" } })
+    listFn({ data: {} })
       .then((d) => setItems(d as any[]))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -41,7 +49,7 @@ function TeacherAnnouncementsPage() {
                 </div>
                 <p className="text-xs text-slate-500 mb-1">{a.message}</p>
                 <p className="text-[10px] text-slate-400 mt-1">{fmtDateTime(a.createdAt)}</p>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{a.target}</span>
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{TARGET_LABELS[a.target] ?? a.target}</span>
               </div>
             ))}
           </div>

@@ -492,7 +492,7 @@ export const schoolAnnouncements = mysqlTable("school_announcements", {
   locationId: int("location_id").notNull().references(() => locations.id),
   title: varchar("title", { length: 200 }).notNull(),
   message: text("message"),
-  target: mysqlEnum("target", ["all", "parents", "staff"]).default("all"),
+  target: mysqlEnum("target", ["all", "parents", "staff", "location_admin", "teacher"]).default("all"),
   createdBy: int("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });

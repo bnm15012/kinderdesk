@@ -49,7 +49,7 @@ function ComposeModal({ onCreated, onClose }: { onCreated: () => void; onClose: 
   const [title, setTitle]           = useState("");
   const [body, setBody]             = useState("");
   const [type, setType]             = useState<AnnType>("info");
-  const [targetRole, setTargetRole] = useState<TargetRole>("all");
+  const [targetRole, setTargetRole] = useState<TargetRole>("school_admin");
   const [expiresAt, setExpiresAt]   = useState("");
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState("");
@@ -133,9 +133,7 @@ function ComposeModal({ onCreated, onClose }: { onCreated: () => void; onClose: 
               <select value={targetRole} onChange={(e) => setTargetRole(e.target.value as TargetRole)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition"
               >
-                {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
+                <option value="school_admin">School Admins</option>
               </select>
             </div>
           </div>
