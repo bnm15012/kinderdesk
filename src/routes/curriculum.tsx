@@ -242,24 +242,49 @@ function CurriculumPage() {
 
   const filtered = selectedClass ? activities.filter((a) => a.classId === selectedClass) : activities;
 
+  const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const hasInitExpanded = useRef(false);
+  const hasInit = useRef(false);
 
   useEffect(() => {
-    if (!hasInitExpanded.current && filtered.length) {
-      hasInitExpanded.current = true;
-      const keys = [...new Set(filtered.map((a) => new Date(a.activityDate as string).toISOString().slice(0, 10)))].sort().reverse();
-      if (keys[0]) setExpandedDates(new Set([keys[0]]));
+    if (!hasInit.current && filtered.length) {
+      hasInit.current = true;
+      const byYear = new Map<string, Map<string, Map<string, Activity[]>>>();
+      for (const act of filtered) {
+        const dateKey = new Date(act.activityDate as string).toISOString().slice(0, 10);
+        const [y, m] = dateKey.split("-");
+        const yearKey = y;
+        const monthKey = `${y}-${m}`;
+        if (!byYear.has(yearKey)) byYear.set(yearKey, new Map());
+        const byMonth = byYear.get(yearKey)!;
+        if (!byMonth.has(monthKey)) byMonth.set(monthKey, new Map());
+        const byDate = byMonth.get(monthKey)!;
+        if (!byDate.has(dateKey)) byDate.set(dateKey, []);
+        byDate.get(dateKey)!.push(act);
+      }
+      const sortedYears = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
+      const firstYear = sortedYears[0];
+      const byMonth = byYear.get(firstYear)!;
+      const sortedMonths = [...byMonth.keys()].sort((a, b) => b.localeCompare(a));
+      const firstMonth = sortedMonths[0];
+      const byDate = byMonth.get(firstMonth)!;
+      const sortedDates = [...byDate.keys()].sort((a, b) => b.localeCompare(a));
+      const firstDate = sortedDates[0];
+      setExpandedYears(new Set([firstYear]));
+      setExpandedMonths(new Set([firstMonth]));
+      setExpandedDates(new Set([firstDate]));
     }
   }, [filtered]);
 
+  const toggleYear = (yearKey: string) => {
+    setExpandedYears((prev) => { const n = new Set(prev); if (n.has(yearKey)) n.delete(yearKey); else n.add(yearKey); return n; });
+  };
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths((prev) => { const n = new Set(prev); if (n.has(monthKey)) n.delete(monthKey); else n.add(monthKey); return n; });
+  };
   const toggleDate = (dateKey: string) => {
-    setExpandedDates((prev) => {
-      const next = new Set(prev);
-      if (next.has(dateKey)) next.delete(dateKey);
-      else next.add(dateKey);
-      return next;
-    });
+    setExpandedDates((prev) => { const n = new Set(prev); if (n.has(dateKey)) n.delete(dateKey); else n.add(dateKey); return n; });
   };
 
   const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
@@ -358,11 +383,17 @@ function CurriculumPage() {
               return (
                 <div key={yearKey}>
                   {/* Year header */}
-                  <div className="flex items-center gap-3 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => toggleYear(yearKey)}
+                    className="w-full flex items-center gap-3 mb-6 group"
+                  >
+                    <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-200 ${expandedYears.has(yearKey) ? "" : "-rotate-90"}`} />
                     <span className="text-lg font-extrabold text-slate-900">{yearKey}</span>
                     <div className="flex-1 h-0.5 bg-slate-200 rounded-full" />
-                  </div>
+                  </button>
 
+                  {expandedYears.has(yearKey) && (
                   <div className="space-y-8">
                     {sortedMonths.map((monthKey) => {
                       const byDate = byMonth.get(monthKey)!;
@@ -373,11 +404,17 @@ function CurriculumPage() {
                       return (
                         <div key={monthKey} className="pl-2 border-l-4 border-blue-100">
                           {/* Month header */}
-                          <div className="flex items-center gap-2 mb-5">
+                          <button
+                            type="button"
+                            onClick={() => toggleMonth(monthKey)}
+                            className="w-full flex items-center gap-2 mb-5 group"
+                          >
+                            <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${expandedMonths.has(monthKey) ? "" : "-rotate-90"}`} />
                             <span className="text-base font-bold text-blue-700">{monthLabel}</span>
                             <span className="text-xs text-slate-400">· {totalInMonth} {totalInMonth === 1 ? "activity" : "activities"}</span>
-                          </div>
+                          </button>
 
+                          {expandedMonths.has(monthKey) && (
                           <div className="space-y-6">
                             {sortedDates.map((dateKey) => {
                               const dayActs = byDate.get(dateKey)!;
@@ -452,10 +489,12 @@ function CurriculumPage() {
                               );
                             })}
                           </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
+                  )}
                 </div>
               );
             });
