@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
-import { getSession } from "@/lib/auth";
+import { requireSession, requireUser } from "@/lib/session.server";
 import { getVapidConfig, broadcastPush } from "@/lib/push-core";
 
 export const getVapidPublicKey = createServerFn({ method: "GET" }).handler(async () => {
@@ -20,13 +20,12 @@ const subscribeSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .validator((input: unknown) => subscribeSchema.parse(input))
   .handler(async ({ data }) => {
-    const user = await getSession();
-    if (!user) throw new Error("Not authenticated");
+    const userId = await requireSession();
 
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, data.endpoint));
 
     const [result] = await db.insert(pushSubscriptions).values({
-      userId: user.id,
+      userId,
       endpoint: data.endpoint,
       p256dh: data.p256dh,
       auth: data.auth,
@@ -42,8 +41,7 @@ const unsubscribeSchema = z.object({
 export const unsubscribePush = createServerFn({ method: "POST" })
   .validator((input: unknown) => unsubscribeSchema.parse(input))
   .handler(async ({ data }) => {
-    const user = await getSession();
-    if (!user) throw new Error("Not authenticated");
+    await requireSession();
 
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, data.endpoint));
     return { ok: true };
@@ -59,8 +57,7 @@ const sendPushSchema = z.object({
 export const sendPush = createServerFn({ method: "POST" })
   .validator((input: unknown) => sendPushSchema.parse(input))
   .handler(async ({ data }) => {
-    const user = await getSession();
-    if (!user) throw new Error("Not authenticated");
+    const user = await requireUser();
 
     const isSuperAdmin = user.role === "super_admin";
     if (data.schoolId != null && !isSuperAdmin && user.schoolId !== data.schoolId) {
