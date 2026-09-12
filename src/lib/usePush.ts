@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import { getVapidPublicKey, subscribePush } from "@/lib/push";
 
 export function urlBase64ToUint8Array(base64String: string) {
@@ -44,7 +46,12 @@ export function usePush() {
 
     run().catch((e: any) => {
       console.error("Push subscription failed", e);
-      window.alert("Push subscription failed: " + (e?.message ?? e));
+      Swal.fire({
+        icon: "error",
+        title: "Push notifications",
+        text: "Could not enable push notifications. Please contact the support team if this issue continues.",
+        confirmButtonText: "OK",
+      });
     });
   }, [getKey, subscribe]);
 }
