@@ -319,7 +319,7 @@ function AcademicsPage() {
               }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg">Save board</button>
               {schoolBoard !== "preschool" && (
                 <button onClick={async () => {
-                  await seedDefaultGradingScalesFn({ data: {} });
+                  await seedDefaultGradingScalesFn({ data: { board: schoolBoard } });
                   const d = await listGradingScalesFn({ data: { board: schoolBoard } });
                   setGradingScalesList(d as Scale[]);
                   toast("Default scales seeded", "success");

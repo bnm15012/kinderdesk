@@ -6679,9 +6679,13 @@ export const deleteGradingScale = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Seed default grading scales for a board
+const seedDefaultScalesSchema = z.object({ board: z.enum(["preschool", "CBSE", "ICSE"]) });
+
+// Seed default grading scales for the selected board
 export const seedDefaultGradingScales = createServerFn({ method: "POST" })
-  .handler(async () => {
+  .validator((i: unknown) => seedDefaultScalesSchema.parse(i))
+  .handler(async ({ data }) => {
+    if (data.board === "preschool") throw new Error("No grading scales for preschool");
     const { schoolId } = await requireAuth();
     const { db } = await import("@/lib/db");
     const { gradingScales } = await import("@/lib/db/schema");
@@ -6707,23 +6711,14 @@ export const seedDefaultGradingScales = createServerFn({ method: "POST" })
         { name: "D",  min: 33, max: 39,  gp: 4 },
         { name: "F",  min: 0,  max: 32,  gp: 0 },
       ],
-      generic: [
-        { name: "A+", min: 90, max: 100 },
-        { name: "A",  min: 80, max: 89 },
-        { name: "B+", min: 70, max: 79 },
-        { name: "B",  min: 60, max: 69 },
-        { name: "C",  min: 50, max: 59 },
-        { name: "D",  min: 33, max: 49 },
-        { name: "F",  min: 0,  max: 32 },
-      ],
     };
 
-    for (const [board, rows] of Object.entries(defaults)) {
-      const existing = await db.select({ id: gradingScales.id }).from(gradingScales).where(and(eq(gradingScales.schoolId, schoolId), eq(gradingScales.board, board))).limit(1);
-      if (existing.length) continue;
+    const rows = defaults[data.board];
+    const existing = await db.select({ id: gradingScales.id }).from(gradingScales).where(and(eq(gradingScales.schoolId, schoolId), eq(gradingScales.board, data.board))).limit(1);
+    if (!existing.length) {
       await db.insert(gradingScales).values(rows.map((r) => ({
         schoolId,
-        board,
+        board: data.board,
         name: r.name,
         minPercentage: String(r.min),
         maxPercentage: String(r.max),
