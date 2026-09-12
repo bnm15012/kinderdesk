@@ -66,6 +66,7 @@ function CurriculumPage() {
   const [upDate, setUpDate]           = useState(today);
   const [upFile, setUpFile]           = useState<File | null>(null);
   const [upPreview, setUpPreview]     = useState<string | null>(null);
+  const [upFiles, setUpFiles]         = useState<{ file: File; preview: string }[]>([]);
   const [uploading, setUploading]     = useState(false);
   const [upError, setUpError]         = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -115,18 +116,37 @@ function CurriculumPage() {
     reader.readAsDataURL(file);
   };
 
+  const readFile = (file: File) =>
+    new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => resolve((ev.target?.result as string) ?? "");
+      reader.readAsDataURL(file);
+    });
+
+  const handleFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const newFiles: { file: File; preview: string }[] = [];
+    for (const file of files) {
+      const preview = await readFile(file);
+      if (preview) newFiles.push({ file, preview });
+    }
+    setUpFiles((prev) => [...prev, ...newFiles]);
+    if (e.target) e.target.value = "";
+  };
+
+  const removeUpFile = (index: number) => {
+    setUpFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!upClass) { setUpError("Please select a class"); return; }
     setUpError(""); setUploading(true);
     try {
-      let fileDataUrl: string | undefined;
-      let fileName: string | undefined;
-      if (upFile && upPreview) {
-        fileDataUrl = upPreview;
-        fileName = upFile.name;
-      }
       if (editingId) {
+        const fileDataUrl = upFile && upPreview ? upPreview : undefined;
+        const fileName = upFile ? upFile.name : undefined;
         await updateFn({
           data: {
             id: editingId,
@@ -139,19 +159,19 @@ function CurriculumPage() {
           },
         });
       } else {
+        const files = upFiles.map((f) => ({ fileDataUrl: f.preview, fileName: f.file.name }));
         await uploadFn({
           data: {
             classId: Number(upClass),
             title: upTitle,
             description: upDesc || undefined,
             activityDate: upDate,
-            fileDataUrl,
-            fileName,
+            files,
           },
         });
       }
       // Reset form
-      setUpTitle(""); setUpDesc(""); setUpDate(today); setUpFile(null); setUpPreview(null); setEditingId(null);
+      setUpTitle(""); setUpDesc(""); setUpDate(today); setUpFile(null); setUpPreview(null); setUpFiles([]); setEditingId(null);
       if (fileRef.current) fileRef.current.value = "";
       setShowUpload(false);
       // Reload activities
@@ -172,6 +192,7 @@ function CurriculumPage() {
     setUpDate(today);
     setUpFile(null);
     setUpPreview(null);
+    setUpFiles([]);
     if (fileRef.current) fileRef.current.value = "";
     setShowUpload(true);
   };
@@ -184,6 +205,7 @@ function CurriculumPage() {
     setUpDate(toInputDate(act.activityDate));
     setUpFile(null);
     setUpPreview(act.photoUrl);
+    setUpFiles([]);
     if (fileRef.current) fileRef.current.value = "";
     setShowUpload(true);
   };
@@ -475,31 +497,66 @@ function CurriculumPage() {
 
               {/* Photo upload */}
               <div>
-                <label className={labelCls}>Photo (optional)</label>
-                {upPreview ? (
-                  <div className="relative rounded-xl overflow-hidden border border-slate-200">
-                    <img src={upPreview} alt="Preview" className="w-full max-h-48 object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => { setUpFile(null); setUpPreview(null); if (fileRef.current) fileRef.current.value = ""; }}
-                      className="absolute top-2 right-2 p-1.5 bg-slate-900/60 hover:bg-slate-900/80 rounded-lg text-white transition"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                {editingId ? (
+                  <>
+                    <label className={labelCls}>Photo (optional)</label>
+                    {upPreview ? (
+                      <div className="relative rounded-xl overflow-hidden border border-slate-200">
+                        <img src={upPreview} alt="Preview" className="w-full max-h-48 object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => { setUpFile(null); setUpPreview(null); if (fileRef.current) fileRef.current.value = ""; }}
+                          className="absolute top-2 right-2 p-1.5 bg-slate-900/60 hover:bg-slate-900/80 rounded-lg text-white transition"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <Upload className="w-7 h-7 text-slate-300" />
+                        <span className="text-sm text-slate-500">Click to upload a photo</span>
+                        <span className="text-xs text-slate-400">JPG, PNG, WEBP up to 10 MB</span>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                      </label>
+                    )}
+                  </>
                 ) : (
-                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-                    <Upload className="w-7 h-7 text-slate-300" />
-                    <span className="text-sm text-slate-500">Click to upload a photo</span>
-                    <span className="text-xs text-slate-400">JPG, PNG, WEBP up to 10 MB</span>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                  </label>
+                  <>
+                    <label className={labelCls}>Photos (optional)</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mb-2">
+                      {upFiles.map((f, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                          <img src={f.preview} alt={f.file.name} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeUpFile(i)}
+                            className="absolute top-1 right-1 p-0.5 bg-slate-900/60 hover:bg-slate-900/80 rounded-md text-white transition"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                      <Upload className="w-6 h-6 text-slate-300" />
+                      <span className="text-sm text-slate-500">Click to add photos</span>
+                      <span className="text-xs text-slate-400">JPG, PNG, WEBP up to 10 MB each</span>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleFilesChange}
+                      />
+                    </label>
+                  </>
                 )}
               </div>
 
@@ -510,7 +567,7 @@ function CurriculumPage() {
                   Cancel
                 </button>
                 <button type="submit" disabled={uploading || !upTitle || !upClass} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition">
-                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</> : <><Upload className="w-4 h-4" /> Upload</>}
+                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> {editingId ? "Saving…" : "Uploading…"}</> : <>{editingId ? "Update" : <><Upload className="w-4 h-4" /> Upload</>}</>}
                 </button>
               </div>
             </form>

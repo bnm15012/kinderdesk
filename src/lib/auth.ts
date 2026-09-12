@@ -5083,14 +5083,17 @@ export const uploadBgVerificationDoc = createServerFn({ method: "POST" })
 // CURRICULUM ACTIVITIES
 // ─────────────────────────────────────────────────────────────────────────────
 
+const uploadFileSchema = z.object({
+  fileDataUrl: z.string(),
+  fileName:    z.string().max(255),
+});
+
 const uploadCurriculumActivitySchema = z.object({
   classId:      z.number(),
   title:        z.string().min(1).max(255),
   description:  z.string().max(2000).optional(),
   activityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  // base64 data-url: "data:<mime>;base64,<data>"
-  fileDataUrl:  z.string().optional(),
-  fileName:     z.string().max(255).optional(),
+  files:        z.array(uploadFileSchema).max(20).default([]),
 });
 
 export const uploadCurriculumActivity = createServerFn({ method: "POST" })
@@ -5145,33 +5148,49 @@ export const uploadCurriculumActivity = createServerFn({ method: "POST" })
       ? `${staffRecord.firstName ?? ""} ${staffRecord.lastName ?? ""}`.trim()
       : `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
 
-    let photoUrl: string | undefined;
-    let r2Key: string | undefined;
-
-    if (data.fileDataUrl && data.fileName) {
-      const [, meta, b64] = data.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/) ?? [];
-      if (!meta || !b64) throw new Error("Invalid file data");
-      const buffer = Buffer.from(b64, "base64");
-      const ext = data.fileName.split(".").pop() ?? "jpg";
-      r2Key = `schools/${user.schoolId}/curriculum/class-${data.classId}/${Date.now()}.${ext}`;
-      photoUrl = await uploadToR2orDisk(buffer, meta, r2Key);
-    }
-
     if (!user.locationId) throw new Error("Location not set for user");
-    const [result] = await db.insert(curriculumActivities).values({
-      schoolId:       user.schoolId,
-      locationId:     user.locationId,
-      classId:        data.classId,
-      uploadedBy:     staffRecord?.id ?? null,
-      uploadedByName: uploaderName || null,
-      title:          data.title,
-      description:    data.description ?? null,
-      activityDate:   new Date(data.activityDate),
-      photoUrl:       photoUrl ?? null,
-      r2Key:          r2Key ?? null,
-    });
 
-    return { ok: true, id: Number((result as any).insertId) };
+    const uploads = await Promise.all(
+      (data.files ?? []).map(async (f, i) => {
+        const [, meta, b64] = f.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/) ?? [];
+        if (!meta || !b64) throw new Error("Invalid file data");
+        const buffer = Buffer.from(b64, "base64");
+        const ext = f.fileName.split(".").pop() ?? "jpg";
+        const r2Key = `schools/${user.schoolId}/curriculum/class-${data.classId}/${Date.now()}-${i}.${ext}`;
+        const photoUrl = await uploadToR2orDisk(buffer, meta, r2Key);
+        return { photoUrl, r2Key };
+      })
+    );
+
+    const rows = uploads.length
+      ? uploads.map((u) => ({
+          schoolId:       user.schoolId,
+          locationId:     user.locationId,
+          classId:        data.classId,
+          uploadedBy:     staffRecord?.id ?? null,
+          uploadedByName: uploaderName || null,
+          title:          data.title,
+          description:    data.description ?? null,
+          activityDate:   new Date(data.activityDate),
+          photoUrl:       u.photoUrl ?? null,
+          r2Key:          u.r2Key ?? null,
+        }))
+      : [{
+          schoolId:       user.schoolId,
+          locationId:     user.locationId,
+          classId:        data.classId,
+          uploadedBy:     staffRecord?.id ?? null,
+          uploadedByName: uploaderName || null,
+          title:          data.title,
+          description:    data.description ?? null,
+          activityDate:   new Date(data.activityDate),
+          photoUrl:       null,
+          r2Key:          null,
+        }];
+
+    const result = await db.insert(curriculumActivities).values(rows as any);
+
+    return { ok: true, ids: (result as any).insertId ? Array.from({ length: rows.length }, (_, i) => Number((result as any).insertId) + i) : [] };
   });
 
 const updateCurriculumActivitySchema = z.object({
