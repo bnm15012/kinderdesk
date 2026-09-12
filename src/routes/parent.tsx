@@ -115,6 +115,16 @@ function ParentPortal() {
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
   const [expandedYear, setExpandedYear]   = useState<string | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+
+  const byYear = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const m of attendanceSummary) {
+      const year = (m.monthKey as string).slice(0, 4);
+      if (!map.has(year)) map.set(year, []);
+      map.get(year)!.push(m);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [attendanceSummary]);
   const [reportCardsList, setReportCardsList] = useState<any[]>([]);
 
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
@@ -232,16 +242,6 @@ function ParentPortal() {
     .reduce((a, f) => a + parseFloat(f.amount), 0);
   const pendingFees = childFees.filter((f) => ["sent","overdue"].includes(f.status));
   const paidFees = childFees.filter((f) => f.status === "paid");
-
-  const byYear = useMemo(() => {
-    const map = new Map<string, any[]>();
-    for (const m of attendanceSummary) {
-      const year = (m.monthKey as string).slice(0, 4);
-      if (!map.has(year)) map.set(year, []);
-      map.get(year)!.push(m);
-    }
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [attendanceSummary]);
 
   const yearStats = (months: any[]) => {
     const totalDays = months.reduce((a, m) => a + ((m.schoolDays as number) || 0), 0);
