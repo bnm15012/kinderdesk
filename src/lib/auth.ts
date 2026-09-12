@@ -6318,10 +6318,13 @@ const manageSchoolAnnouncementSchema = z.object({
   target: z.enum(["all", "parents", "staff"]).default("all"),
 });
 
+const ANNOUNCEMENT_ROLES = new Set(["super_admin", "school_admin", "location_admin", "teacher"]);
+
 export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
   .validator((i: unknown) => manageSchoolAnnouncementSchema.parse(i))
   .handler(async ({ data }) => {
     const { schoolId, locationId, userId, role } = await requireAuth();
+    if (!ANNOUNCEMENT_ROLES.has(role ?? "")) throw new Error("Not authorized");
     const { db } = await import("@/lib/db");
     const { schoolAnnouncements } = await import("@/lib/db/schema");
 
