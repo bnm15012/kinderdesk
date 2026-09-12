@@ -463,10 +463,10 @@ function CurriculumPage() {
                                             <h3 className="font-semibold text-slate-900 text-xs leading-snug line-clamp-2 flex-1">{act.title}</h3>
                                             {canManage && (
                                               <div className="flex items-center gap-0.5">
-                                                <button onClick={(e) => { e.stopPropagation(); startEdit(act); }} className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition">
+                                                <button onClick={(e) => { e.stopPropagation(); startEdit(act); }} className="shrink-0 p-1 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition">
                                                   <Pencil className="w-3 h-3" />
                                                 </button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(act.id); }} className="shrink-0 p-1 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition">
+                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(act.id); }} className="shrink-0 p-1 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition">
                                                   <Trash2 className="w-3 h-3" />
                                                 </button>
                                               </div>

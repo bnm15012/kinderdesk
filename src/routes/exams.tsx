@@ -235,8 +235,8 @@ function ExamsPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{e.status}</span>
-                        <button onClick={(ev) => { ev.stopPropagation(); setExamForm({ id: e.id, classId: e.classId, academicYear: e.academicYear, term: e.term, examType: e.examType || "", startDate: e.startDate || "", endDate: e.endDate || "", status: e.status }); }} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={async (ev) => { ev.stopPropagation(); await deleteExamFn({ data: { id: e.id } }); loadExams(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={(ev) => { ev.stopPropagation(); setExamForm({ id: e.id, classId: e.classId, academicYear: e.academicYear, term: e.term, examType: e.examType || "", startDate: e.startDate || "", endDate: e.endDate || "", status: e.status }); }} className="p-1.5 text-blue-500 hover:text-blue-700"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={async (ev) => { ev.stopPropagation(); await deleteExamFn({ data: { id: e.id } }); loadExams(); }} className="p-1.5 text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   </div>
@@ -305,7 +305,7 @@ function ExamsPage() {
                               <p className="text-xs text-slate-500">{es.examDate ? fmtDate(es.examDate) : "No date set"}</p>
                             </div>
                             <span className="text-xs text-slate-600">Max {es.maxMarks}</span>
-                            <button onClick={async () => { await deleteExamSubjectFn({ data: { id: es.id } }); setExamSubjects((p) => p.filter((x) => x.id !== es.id)); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={async () => { await deleteExamSubjectFn({ data: { id: es.id } }); setExamSubjects((p) => p.filter((x) => x.id !== es.id)); }} className="p-1.5 text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         ))}
                       </div>

@@ -171,8 +171,8 @@ function ExpensesPage() {
                   <td className="px-4 py-2.5 text-slate-500">{e.expenseDate ? new Date(e.expenseDate).toLocaleDateString("en-IN") : "—"}</td>
                   <td className="px-4 py-2.5 text-right font-medium text-slate-800">{money(parseFloat(e.amount))}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString().slice(0, 10) : today, staffId: undefined })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setForm({ id: e.id, category: e.category, description: e.description ?? "", amount: String(e.amount), expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString().slice(0, 10) : today, staffId: undefined })} className="p-1.5 text-blue-500 hover:text-blue-700"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={async () => { await deleteExpenseFn({ data: { id: e.id, schoolId: tenant.schoolId, locationId: tenant.locationId } }); await load(); }} className="p-1.5 text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
               ))}

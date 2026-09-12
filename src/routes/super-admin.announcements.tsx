@@ -329,7 +329,7 @@ function AnnouncementsPage() {
                       </button>
                       <button
                         onClick={() => setConfirmDelete(item)}
-                        className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"
+                        className="p-2 rounded-xl border border-slate-200 text-red-500 hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

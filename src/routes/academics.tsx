@@ -173,12 +173,12 @@ function AcademicsPage() {
                   {s.code && <p className="text-xs text-slate-400">{s.code}</p>}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setSubjectForm({ id: s.id, name: s.name, code: s.code ?? "" })} className="p-1.5 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setSubjectForm({ id: s.id, name: s.name, code: s.code ?? "" })} className="p-1.5 text-blue-500 hover:text-blue-700"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={async () => {
                     if (!confirm("Delete this subject?")) return;
                     await deleteSubjectFn({ data: { id: s.id } });
                     setSubjects((p) => p.filter((x) => x.id !== s.id));
-                  }} className="p-1.5 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                  }} className="p-1.5 text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             ))}
@@ -277,8 +277,8 @@ function AcademicsPage() {
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-slate-500">P{row.periodNumber}</span>
                             <div className="flex gap-1">
-                              <button onClick={() => setTtForm({ id: row.id, dayOfWeek: row.dayOfWeek, periodNumber: row.periodNumber, startTime: row.startTime ?? "", endTime: row.endTime ?? "", subjectId: row.subjectId ?? 0, teacherId: row.teacherId ?? 0 })} className="p-1 text-slate-500 hover:text-blue-600"><Pencil className="w-3 h-3" /></button>
-                              <button onClick={async () => { await deleteTimetableFn({ data: { id: row.id } }); setTt((p) => p.filter((x) => x.id !== row.id)); }} className="p-1 text-slate-500 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
+                              <button onClick={() => setTtForm({ id: row.id, dayOfWeek: row.dayOfWeek, periodNumber: row.periodNumber, startTime: row.startTime ?? "", endTime: row.endTime ?? "", subjectId: row.subjectId ?? 0, teacherId: row.teacherId ?? 0 })} className="p-1 text-blue-500 hover:text-blue-700"><Pencil className="w-3 h-3" /></button>
+                              <button onClick={async () => { await deleteTimetableFn({ data: { id: row.id } }); setTt((p) => p.filter((x) => x.id !== row.id)); }} className="p-1 text-red-500 hover:text-red-700"><Trash2 className="w-3 h-3" /></button>
                             </div>
                           </div>
                           <p className="text-sm font-bold text-slate-800">{row.subjectName ?? "—"}</p>
@@ -364,8 +364,8 @@ function AcademicsPage() {
                     <td className="px-4 py-2 text-center">{s.maxPercentage}</td>
                     <td className="px-4 py-2 text-center">{s.gradePoint ?? "—"}</td>
                     <td className="px-4 py-2 text-right flex gap-1 justify-end">
-                      <button onClick={() => setScaleForm({ id: s.id, name: s.name, minPercentage: String(s.minPercentage), maxPercentage: String(s.maxPercentage), gradePoint: s.gradePoint ? String(s.gradePoint) : "" })} className="p-1 text-slate-500 hover:text-blue-600"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={async () => { await deleteGradingScaleFn({ data: { id: s.id } }); setGradingScalesList((p) => p.filter((x) => x.id !== s.id)); }} className="p-1 text-slate-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setScaleForm({ id: s.id, name: s.name, minPercentage: String(s.minPercentage), maxPercentage: String(s.maxPercentage), gradePoint: s.gradePoint ? String(s.gradePoint) : "" })} className="p-1 text-blue-500 hover:text-blue-700"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={async () => { await deleteGradingScaleFn({ data: { id: s.id } }); setGradingScalesList((p) => p.filter((x) => x.id !== s.id)); }} className="p-1 text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></button>
                     </td>
                   </tr>
                 ))}
