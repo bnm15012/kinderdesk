@@ -5,6 +5,7 @@ import {
   ArrowRight, Star, CheckCircle2, Zap, MessageCircle,
 } from "lucide-react";
 import { PublicLayout } from "@/components/public-layout";
+import { InstallAppButton } from "@/components/install-app-button";
 
 export const Route = createFileRoute("/")({
   component: Home,
