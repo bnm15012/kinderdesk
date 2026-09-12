@@ -40,7 +40,10 @@ export function usePush() {
       });
     };
 
-    run().catch((e) => console.error("Push subscription failed", e));
+    run().catch((e: any) => {
+      console.error("Push subscription failed", e);
+      window.alert("Push subscription failed: " + (e?.message ?? e));
+    });
   }, [getKey, subscribe]);
 }
 
