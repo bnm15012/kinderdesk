@@ -243,11 +243,14 @@ function AcademicsPage() {
               <div className="flex gap-2">
                 <button onClick={async () => {
                   if (!selectedClass) return;
-                  await upsertTimetableFn({ data: { ...ttForm, classId: selectedClass } });
-                  setTtForm(null);
-                  const d = await getTimetableFn({ data: { classId: selectedClass } });
-                  setTt(d as TT[]);
-                  toast("Saved", "success");
+                  if (!ttForm.periodNumber || ttForm.periodNumber < 1) { toast("Enter a valid period number", "error"); return; }
+                  try {
+                    await upsertTimetableFn({ data: { ...ttForm, classId: selectedClass } });
+                    setTtForm(null);
+                    const d = await getTimetableFn({ data: { classId: selectedClass } });
+                    setTt(d as TT[]);
+                    toast("Saved", "success");
+                  } catch (err: any) { toast(err?.message ?? "Save failed", "error"); }
                 }} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg">Save</button>
                 <button onClick={() => setTtForm(null)} className="px-3 py-1.5 text-slate-600 text-xs font-semibold">Cancel</button>
               </div>

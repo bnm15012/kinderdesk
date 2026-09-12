@@ -6094,8 +6094,8 @@ export const upsertTimetable = createServerFn({ method: "POST" })
         periodNumber: data.periodNumber,
         startTime: data.startTime,
         endTime: data.endTime,
-        subjectId: data.subjectId ?? null,
-        teacherId: data.teacherId ?? null,
+        subjectId: data.subjectId || null,
+        teacherId: data.teacherId || null,
       }).where(eq(timetable.id, data.id));
       return { id: data.id };
     }
@@ -6108,8 +6108,8 @@ export const upsertTimetable = createServerFn({ method: "POST" })
       periodNumber: data.periodNumber,
       startTime: data.startTime,
       endTime: data.endTime,
-      subjectId: data.subjectId ?? null,
-      teacherId: data.teacherId ?? null,
+      subjectId: data.subjectId || null,
+      teacherId: data.teacherId || null,
     });
     return { id: Number((r as any).insertId) };
   });
