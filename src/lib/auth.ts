@@ -136,7 +136,7 @@ export const signup = createServerFn({ method: "POST" })
     return await db.transaction(async (tx) => {
       const [schoolResult] = await tx.insert(schools).values({
         name: data.schoolName,
-        email: data.schoolEmail,
+        email: data.schoolEmail ? normalizeEmail(data.schoolEmail) : null,
         phone: data.schoolPhone,
         address: data.schoolAddress,
         city: data.schoolCity,
@@ -2090,7 +2090,7 @@ export const addStudent = createServerFn({ method: "POST" })
       locationId: data.locationId,
       studentId,
       name: data.parentName,
-      email: data.parentEmail || null,
+      email: data.parentEmail ? normalizeEmail(data.parentEmail) : null,
       phone: data.parentPhone || null,
       relation: data.parentRelation,
       isPrimary: 1,
@@ -2304,16 +2304,16 @@ export const updateStudent = createServerFn({ method: "POST" })
 
       await db.update(parents).set({
         name: data.parentName,
-        email: data.parentEmail || null,
+        email: data.parentEmail ? normalizeEmail(data.parentEmail) : null,
         phone: data.parentPhone || null,
         relation: data.parentRelation ?? undefined,
       }).where(eq(parents.id, data.parentId));
 
       // Keep the parent user login email in sync
-      if (oldParent?.email && data.parentEmail && data.parentEmail !== oldParent.email) {
+      if (oldParent?.email && data.parentEmail && normalizeEmail(data.parentEmail) !== normalizeEmail(oldParent.email)) {
         await db.update(users)
-          .set({ email: data.parentEmail })
-          .where(eq(users.email, oldParent.email));
+          .set({ email: normalizeEmail(data.parentEmail) })
+          .where(eq(users.email, normalizeEmail(oldParent.email)));
       }
     }
 
@@ -2498,7 +2498,7 @@ export const updateSchool = createServerFn({ method: "POST" })
 
     await db.update(schools).set({
       name: data.name,
-      email: data.email || null,
+      email: data.email ? normalizeEmail(data.email) : null,
       phone: data.phone || null,
       address: data.address || null,
       city: data.city || null,
@@ -2655,7 +2655,7 @@ export const addInquiry = createServerFn({ method: "POST" })
       schoolId: data.schoolId,
       locationId: data.locationId,
       parentName: data.parentName,
-      email: data.email || null,
+      email: data.email ? normalizeEmail(data.email) : null,
       phone: data.phone || null,
       childName: data.childName,
       childDob: data.childDob ? new Date(data.childDob) : null,
@@ -2700,7 +2700,7 @@ export const updateInquiry = createServerFn({ method: "POST" })
 
     await db.update(inquiries).set({
       parentName: data.parentName,
-      email: data.email || null,
+      email: data.email ? normalizeEmail(data.email) : null,
       phone: data.phone || null,
       childName: data.childName,
       childDob: data.childDob ? new Date(data.childDob) : undefined,
@@ -2795,15 +2795,15 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
       if (existingParent) {
         await db.update(parents).set({
           name: data.parentName,
-          email: data.parentEmail || null,
+          email: data.parentEmail ? normalizeEmail(data.parentEmail) : null,
           phone: data.parentPhone || null,
         }).where(eq(parents.id, existingParent.id));
 
         // Keep the parent user login email in sync
-        if (existingParent.email && data.parentEmail && data.parentEmail !== existingParent.email) {
+        if (existingParent.email && data.parentEmail && normalizeEmail(data.parentEmail) !== normalizeEmail(existingParent.email)) {
           await db.update(users)
-            .set({ email: data.parentEmail })
-            .where(eq(users.email, existingParent.email));
+            .set({ email: normalizeEmail(data.parentEmail) })
+            .where(eq(users.email, normalizeEmail(existingParent.email)));
         }
       } else {
         await db.insert(parents).values({
@@ -2811,7 +2811,7 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
           locationId: data.locationId,
           studentId,
           name: data.parentName,
-          email: data.parentEmail || null,
+          email: data.parentEmail ? normalizeEmail(data.parentEmail) : null,
           phone: data.parentPhone || null,
           relation: "guardian",
           isPrimary: 1,
@@ -2836,7 +2836,7 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
         locationId: data.locationId,
         studentId,
         name: data.parentName,
-        email: data.parentEmail || null,
+        email: data.parentEmail ? normalizeEmail(data.parentEmail) : null,
         phone: data.parentPhone || null,
         relation: "guardian",
         isPrimary: 1,
@@ -2875,7 +2875,7 @@ export const enrollFromAdmission = createServerFn({ method: "POST" })
       status: "enrolled",
       studentId,
       parentName: data.parentName,
-      email: data.parentEmail || null,
+      email: data.parentEmail ? normalizeEmail(data.parentEmail) : null,
       phone: data.parentPhone || null,
       childName: `${firstName} ${lastName}`.trim(),
       childDob: dateOfBirth,
