@@ -231,7 +231,7 @@ function CurriculumPage() {
             // Group: year -> month -> date -> activities
             const byYear = new Map<string, Map<string, Map<string, Activity[]>>>();
             for (const act of filtered) {
-              const dateKey = (act.activityDate as string).slice(0, 10);
+              const dateKey = new Date(act.activityDate as string).toISOString().slice(0, 10);
               const [y, m] = dateKey.split("-");
               const yearKey = y;
               const monthKey = `${y}-${m}`;
