@@ -111,7 +111,7 @@ function AcademicsPage() {
           { key: "subjects", label: "Subjects", icon: BookOpen },
           { key: "classes", label: "Class Subjects", icon: GraduationCap },
           { key: "timetable", label: "Timetable", icon: Clock },
-          ...((schoolBoard !== "preschool" ? [{ key: "grading", label: "Board & Grading", icon: Award }] : []) as any[]),
+          { key: "grading", label: "Board & Grading", icon: Award },
         ] as any[]).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -317,15 +317,18 @@ function AcademicsPage() {
                 await setSchoolBoardFn({ data: { schoolId: tenant.schoolId, board: schoolBoard as any } });
                 toast("Board saved", "success");
               }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg">Save board</button>
-              <button onClick={async () => {
-                await seedDefaultGradingScalesFn({ data: {} });
-                const d = await listGradingScalesFn({ data: { board: schoolBoard } });
-                setGradingScalesList(d as Scale[]);
-                toast("Default scales seeded", "success");
-              }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg">Seed default scales</button>
+              {schoolBoard !== "preschool" && (
+                <button onClick={async () => {
+                  await seedDefaultGradingScalesFn({ data: {} });
+                  const d = await listGradingScalesFn({ data: { board: schoolBoard } });
+                  setGradingScalesList(d as Scale[]);
+                  toast("Default scales seeded", "success");
+                }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg">Seed default scales</button>
+              )}
             </div>
           </div>
 
+          {schoolBoard !== "preschool" && (
           <div>
             <h2 className="text-base font-bold text-slate-800 mb-3">Grading Scale — {schoolBoard}</h2>
             {scaleForm && (
@@ -378,6 +381,7 @@ function AcademicsPage() {
             </div>
             {gradingScalesList.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No grading scales for {schoolBoard}. Click "Seed default scales" or add manually.</p>}
           </div>
+          )}
         </div>
       )}
     </div>
