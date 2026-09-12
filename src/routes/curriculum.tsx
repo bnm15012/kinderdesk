@@ -242,6 +242,26 @@ function CurriculumPage() {
 
   const filtered = selectedClass ? activities.filter((a) => a.classId === selectedClass) : activities;
 
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const hasInitExpanded = useRef(false);
+
+  useEffect(() => {
+    if (!hasInitExpanded.current && filtered.length) {
+      hasInitExpanded.current = true;
+      const keys = [...new Set(filtered.map((a) => new Date(a.activityDate as string).toISOString().slice(0, 10)))].sort().reverse();
+      if (keys[0]) setExpandedDates(new Set([keys[0]]));
+    }
+  }, [filtered]);
+
+  const toggleDate = (dateKey: string) => {
+    setExpandedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) next.delete(dateKey);
+      else next.add(dateKey);
+      return next;
+    });
+  };
+
   const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition";
   const labelCls = "block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide";
 
@@ -366,19 +386,27 @@ function CurriculumPage() {
                                 : dateKey === yesterdayStr ? "Yesterday"
                                 : new Date(dateKey).toLocaleDateString("en-IN", { weekday: "short", day: "numeric" });
 
+                              const isExpanded = expandedDates.has(dateKey);
+
                               return (
                                 <div key={dateKey}>
                                   {/* Date header */}
-                                  <div className="flex items-center gap-2 mb-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleDate(dateKey)}
+                                    className="w-full flex items-center gap-2 mb-3 group"
+                                  >
+                                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"}`} />
                                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                                     <span className="text-sm font-semibold text-slate-700">{dayLabel}</span>
                                     <span className="text-xs text-slate-400">· {dayActs.length} {dayActs.length === 1 ? "photo" : "photos"}</span>
                                     <div className="flex-1 h-px bg-slate-100" />
-                                  </div>
+                                  </button>
 
                                   {/* Photo cards */}
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                                    {dayActs.map((act) => (
+                                  {isExpanded && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                                      {dayActs.map((act) => (
                                       <div
                                         key={act.id}
                                         onClick={() => canManage && startEdit(act)}
@@ -419,6 +447,7 @@ function CurriculumPage() {
                                       </div>
                                     ))}
                                   </div>
+                                  )}
                                 </div>
                               );
                             })}
