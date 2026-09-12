@@ -1,5 +1,5 @@
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getParentPortal, updateChildPersonal, updateParentContact, getCurriculumActivities, createRazorpayOrder, verifyRazorpayPayment, getStudentAttendanceSummary, listReportCards, listSchoolAnnouncements } from "@/lib/auth";
 import { Users, DollarSign, AlertCircle, CheckCircle2, Clock, CreditCard, BookOpen, Calendar, X, Image, Loader2, BarChart2, GraduationCap, ExternalLink, Megaphone, HeartPulse, ChevronDown } from "lucide-react";
@@ -113,6 +113,7 @@ function ParentPortal() {
 
   // Academic profile state
   const [attendanceSummary, setAttendanceSummary] = useState<any[]>([]);
+  const [expandedYear, setExpandedYear]   = useState<string | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
   const [reportCardsList, setReportCardsList] = useState<any[]>([]);
 
@@ -231,6 +232,71 @@ function ParentPortal() {
     .reduce((a, f) => a + parseFloat(f.amount), 0);
   const pendingFees = childFees.filter((f) => ["sent","overdue"].includes(f.status));
   const paidFees = childFees.filter((f) => f.status === "paid");
+
+  const byYear = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const m of attendanceSummary) {
+      const year = (m.monthKey as string).slice(0, 4);
+      if (!map.has(year)) map.set(year, []);
+      map.get(year)!.push(m);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [attendanceSummary]);
+
+  const yearStats = (months: any[]) => {
+    const totalDays = months.reduce((a, m) => a + ((m.schoolDays as number) || 0), 0);
+    const weighted = months.reduce((a, m) => a + ((m.pct as number) || 0) * ((m.schoolDays as number) || 0), 0);
+    return { totalDays, pct: totalDays > 0 ? Math.round(weighted / totalDays) : 0 };
+  };
+
+  const renderMonth = (m: any) => {
+    const pct = m.pct as number;
+    const barColor = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
+    const badgeColor = pct >= 75 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700";
+    const expanded = expandedMonth === m.monthKey;
+    const days = (m.days ?? []) as { date: string; status: string }[];
+    return (
+      <div key={m.monthKey} className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+        <button
+          onClick={() => setExpandedMonth(expanded ? null : m.monthKey)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-700">{m.label}</span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">{m.present}P · {m.absent}A</span>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{pct}%</span>
+          </div>
+        </button>
+        <div className="w-full h-1.5 bg-slate-100 mx-4 mb-3" style={{ width: "calc(100% - 2rem)" }}>
+          <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+        </div>
+        {expanded && (
+          <div className="px-4 pb-4 space-y-2">
+            {days.map((d: any) => {
+              const status = d.status as string;
+              const badge = status === "present"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : status === "absent"
+                ? "bg-red-50 text-red-700 border-red-200"
+                : status === "half_day"
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-slate-100 text-slate-600 border-slate-200";
+              const label = status === "half_day" ? "Half day" : status.charAt(0).toUpperCase() + status.slice(1);
+              return (
+                <div key={d.date} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <span className="text-sm text-slate-700">{fmtDate(d.date)}</span>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badge}`}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4 md:space-y-7">
@@ -575,49 +641,29 @@ function ParentPortal() {
               </div>
             ) : (
               <div className="p-6 space-y-2">
-                {attendanceSummary.slice(0, 6).map((m: any) => {
-                  const pct = m.pct as number;
+                {byYear.map(([year, months]) => {
+                  const open = expandedYear === year;
+                  const { pct } = yearStats(months);
                   const barColor = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
                   const badgeColor = pct >= 75 ? "bg-emerald-50 text-emerald-700" : pct >= 50 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700";
-                  const expanded = expandedMonth === m.monthKey;
-                  const days = (m.days ?? []) as { date: string; status: string }[];
                   return (
-                    <div key={m.monthKey} className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div key={year} className="rounded-xl border border-slate-200 overflow-hidden bg-white">
                       <button
-                        onClick={() => setExpandedMonth(expanded ? null : m.monthKey)}
+                        onClick={() => setExpandedYear(open ? null : year)}
                         className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-slate-700">{m.label}</span>
-                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                          <span className="text-sm font-semibold text-slate-700">{year}</span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400">{m.present}P · {m.absent}A</span>
+                          <span className="text-xs text-slate-400">{months.reduce((a: number, m: any) => a + (m.present || 0), 0)}P · {months.reduce((a: number, m: any) => a + (m.absent || 0), 0)}A</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{pct}%</span>
                         </div>
                       </button>
-                      <div className="w-full h-1.5 bg-slate-100 mx-4 mb-3" style={{ width: "calc(100% - 2rem)" }}>
-                        <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-                      </div>
-                      {expanded && (
-                        <div className="px-4 pb-4 space-y-2">
-                          {days.map((d: any) => {
-                            const status = d.status as string;
-                            const badge = status === "present"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : status === "absent"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : status === "half_day"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-slate-100 text-slate-600 border-slate-200";
-                            const label = status === "half_day" ? "Half day" : status.charAt(0).toUpperCase() + status.slice(1);
-                            return (
-                              <div key={d.date} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
-                                <span className="text-sm text-slate-700">{fmtDate(d.date)}</span>
-                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badge}`}>{label}</span>
-                              </div>
-                            );
-                          })}
+                      {open && (
+                        <div className="p-2 space-y-2 bg-slate-50/50">
+                          {months.map(renderMonth)}
                         </div>
                       )}
                     </div>
