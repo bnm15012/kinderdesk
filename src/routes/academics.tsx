@@ -67,7 +67,8 @@ function AcademicsPage() {
   const [ttForm, setTtForm] = useState<{ id?: number; dayOfWeek: number; periodNumber: number; startTime: string; endTime: string; subjectId: number; teacherId: number } | null>(null);
 
   // Grading / board
-  const [schoolBoard, setSchoolBoardValue] = useState<string>("generic");
+  const ALLOWED_BOARDS = ["preschool", "CBSE", "ICSE"];
+  const [schoolBoard, setSchoolBoardValue] = useState<string>("preschool");
   type Scale = { id: number; board: string; name: string; minPercentage: string | number; maxPercentage: string | number; gradePoint: string | number | null };
   const [gradingScalesList, setGradingScalesList] = useState<Scale[]>([]);
   const [scaleForm, setScaleForm] = useState<{ id?: number; name: string; minPercentage: string; maxPercentage: string; gradePoint: string } | null>(null);
@@ -82,7 +83,7 @@ function AcademicsPage() {
     if (!tenant) return;
     if (activeTab === "subjects") listSubjectsFn({ data: { schoolId: tenant.schoolId } }).then((d) => setSubjects(d as Subject[]));
     if (activeTab === "grading") {
-      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoardValue(d));
+      getSchoolBoardFn({ data: { schoolId: tenant.schoolId } }).then((d: any) => setSchoolBoardValue(ALLOWED_BOARDS.includes(d) ? d : "preschool"));
       listGradingScalesFn({ data: { board: schoolBoard } }).then((d: any) => setGradingScalesList(d));
     }
   }, [activeTab, tenant, schoolBoard]);
@@ -308,11 +309,8 @@ function AcademicsPage() {
             <div className="flex items-center gap-3">
               <select value={schoolBoard} onChange={(e) => setSchoolBoardValue(e.target.value)} className={inputCls + " w-48 bg-white"}>
                 <option value="preschool">Preschool (no exams/marks)</option>
-                <option value="generic">Generic</option>
                 <option value="CBSE">CBSE</option>
                 <option value="ICSE">ICSE</option>
-                <option value="IB">IB</option>
-                <option value="STATE">State Board</option>
               </select>
               <button onClick={async () => {
                 if (!tenant) return;
