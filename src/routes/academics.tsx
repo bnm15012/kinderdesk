@@ -236,8 +236,14 @@ function AcademicsPage() {
                   <label className="text-[10px] text-slate-500 font-medium mb-1">Period</label>
                   <input type="number" value={ttForm.periodNumber} onChange={(e) => setTtForm({ ...ttForm, periodNumber: Number(e.target.value) })} className={inputCls} placeholder="#" />
                 </div>
-                <input value={ttForm.startTime} onChange={(e) => setTtForm({ ...ttForm, startTime: e.target.value })} className={inputCls} placeholder="09:00" />
-                <input value={ttForm.endTime} onChange={(e) => setTtForm({ ...ttForm, endTime: e.target.value })} className={inputCls} placeholder="09:45" />
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-slate-500 font-medium mb-1">Start</label>
+                  <input value={ttForm.startTime} onChange={(e) => setTtForm({ ...ttForm, startTime: e.target.value })} className={inputCls} placeholder="09:00" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-slate-500 font-medium mb-1">End</label>
+                  <input value={ttForm.endTime} onChange={(e) => setTtForm({ ...ttForm, endTime: e.target.value })} className={inputCls} placeholder="09:45" />
+                </div>
                 <select value={ttForm.subjectId} onChange={(e) => setTtForm({ ...ttForm, subjectId: Number(e.target.value) })} className={inputCls + " bg-white"}>
                   <option value={0}>— subject —</option>
                   {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
