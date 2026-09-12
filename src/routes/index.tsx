@@ -644,7 +644,7 @@ function Home() {
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
               Take KinderDesk with you
             </h2>
-            <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-blue-700 px-6 py-3 rounded-xl font-bold text-base transition shadow-lg" />
+            <InstallAppButton className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-xl font-bold text-base transition shadow-lg" />
           </div>
           <p className="text-slate-300 text-lg mb-10 max-w-2xl mx-auto">
             Install the app on your phone and manage fees, attendance, and parent communication from anywhere.
