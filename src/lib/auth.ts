@@ -890,7 +890,7 @@ export const getTeacherDashboard = createServerFn({ method: "GET" }).handler(asy
   const [staffRecord] = await db
     .select({ id: staff.id })
     .from(staff)
-    .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+    .where(and(eq(staff.schoolId, user.schoolId), or(eq(staff.userId, user.id), eq(staff.email, user.email ?? ""))))
     .limit(1);
   if (!staffRecord) throw new Error("Not authorized");
 
@@ -983,7 +983,7 @@ export const getClassStudents = createServerFn({ method: "GET" })
     const [staffRecord] = await db
       .select({ id: staff.id })
       .from(staff)
-      .where(and(eq(staff.schoolId, user.schoolId), eq(staff.email, user.email ?? "")))
+      .where(and(eq(staff.schoolId, user.schoolId), or(eq(staff.userId, user.id), eq(staff.email, user.email ?? ""))))
       .limit(1);
     if (!staffRecord) throw new Error("Not authorized");
 
