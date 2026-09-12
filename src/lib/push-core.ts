@@ -17,6 +17,7 @@ export async function broadcastPush(
   body: string,
   url: string,
   targetSchoolId?: number,
+  targetLocationId?: number,
   targetRole?: string
 ) {
   const { publicKey, privateKey } = getVapidConfig();
@@ -24,6 +25,7 @@ export async function broadcastPush(
 
   const conditions = [];
   if (targetSchoolId != null) conditions.push(eq(users.schoolId, targetSchoolId));
+  if (targetLocationId != null) conditions.push(eq(users.locationId, targetLocationId));
   if (targetRole != null && targetRole !== "all") conditions.push(eq(users.role, targetRole));
 
   const base = db
@@ -69,6 +71,6 @@ export async function broadcastPush(
     }
   }
 
-  console.log("broadcastPush:", { title, total: subs.length, sent, removed, targetSchoolId, targetRole });
+  console.log("broadcastPush:", { title, total: subs.length, sent, removed, targetSchoolId, targetLocationId, targetRole });
   return { sent, removed, total: subs.length };
 }

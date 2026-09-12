@@ -4332,7 +4332,7 @@ export const createAnnouncement = createServerFn({ method: "POST" })
     });
 
     try {
-      await broadcastPush(data.title, data.body, "/announcements", undefined, data.targetRole);
+      await broadcastPush(data.title, data.body, "/announcements", undefined, undefined, data.targetRole);
     } catch (e) {
       console.error("broadcastPush (super admin) failed:", e);
     }
@@ -6321,7 +6321,7 @@ const manageSchoolAnnouncementSchema = z.object({
 export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
   .validator((i: unknown) => manageSchoolAnnouncementSchema.parse(i))
   .handler(async ({ data }) => {
-    const { schoolId, locationId, userId } = await requireAuth();
+    const { schoolId, locationId, userId, role } = await requireAuth();
     const { db } = await import("@/lib/db");
     const { schoolAnnouncements } = await import("@/lib/db/schema");
 
@@ -6344,7 +6344,8 @@ export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
     });
 
     try {
-      await broadcastPush(data.title, data.message ?? "", "/announcements", schoolId);
+      const targetLocationId = SCHOOL_WIDE_ROLES.has(role ?? "") ? undefined : locationId;
+      await broadcastPush(data.title, data.message ?? "", "/announcements", schoolId, targetLocationId);
     } catch (e) {
       console.error("broadcastPush (school) failed:", e);
     }
