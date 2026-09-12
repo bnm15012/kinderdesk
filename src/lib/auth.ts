@@ -4587,11 +4587,9 @@ async function uploadToR2orDisk(
     await s3.send(new PutObjectCommand({ Bucket: r2Bucket!, Key: key, Body: buffer, ContentType: mimeType }));
     return `${r2PublicUrl!.replace(/\/$/, "")}/${key}`;
   } else {
-    // local dev fallback — mirror the R2 key structure under public/uploads/
-    const filePath = path.join(process.cwd(), "public", "uploads", ...key.split("/"));
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, buffer);
-    return `/uploads/${key}`;
+    // No R2 configured — return an in-place data URL so uploads still work in serverless envs.
+    // Set real R2 credentials in production to keep DB small and serve files from Cloudflare.
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
   }
 }
 
