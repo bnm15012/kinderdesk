@@ -3164,7 +3164,7 @@ export const addStaffMember = createServerFn({ method: "POST" })
     const [res] = await db.insert(staff).values({
       schoolId: data.schoolId, locationId: data.locationId,
       firstName: data.firstName, lastName: data.lastName,
-      email: data.email || null, phone: data.phone || null,
+      email: data.email ? normalizeEmail(data.email) : null, phone: data.phone || null,
       role: data.role,
       joinDate: data.joinDate ? new Date(data.joinDate) : null,
       salary: data.salary || null,
@@ -3238,7 +3238,7 @@ export const updateStaffMember = createServerFn({ method: "POST" })
     const [row] = await db.select({ userId: staff.userId, email: staff.email }).from(staff).where(eq(staff.id, data.staffId)).limit(1);
     await db.update(staff).set({
       firstName: data.firstName, lastName: data.lastName ?? "",
-      email: data.email || null, phone: data.phone || null,
+      email: data.email ? normalizeEmail(data.email) : null, phone: data.phone || null,
       role: data.role ?? undefined,
       joinDate: data.joinDate ? new Date(data.joinDate) : undefined,
       salary: data.salary || null,
