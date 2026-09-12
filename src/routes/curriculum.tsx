@@ -47,7 +47,7 @@ function CurriculumPage() {
   const deleteFn        = useServerFn(deleteCurriculumActivity);
   const updateFn        = useServerFn(updateCurriculumActivity);
 
-  const [isAdmin, setIsAdmin]         = useState(false);
+  const [canManage, setCanManage]     = useState(false);
   const [classes, setClasses]         = useState<ClassInfo[]>([]);
   const [activities, setActivities]   = useState<Activity[]>([]);
   const [selectedClass, setSelectedClass] = useState<number | "">("");
@@ -77,7 +77,8 @@ function CurriculumPage() {
       const session = (await getSessionFn()) as { role: string; schoolId: number; locationId: number } | null;
       const role = session?.role ?? "";
       const admin = ADMIN_ROLES.includes(role);
-      setIsAdmin(admin);
+      const manageable = admin || role === "teacher" || role === "staff";
+      setCanManage(manageable);
 
       if (admin) {
         // Admin: get all classes for the selected location
@@ -369,8 +370,8 @@ function CurriculumPage() {
                                     {dayActs.map((act) => (
                                       <div
                                         key={act.id}
-                                        onClick={() => isAdmin && startEdit(act)}
-                                        className={`bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group ${isAdmin ? "cursor-pointer" : ""}`}
+                                        onClick={() => canManage && startEdit(act)}
+                                        className={`bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group ${canManage ? "cursor-pointer" : ""}`}
                                       >
                                         {act.photoUrl ? (
                                           <div className="relative aspect-square cursor-pointer overflow-hidden bg-slate-100" onClick={(e) => { e.stopPropagation(); setLightbox(act.photoUrl!); }}>
@@ -384,7 +385,7 @@ function CurriculumPage() {
                                         <div className="p-2.5">
                                           <div className="flex items-start justify-between gap-1">
                                             <h3 className="font-semibold text-slate-900 text-xs leading-snug line-clamp-2 flex-1">{act.title}</h3>
-                                            {isAdmin && (
+                                            {canManage && (
                                               <div className="flex items-center gap-0.5">
                                                 <button onClick={(e) => { e.stopPropagation(); startEdit(act); }} className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition">
                                                   <Pencil className="w-3 h-3" />
