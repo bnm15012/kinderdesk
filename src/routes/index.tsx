@@ -638,16 +638,8 @@ function Home() {
       {/* ════════════════════════════════════════
           MOBILE APP DOWNLOAD
           ════════════════════════════════════════ */}
-      <section className="relative py-20 overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=1800&q=80"
-          alt="Bright preschool classroom"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 to-slate-900/90" />
-
-        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
+      <section className="bg-gradient-to-br from-slate-900 to-slate-700 py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
             Take KinderDesk with you
           </h2>
