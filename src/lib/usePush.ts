@@ -24,6 +24,9 @@ export function usePush() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     const run = async () => {
+      const hasSession = /(?:^|;\s*)bb_session=/.test(document.cookie);
+      if (!hasSession) return;
+
       let permission = Notification.permission;
       const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
       if (isTouchDevice && permission === "default") {
