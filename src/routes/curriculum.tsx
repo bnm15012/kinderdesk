@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getTeacherDashboard, getSession, listClasses, uploadCurriculumActivity, getCurriculumActivities, deleteCurriculumActivity } from "@/lib/auth";
+import { getTeacherDashboard, getSession, listClasses, uploadCurriculumActivity, getCurriculumActivities, deleteCurriculumActivity, updateCurriculumActivity } from "@/lib/auth";
 import { useTenant } from "@/lib/tenant";
-import { ImagePlus, Trash2, X, Upload, BookOpen, Calendar, ChevronDown, AlertCircle, Loader2, Plus, Image } from "lucide-react";
+import { ImagePlus, Trash2, X, Upload, BookOpen, Calendar, ChevronDown, AlertCircle, Loader2, Plus, Image, Pencil } from "lucide-react";
 import { todayIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/curriculum")({
@@ -25,6 +25,18 @@ type Activity = {
 
 const ADMIN_ROLES = ["school_admin", "location_admin", "super_admin"];
 
+function toInputDate(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const d = new Date(value as string);
+  return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
+
+function formatDisplayDate(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const d = new Date(value as string);
+  return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function CurriculumPage() {
   const { tenant }      = useTenant();
   const getSessionFn    = useServerFn(getSession);
@@ -33,6 +45,7 @@ function CurriculumPage() {
   const uploadFn        = useServerFn(uploadCurriculumActivity);
   const getActivitiesFn = useServerFn(getCurriculumActivities);
   const deleteFn        = useServerFn(deleteCurriculumActivity);
+  const updateFn        = useServerFn(updateCurriculumActivity);
 
   const [isAdmin, setIsAdmin]         = useState(false);
   const [classes, setClasses]         = useState<ClassInfo[]>([]);
@@ -41,6 +54,7 @@ function CurriculumPage() {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
   const [showUpload, setShowUpload]   = useState(false);
+  const [editingId, setEditingId]     = useState<number | null>(null);
   const [lightbox, setLightbox]       = useState<string | null>(null);
 
   const today = todayIST();
@@ -112,18 +126,32 @@ function CurriculumPage() {
         fileDataUrl = upPreview;
         fileName = upFile.name;
       }
-      await uploadFn({
-        data: {
-          classId: Number(upClass),
-          title: upTitle,
-          description: upDesc || undefined,
-          activityDate: upDate,
-          fileDataUrl,
-          fileName,
-        },
-      });
+      if (editingId) {
+        await updateFn({
+          data: {
+            id: editingId,
+            classId: Number(upClass),
+            title: upTitle,
+            description: upDesc || undefined,
+            activityDate: upDate,
+            fileDataUrl,
+            fileName,
+          },
+        });
+      } else {
+        await uploadFn({
+          data: {
+            classId: Number(upClass),
+            title: upTitle,
+            description: upDesc || undefined,
+            activityDate: upDate,
+            fileDataUrl,
+            fileName,
+          },
+        });
+      }
       // Reset form
-      setUpTitle(""); setUpDesc(""); setUpDate(today); setUpFile(null); setUpPreview(null);
+      setUpTitle(""); setUpDesc(""); setUpDate(today); setUpFile(null); setUpPreview(null); setEditingId(null);
       if (fileRef.current) fileRef.current.value = "";
       setShowUpload(false);
       // Reload activities
@@ -134,6 +162,30 @@ function CurriculumPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const startAdd = () => {
+    setEditingId(null);
+    setUpClass(classes[0]?.classId ?? "");
+    setUpTitle("");
+    setUpDesc("");
+    setUpDate(today);
+    setUpFile(null);
+    setUpPreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+    setShowUpload(true);
+  };
+
+  const startEdit = (act: Activity) => {
+    setEditingId(act.id);
+    setUpClass(act.classId);
+    setUpTitle(act.title);
+    setUpDesc(act.description ?? "");
+    setUpDate(toInputDate(act.activityDate));
+    setUpFile(null);
+    setUpPreview(act.photoUrl);
+    if (fileRef.current) fileRef.current.value = "";
+    setShowUpload(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -176,7 +228,7 @@ function CurriculumPage() {
           <p className="text-sm text-slate-500 mt-0.5 sm:hidden">Upload classroom activity photos</p>
         </div>
         <button
-          onClick={() => setShowUpload(true)}
+          onClick={startAdd}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-sm transition shrink-0 whitespace-nowrap"
         >
           <Plus className="w-4 h-4" /> Add Activity
@@ -216,7 +268,7 @@ function CurriculumPage() {
           </div>
           <p className="text-slate-700 font-semibold mb-1">No activities yet</p>
           <p className="text-slate-400 text-sm mb-5">Upload photos of classroom activities to keep parents updated</p>
-          <button onClick={() => setShowUpload(true)} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition">
+          <button onClick={startAdd} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition">
             Upload first activity
           </button>
         </div>
@@ -293,9 +345,13 @@ function CurriculumPage() {
                                   {/* Photo cards */}
                                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                                     {dayActs.map((act) => (
-                                      <div key={act.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group">
+                                      <div
+                                        key={act.id}
+                                        onClick={() => isAdmin && startEdit(act)}
+                                        className={`bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition group ${isAdmin ? "cursor-pointer" : ""}`}
+                                      >
                                         {act.photoUrl ? (
-                                          <div className="relative aspect-square cursor-pointer overflow-hidden bg-slate-100" onClick={() => setLightbox(act.photoUrl!)}>
+                                          <div className="relative aspect-square cursor-pointer overflow-hidden bg-slate-100" onClick={(e) => { e.stopPropagation(); setLightbox(act.photoUrl!); }}>
                                             <img src={act.photoUrl} alt={act.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                           </div>
                                         ) : (
@@ -307,10 +363,19 @@ function CurriculumPage() {
                                           <div className="flex items-start justify-between gap-1">
                                             <h3 className="font-semibold text-slate-900 text-xs leading-snug line-clamp-2 flex-1">{act.title}</h3>
                                             {isAdmin && (
-                                              <button onClick={() => handleDelete(act.id)} className="shrink-0 p-1 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition">
-                                                <Trash2 className="w-3 h-3" />
-                                              </button>
+                                              <div className="flex items-center gap-0.5">
+                                                <button onClick={(e) => { e.stopPropagation(); startEdit(act); }} className="shrink-0 p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition">
+                                                  <Pencil className="w-3 h-3" />
+                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(act.id); }} className="shrink-0 p-1 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition">
+                                                  <Trash2 className="w-3 h-3" />
+                                                </button>
+                                              </div>
                                             )}
+                                          </div>
+                                          <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
+                                            <Calendar className="w-3 h-3" />
+                                            {formatDisplayDate(act.activityDate)}
                                           </div>
                                           {act.description && <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{act.description}</p>}
                                           <span className="inline-flex items-center gap-1 text-xs text-slate-400 mt-1">
@@ -343,7 +408,7 @@ function CurriculumPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
               <div className="flex items-center gap-2.5">
                 <ImagePlus className="w-5 h-5 text-blue-600" />
-                <h2 className="text-base font-bold text-slate-900">Add Activity</h2>
+                <h2 className="text-base font-bold text-slate-900">{editingId ? "Edit Activity" : "Add Activity"}</h2>
               </div>
               <button onClick={() => setShowUpload(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition">
                 <X className="w-4 h-4" />

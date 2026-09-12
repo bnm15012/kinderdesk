@@ -5174,6 +5174,85 @@ export const uploadCurriculumActivity = createServerFn({ method: "POST" })
     return { ok: true, id: Number((result as any).insertId) };
   });
 
+const updateCurriculumActivitySchema = z.object({
+  id: z.number(),
+  classId: z.number().optional(),
+  title: z.string().min(1).max(255),
+  description: z.string().max(2000).optional(),
+  activityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  fileDataUrl: z.string().optional(),
+  fileName: z.string().max(255).optional(),
+});
+
+export const updateCurriculumActivity = createServerFn({ method: "POST" })
+  .validator((input: unknown) => updateCurriculumActivitySchema.parse(input))
+  .handler(async ({ data }) => {
+    const req = getRequest();
+    const cookieHeader = req?.headers.get("cookie") ?? "";
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`));
+    const token = match?.[1];
+    if (!token) throw new Error("Not authenticated");
+    const { payload } = await verifySessionToken(token);
+    const userId = Number(payload.userId);
+
+    const { db } = await import("@/lib/db");
+    const { users, staff, curriculumActivities } = await import("@/lib/db/schema");
+
+    const [user] = await db
+      .select({ id: users.id, role: users.role, schoolId: users.schoolId, locationId: users.locationId, email: users.email })
+      .from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new Error("Not authenticated");
+    if (user.role !== "teacher" && user.role !== "staff" && user.role !== "school_admin" && user.role !== "location_admin" && user.role !== "super_admin")
+      throw new Error("Not authorized");
+
+    const [existing] = await db
+      .select({ id: curriculumActivities.id, schoolId: curriculumActivities.schoolId, photoUrl: curriculumActivities.photoUrl, r2Key: curriculumActivities.r2Key })
+      .from(curriculumActivities)
+      .where(and(eq(curriculumActivities.id, data.id), eq(curriculumActivities.schoolId, user.schoolId)))
+      .limit(1);
+    if (!existing) throw new Error("Activity not found");
+
+    const isAdmin = ["school_admin", "location_admin", "super_admin"].includes(user.role ?? "");
+    if (!isAdmin && user.role !== "super_admin") {
+      const [staffRecord] = await db
+        .select({ id: staff.id })
+        .from(staff)
+        .where(and(eq(staff.schoolId, user.schoolId), or(eq(staff.userId, user.id), eq(staff.email, user.email ?? ""))))
+        .limit(1);
+      const [activity] = await db
+        .select({ uploadedBy: curriculumActivities.uploadedBy })
+        .from(curriculumActivities)
+        .where(eq(curriculumActivities.id, data.id))
+        .limit(1);
+      if (!staffRecord || !activity || activity.uploadedBy !== staffRecord.id) {
+        throw new Error("Not authorized");
+      }
+    }
+
+    let photoUrl: string | null = existing.photoUrl ?? null;
+    let r2Key: string | null = existing.r2Key ?? null;
+
+    if (data.fileDataUrl && data.fileName) {
+      const [, meta, b64] = data.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/) ?? [];
+      if (!meta || !b64) throw new Error("Invalid file data");
+      const buffer = Buffer.from(b64, "base64");
+      const ext = data.fileName.split(".").pop() ?? "jpg";
+      r2Key = `schools/${user.schoolId}/curriculum/class-${data.classId ?? existing.classId ?? 0}/${Date.now()}.${ext}`;
+      photoUrl = await uploadToR2orDisk(buffer, meta, r2Key);
+    }
+
+    await db.update(curriculumActivities).set({
+      classId: data.classId,
+      title: data.title,
+      description: data.description ?? null,
+      activityDate: new Date(data.activityDate),
+      photoUrl,
+      r2Key,
+    }).where(eq(curriculumActivities.id, data.id));
+
+    return { ok: true };
+  });
+
 const getCurriculumActivitiesSchema = z.object({
   classId: z.number().optional(),
   studentId: z.number().optional(),
