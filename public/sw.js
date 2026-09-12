@@ -39,6 +39,10 @@ self.addEventListener("push", (event) => {
       icon: data.icon ?? "/icon-192.png",
       badge: data.badge ?? "/icon-192.png",
       data: data,
+      actions: [
+        { action: "open", title: "View" },
+        { action: "dismiss", title: "Dismiss" },
+      ],
     })
   );
 });
@@ -47,10 +51,19 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const data = event.notification.data ?? {};
   const url = data.url ?? "/";
+
+  if (event.action === "dismiss") {
+    return;
+  }
+
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url === url && "focus" in client) {
+      if (clientList.length > 0) {
+        const client = clientList[0];
+        if ("navigate" in client) {
+          return client.navigate(url).then(() => client.focus());
+        }
+        if ("focus" in client) {
           return client.focus();
         }
       }

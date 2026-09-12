@@ -4332,7 +4332,7 @@ export const createAnnouncement = createServerFn({ method: "POST" })
     });
 
     try {
-      await broadcastPush(data.title, data.body, "/", undefined, data.targetRole);
+      await broadcastPush(data.title, data.body, "/announcements", undefined, data.targetRole);
     } catch (e) {
       console.error("broadcastPush (super admin) failed:", e);
     }
