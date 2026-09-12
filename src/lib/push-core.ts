@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import webpush from "web-push";
 import { db } from "@/lib/db";
 import { users, pushSubscriptions } from "@/lib/db/schema";
@@ -16,10 +16,15 @@ export async function broadcastPush(
   title: string,
   body: string,
   url: string,
-  targetSchoolId?: number
+  targetSchoolId?: number,
+  targetRole?: string
 ) {
   const { publicKey, privateKey } = getVapidConfig();
   webpush.setVapidDetails("mailto:admin@kinderdesk.in", publicKey, privateKey);
+
+  const conditions = [];
+  if (targetSchoolId != null) conditions.push(eq(users.schoolId, targetSchoolId));
+  if (targetRole != null && targetRole !== "all") conditions.push(eq(users.role, targetRole));
 
   const base = db
     .select({
@@ -31,10 +36,9 @@ export async function broadcastPush(
     .from(pushSubscriptions)
     .innerJoin(users, eq(users.id, pushSubscriptions.userId));
 
-  const subs =
-    targetSchoolId != null
-      ? await base.where(eq(users.schoolId, targetSchoolId))
-      : await base;
+  const subs = conditions.length
+    ? await base.where(and(...conditions))
+    : await base;
 
   let sent = 0;
   let removed = 0;
@@ -59,9 +63,12 @@ export async function broadcastPush(
       if (e.statusCode === 404 || e.statusCode === 410) {
         await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
         removed++;
+      } else {
+        console.error("webpush failed for", sub.endpoint, "status:", e.statusCode, "error:", e);
       }
     }
   }
 
+  console.log("broadcastPush:", { title, total: subs.length, sent, removed, targetSchoolId, targetRole });
   return { sent, removed, total: subs.length };
 }

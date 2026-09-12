@@ -4332,9 +4332,9 @@ export const createAnnouncement = createServerFn({ method: "POST" })
     });
 
     try {
-      await broadcastPush(data.title, data.body, "/");
-    } catch {
-      // Push not configured or no subscriptions yet — don't fail the announcement.
+      await broadcastPush(data.title, data.body, "/", undefined, data.targetRole);
+    } catch (e) {
+      console.error("broadcastPush (super admin) failed:", e);
     }
 
     return { ok: true, id: Number((r as any).insertId) };
@@ -6285,9 +6285,9 @@ export const manageSchoolAnnouncement = createServerFn({ method: "POST" })
     });
 
     try {
-      await broadcastPush(data.title, data.message, "/announcements", schoolId);
-    } catch {
-      // Ignore push failures.
+      await broadcastPush(data.title, data.message ?? "", "/announcements", schoolId);
+    } catch (e) {
+      console.error("broadcastPush (school) failed:", e);
     }
 
     return { id: Number((r as any).insertId) };
